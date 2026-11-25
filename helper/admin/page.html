@@ -16,7 +16,7 @@
   <section id="signin" class="signin" hidden>
     <div class="signin-card">
       <h1 class="signin-title">Admin page</h1>
-      <p id="signin-ended" class="warn" hidden>That link has ended, or isn't one of this page's.</p>
+      <p id="signin-ended" class="warn" hidden>This link has ended, or it is not a link for this page.</p>
       <form id="email-form" class="signin-form email-signin" autocomplete="on" novalidate>
         <label for="email-address" class="muted small">Sign in with your email</label>
         <div class="signin-row"><input id="email-address" type="email" placeholder="you@corp.example" autocomplete="email" aria-label="Your email"><button type="submit" class="primary" value="email">Email me a link</button></div>
@@ -33,10 +33,10 @@
   <section id="work" class="code-page" hidden>
     <div class="code-main">
       <div class="code-bar">
-        <button id="left-toggle" class="icon side-toggle" aria-pressed="true" title="Home, people, keys, the network, the machine, and activity" aria-label="The left panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
-        <button id="home-button" class="team home-button" title="Home: every app on the machine">hi on <span id="machine">…</span></button>
+        <button id="left-toggle" class="icon side-toggle" aria-pressed="true" title="Show or hide the left panel" aria-label="Left panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
+        <button id="home-button" class="team home-button" title="Home: all apps on this machine">hi on <span id="machine">…</span></button>
         <span id="crumb" class="crumb" hidden><span class="muted" aria-hidden="true">▸</span> <strong id="crumb-app"></strong></span>
-        <div id="org-sections" class="chips" role="group" aria-label="The server's sections" hidden>
+        <div id="org-sections" class="chips" role="group" aria-label="Server sections" hidden>
           <button data-org-section="overview" aria-pressed="true">Overview</button>
           <button data-org-section="vault" aria-pressed="false">Vault</button>
           <button data-org-section="users" aria-pressed="false">Users</button>
@@ -49,7 +49,7 @@
           <button data-org-section="slack" aria-pressed="false">Slack</button>
           <button data-org-section="walls" aria-pressed="false">Wall screens</button>
         </div>
-        <div id="sections" class="chips" role="group" aria-label="The app's sections" hidden>
+        <div id="sections" class="chips" role="group" aria-label="App sections" hidden>
           <button data-section="overview" aria-pressed="true">Overview</button>
           <button data-section="people" aria-pressed="false">People</button>
           <button data-section="agents" aria-pressed="false">Agents</button>
@@ -66,35 +66,35 @@
           <button id="open-button" aria-haspopup="menu" aria-expanded="false">Open ▾</button>
           <div id="open-menu" class="menu" role="menu" hidden></div>
         </div>
-        <div id="presence" class="presence" role="status" aria-label="Who's on this page" hidden></div>
+        <div id="presence" class="presence" role="status" aria-label="People on this page" hidden></div>
         <div class="theme-wrap"><button id="theme-btn" type="button" class="icon" title="Theme" aria-label="Theme"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button></div>
-        <button id="right-toggle" class="icon side-toggle" aria-pressed="true" title="What comes out of what's open: requests, jobs, logs, and incidents" aria-label="The right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
+        <button id="right-toggle" class="icon side-toggle" aria-pressed="true" title="Show or hide the right panel" aria-label="Right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
       </div>
       <div id="vault-banner" class="vault-banner" role="alert" hidden></div>
       <div class="code-body">
-        <aside id="left-side" class="side side-left" aria-label="The left panel" hidden>
-          <div id="left-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
+        <aside id="left-side" class="side side-left" aria-label="Left panel" hidden>
+          <div id="left-resize" class="side-resize" title="Drag to change the width" aria-hidden="true"></div>
           <nav class="side-tabs" role="tablist" aria-label="Views">
-            <button data-side="apps" role="tab" aria-selected="false" title="Home: the server and the apps on this machine, and their state" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span id="apps-count" class="side-badge" hidden></span></button>
-            <button data-side="people" role="tab" aria-selected="false" title="People: everyone with a level in the apps" aria-label="People"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6 6 0 0 1 3.5 6"/></svg></button>
-            <button data-side="keys" role="tab" aria-selected="false" title="Keys: the machine's keys and sign-ins, and which apps have their own" aria-label="Keys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg></button>
-            <button data-side="network" role="tab" aria-selected="false" title="Network: the apps' domain, sign-in providers, each app's peer, and what to ask your IT team" aria-label="Network"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg></button>
-            <button data-side="machine" role="tab" aria-selected="false" title="Machine: hi's version and Update, the admin page's address, and other machines" aria-label="Machine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span id="machine-badge" class="side-badge dot" hidden></span></button>
-            <button data-side="activity" role="tab" aria-selected="false" title="Activity: what admins did here, and hi's own, newest first" aria-label="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></button>
+            <button data-side="apps" role="tab" aria-selected="false" title="Home: the server and the apps on this machine" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span id="apps-count" class="side-badge" hidden></span></button>
+            <button data-side="people" role="tab" aria-selected="false" title="People: everyone with an access level in an app" aria-label="People"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6 6 0 0 1 3.5 6"/></svg></button>
+            <button data-side="keys" role="tab" aria-selected="false" title="Keys: machine keys, sign-ins and app keys" aria-label="Keys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg></button>
+            <button data-side="network" role="tab" aria-selected="false" title="Network: domain, sign-in providers and app peers" aria-label="Network"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg></button>
+            <button data-side="machine" role="tab" aria-selected="false" title="Machine: hi version, admin page address and other machines" aria-label="Machine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span id="machine-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="activity" role="tab" aria-selected="false" title="Activity: what admins and hi did, newest first" aria-label="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></button>
             <span class="grow"></span>
             <button id="left-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
           </nav>
           <section id="side-apps" class="side-view" role="tabpanel" aria-label="Apps" hidden>
             <div class="logs-tools">
               <input id="apps-search" type="search" placeholder="Find an app" aria-label="Find an app" autocomplete="off">
-              <button id="apps-new" class="small" title="New app: make one, adopt a project, or bring one back">+ New app</button>
+              <button id="apps-new" class="small" title="Make an app, adopt a project or bring back an app">+ New app</button>
             </div>
             <ul id="apps-list" class="stask-list app-list"></ul>
           </section>
           <section id="side-people" class="side-view" role="tabpanel" aria-label="People" hidden>
             <div class="logs-tools">
               <input id="people-search" data-nav type="search" placeholder="Find someone" aria-label="Find someone" autocomplete="off">
-              <button id="people-add" class="small" title="Add someone: by email, with Slack or without">+ Add</button>
+              <button id="people-add" class="small" title="Add a person by email, with or without Slack">+ Add</button>
             </div>
             <div id="people-apps"></div>
             <div id="people-admins" class="pad" hidden>
@@ -103,7 +103,7 @@
                 <input id="admin-add-name" required maxlength="60" placeholder="Their name" aria-label="Their name">
                 <input id="admin-add-slack" maxlength="20" placeholder="Their Slack member ID (optional)" aria-label="Their Slack member ID">
                 <input id="admin-add-email" type="email" maxlength="200" placeholder="Their email (optional)" aria-label="Their email" hidden>
-                <label class="check"><input id="admin-add-send" type="checkbox"> Send their link by Slack DM, not shown here</label>
+                <label class="check"><input id="admin-add-send" type="checkbox"> Send the link in a Slack DM, and do not show it here</label>
                 <div class="buttons"><button type="button" id="admin-add-cancel">Cancel</button><button class="primary" type="submit">Add</button></div>
               </form>
               <p id="admins-note" class="muted small" hidden></p>
@@ -122,7 +122,7 @@
             <h2>The admin page</h2>
             <div id="machine-reach" class="machine-block"></div>
             <form id="netbird-form" class="machine-block stack" autocomplete="off" hidden>
-              <label for="netbird-key">Its NetBird peer's setup key, once: in NetBird's dashboard, Setup Keys. It is kept until the peer has joined, and never shown again.</label>
+              <label for="netbird-key">Setup key for the NetBird peer of the admin page. Get it in the NetBird dashboard, under Setup Keys. hi keeps the key until the peer joins. hi never shows it again.</label>
               <div class="signin-row">
                 <input id="netbird-key" type="password" required placeholder="Setup key" autocomplete="off">
                 <button class="primary" type="submit">Join</button>
@@ -130,7 +130,7 @@
             </form>
             <h2 class="with-action">Other machines <span class="grow"></span></h2>
             <div id="machines-view" class="machine-block"></div>
-            <p class="muted small">An admin can do on this page what anyone logged in to the machine as <span id="machine-user"></span> can, except what needs <code>sudo</code>.</p>
+            <p class="muted small">On this page, an admin can do what the user <span id="machine-user"></span> can do on the machine. Tasks that need <code>sudo</code> are not possible here.</p>
             <div class="machine-block"><button id="signout" class="small">Sign out here</button></div>
           </section>
           <section id="side-activity" class="side-view" role="tabpanel" aria-label="Activity" hidden>
@@ -153,23 +153,23 @@
               <div id="home-cards" class="app-cards"></div>
             </section>
             <section id="overview" class="admin-section" aria-label="Overview" hidden></section>
-            <section id="orgview" class="admin-section" aria-label="The server" hidden></section>
+            <section id="orgview" class="admin-section" aria-label="Server" hidden></section>
             <section id="policy" class="admin-section" aria-label="Budgets and approval" hidden></section>
             <section id="newapp" class="admin-section" aria-label="New app" hidden></section>
-            <section id="person" class="admin-section" aria-label="A person" hidden></section>
+            <section id="person" class="admin-section" aria-label="Person" hidden></section>
           </div>
         </div>
 
-        <aside id="right-side" class="side side-right" aria-label="The right panel" hidden>
-          <div id="right-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
+        <aside id="right-side" class="side side-right" aria-label="Right panel" hidden>
+          <div id="right-resize" class="side-resize" title="Drag to change the width" aria-hidden="true"></div>
           <nav class="side-tabs" role="tablist" aria-label="Views">
-            <button data-side="requests" role="tab" aria-selected="false" title="Requests: the server's, devices that want to join and compute waiting for an approval" aria-label="Requests" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg><span id="requests-count" class="side-badge" hidden></span></button>
-            <button data-side="running" role="tab" aria-selected="false" title="Running: the server's machines, for every user, with their cost so far" aria-label="Running" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg><span id="running-count" class="side-badge" hidden></span></button>
-            <button data-side="spend" role="tab" aria-selected="false" title="Spend: the server's, per user and group, compute and models" aria-label="Spend" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></button>
-            <button data-side="jobs" role="tab" aria-selected="false" title="Jobs: the open app's long actions, running and done, with their output" aria-label="Jobs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="jobs-badge" class="side-badge dot" hidden></span></button>
-            <button data-side="logs" role="tab" aria-selected="false" title="Logs: what's open, the server or an app's lead and service, as they come" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
-            <button data-side="incidents" data-apps role="tab" aria-selected="false" title="Incidents: what's open, the server or an app, the open ones first" aria-label="Incidents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span id="incidents-count" class="side-badge" hidden></span></button>
-            <button data-side="advisories" role="tab" aria-selected="false" title="Advisories: the open app's, or every app's, worst first" aria-label="Advisories"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg><span id="advisories-count" class="side-badge" hidden></span></button>
+            <button data-side="requests" role="tab" aria-selected="false" title="Requests: devices that want to join, and compute that waits for approval" aria-label="Requests" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg><span id="requests-count" class="side-badge" hidden></span></button>
+            <button data-side="running" role="tab" aria-selected="false" title="Running: compute machines of all users, with cost so far" aria-label="Running" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg><span id="running-count" class="side-badge" hidden></span></button>
+            <button data-side="spend" role="tab" aria-selected="false" title="Spend: compute and model cost, per user and group" aria-label="Spend" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></button>
+            <button data-side="jobs" role="tab" aria-selected="false" title="Jobs: long tasks of the open app, with their output" aria-label="Jobs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="jobs-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="logs" role="tab" aria-selected="false" title="Logs: live logs of the open server or app" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="incidents" data-apps role="tab" aria-selected="false" title="Incidents: of the open server or app, open ones first" aria-label="Incidents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span id="incidents-count" class="side-badge" hidden></span></button>
+            <button data-side="advisories" role="tab" aria-selected="false" title="Advisories: for the open app or all apps, worst first" aria-label="Advisories"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg><span id="advisories-count" class="side-badge" hidden></span></button>
             <span class="grow"></span>
             <button id="right-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
           </nav>
@@ -193,7 +193,7 @@
             <ul id="jobs-list" class="stask-list"></ul>
             <div id="job-one" class="job-one" hidden>
               <div class="logs-tools">
-                <button id="job-back" class="side-icon" title="All the jobs" aria-label="All the jobs">←</button>
+                <button id="job-back" class="side-icon" title="All jobs" aria-label="All jobs">←</button>
                 <strong id="job-title" class="stask-id"></strong>
                 <span class="grow"></span>
                 <span id="job-state" class="muted small"></span>
@@ -217,7 +217,7 @@
             <div class="logs-tools advisories-tools">
               <span id="advisories-checked" class="muted small" aria-live="polite"></span>
               <span class="grow"></span>
-              <button id="advisories-check" class="small" type="button" title="Match production's packages against the advisories now, not at the day's check">Check now</button>
+              <button id="advisories-check" class="small" type="button" title="Check the production packages against advisories now. hi also checks once a day.">Check now</button>
             </div>
             <ul id="advisories-list" class="feed"></ul>
           </section>
@@ -248,7 +248,7 @@
   <p id="move-text" class="muted"></p>
   <ul id="move-list" class="list move-list"></ul>
   <form id="move-add" class="signin-row" autocomplete="off">
-    <input id="move-add-name" maxlength="200" placeholder="Another machine: its name on NetBird" aria-label="Another machine">
+    <input id="move-add-name" maxlength="200" placeholder="Name of another machine on NetBird" aria-label="Another machine">
     <button type="submit">Add</button>
   </form>
   <div id="move-check" class="move-check"></div>
@@ -262,7 +262,7 @@
   <h2 id="link-title">The link</h2>
   <p id="link-text" class="muted"></p>
   <div class="signin-row"><input id="link-value" readonly aria-label="The link"><button id="link-copy" class="primary">Copy</button></div>
-  <p class="muted small">Whoever opens it can do what an admin of the machine does. Give it only to them.</p>
+  <p class="muted small">A person who opens this link can do all that an admin of the machine can do. Give it only to that person.</p>
   <div class="buttons"><button id="link-close">Done</button></div>
 </dialog>
 

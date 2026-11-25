@@ -21,15 +21,15 @@
   <section id="tab-terminal" class="code-page">
     <div class="code-main">
     <div class="code-bar">
-      <button id="left-toggle" class="icon side-toggle" aria-pressed="true" title="Tasks, workspaces, files, search, checks, decisions, and security" aria-label="The left panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
+      <button id="left-toggle" class="icon side-toggle" aria-pressed="true" title="Tasks, workspaces, files, search, checks, decisions, users, and keys" aria-label="The left panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
       <strong id="team" class="team">hi app</strong>
       <div id="code-view" class="chips" role="group" aria-label="How to show the session">
         <button data-view="chat" aria-pressed="true">Chat</button>
         <button data-view="terminal" aria-pressed="false">Terminal</button>
-        <button data-view="file" aria-pressed="false" id="files-chip" class="files-chip" title="The files you opened, each a tab in the editor" hidden>Files<span id="files-count" class="count"></span></button>
+        <button data-view="file" aria-pressed="false" id="files-chip" class="files-chip" title="The files you opened. Each file has a tab in the editor." hidden>Files<span id="files-count" class="count"></span></button>
       </div>
       <div id="space-wrap" class="space-wrap">
-        <button id="space-btn" type="button" class="space-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="space-menu" title="The workspaces and their sessions, and + New"><span id="space-label" class="space-label">Start something new</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <button id="space-btn" type="button" class="space-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="space-menu" title="Workspaces and sessions. Use + New to start new work."><span id="space-label" class="space-label">Start something new</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
         <div id="space-menu" class="theme-menu space-menu" role="menu" aria-label="Workspaces and sessions" hidden></div>
       </div>
       <span id="editor-bar" class="editor-split" hidden></span>
@@ -37,12 +37,12 @@
       <span class="grow"></span>
       <span id="chat-status" class="muted small chat-status"></span>
       <div id="links-wrap" class="theme-wrap" hidden><button id="links-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="links-menu" title="Open production or the preview" aria-label="Open production or the preview"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg></button><div id="links-menu" class="theme-menu links-menu" role="menu" hidden><div class="theme-head">Open</div><div id="links"></div></div></div>
-      <div id="presence" class="presence" role="status" aria-label="Who's on this page" hidden></div>
-      <div class="theme-wrap mode-wrap"><button id="layout-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="layout-menu" title="Panels: three, or two with the chat on the left" aria-label="Panels"></button><div id="layout-menu" class="theme-menu mode-menu" role="menu" aria-label="Panels" hidden></div></div>
-      <div class="theme-wrap mode-wrap"><button id="mode-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="mode-menu" title="Vibe mode or Pro mode: how much of the page shows" aria-label="Vibe mode or Pro mode"></button><div id="mode-menu" class="theme-menu mode-menu" role="menu" aria-label="How much shows" hidden></div></div>
+      <div id="presence" class="presence" role="status" aria-label="Who is on this page" hidden></div>
+      <div class="theme-wrap mode-wrap"><button id="layout-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="layout-menu" title="Panels: show three panels, or two with the chat on the left" aria-label="Panels"></button><div id="layout-menu" class="theme-menu mode-menu" role="menu" aria-label="Panels" hidden></div></div>
+      <div class="theme-wrap mode-wrap"><button id="mode-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="mode-menu" title="Vibe mode or Pro mode: how much of the page you see" aria-label="Vibe mode or Pro mode"></button><div id="mode-menu" class="theme-menu mode-menu" role="menu" aria-label="How much of the page you see" hidden></div></div>
       <div class="theme-wrap"><button id="theme-btn" type="button" class="icon" title="Theme" aria-label="Theme"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button></div>
       <div class="inbox-wrap">
-        <button id="inbox-btn" type="button" class="icon inbox-btn" aria-expanded="false" aria-controls="inbox" title="Needs you: agents that wait for someone, and work done since you looked" aria-label="Needs you"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="inbox-count" class="side-badge" hidden></span></button>
+        <button id="inbox-btn" type="button" class="icon inbox-btn" aria-expanded="false" aria-controls="inbox" title="Needs you: agents that wait for a person, and work that finished since you last looked" aria-label="Needs you"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="inbox-count" class="side-badge" hidden></span></button>
         <div id="inbox" class="inbox-panel" role="dialog" aria-label="Needs you" hidden>
           <div class="inbox-head"><strong>Needs you</strong><button type="button" id="inbox-notify" class="small link" hidden></button></div>
           <p id="inbox-help" class="small muted inbox-help" hidden></p>
@@ -55,23 +55,23 @@
         <aside id="left-side" class="side side-left" aria-label="The left panel" hidden>
           <div id="left-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
           <nav class="side-tabs" role="tablist" aria-label="Views">
-            <button data-side="tasks" role="tab" aria-selected="false" title="Tasks: this workspace's, and the app's others" aria-label="Tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 2 2 4-4"/><path d="m3 13 2 2 4-4"/><path d="M13 6h8"/><path d="M13 13h8"/><path d="M13 20h8"/><path d="M4 20h5"/></svg><span id="stasks-count" class="side-badge" hidden></span></button>
-            <button data-side="spaces" role="tab" aria-selected="false" title="Workspaces: the work going on, each its branch and worktree, to open, try, ship, or finish" aria-label="Workspaces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span id="spaces-count" class="side-badge" hidden></span></button>
-            <button data-side="files" role="tab" aria-selected="false" title="Files: the workspace's, to look at, open, and upload into" aria-label="Files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M3 7v13a2 2 0 0 0 2 2h10"/></svg></button>
-            <button data-side="search" role="tab" aria-selected="false" title="Search: the workspace's files, for a word or a pattern" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
-            <button data-side="checks" role="tab" aria-selected="false" title="Checks: the project's tests and lint, run in the dev box" aria-label="Checks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L4.6 18.2A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.8L14 9.5V3"/><path d="M7.5 15h9"/></svg><span id="checks-badge" class="side-badge dot" hidden></span></button>
-            <button data-side="decisions" role="tab" aria-selected="false" title="Decisions: the app's technical choices, and why" aria-label="Decisions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M5 21h14"/><path d="M5 7h14"/><path d="m5 7-3 7a3 3 0 0 0 6 0z"/><path d="m19 7-3 7a3 3 0 0 0 6 0z"/></svg></button>
+            <button data-side="tasks" role="tab" aria-selected="false" title="Tasks: the tasks of this workspace and of the app" aria-label="Tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 2 2 4-4"/><path d="m3 13 2 2 4-4"/><path d="M13 6h8"/><path d="M13 13h8"/><path d="M13 20h8"/><path d="M4 20h5"/></svg><span id="stasks-count" class="side-badge" hidden></span></button>
+            <button data-side="spaces" role="tab" aria-selected="false" title="Workspaces: the work in progress. Each has its own branch." aria-label="Workspaces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span id="spaces-count" class="side-badge" hidden></span></button>
+            <button data-side="files" role="tab" aria-selected="false" title="Files: the files of the workspace. Open them or upload files." aria-label="Files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M3 7v13a2 2 0 0 0 2 2h10"/></svg></button>
+            <button data-side="search" role="tab" aria-selected="false" title="Search: find a word or a pattern in the files of the workspace" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+            <button data-side="checks" role="tab" aria-selected="false" title="Checks: the tests and lint of the project. They run in the dev box." aria-label="Checks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L4.6 18.2A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.8L14 9.5V3"/><path d="M7.5 15h9"/></svg><span id="checks-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="decisions" role="tab" aria-selected="false" title="Decisions: the technical choices for the app, and why" aria-label="Decisions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M5 21h14"/><path d="M5 7h14"/><path d="m5 7-3 7a3 3 0 0 0 6 0z"/><path d="m19 7-3 7a3 3 0 0 0 6 0z"/></svg></button>
             <button data-side="people" class="owners-only" role="tab" aria-selected="false" title="Users: who may do what in the app" aria-label="Users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
-            <button data-side="security" role="tab" aria-selected="false" title="Keys: your SSH key, the app's settings, its keys and sign-ins, and the sites the dev box reaches" aria-label="Keys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg><span id="security-count" class="side-badge" hidden></span></button>
+            <button data-side="security" role="tab" aria-selected="false" title="Keys: your SSH key, Env variables, keys and sign-ins, and the sites the dev box can reach" aria-label="Keys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg><span id="security-count" class="side-badge" hidden></span></button>
             <span class="grow"></span>
             <button id="left-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
           </nav>
           <section id="side-tasks" class="side-view tasks-view" role="tabpanel" aria-label="Tasks" hidden>
             <div id="stask-list-box">
               <div class="logs-tools">
-                <input id="stask-search" type="search" placeholder="Search: words, #number, who filed it" aria-label="Search the tasks" autocomplete="off">
+                <input id="stask-search" type="search" placeholder="Search by words, #number, or who made it" aria-label="Search the tasks" autocomplete="off">
                 <button id="stask-new" class="side-icon" title="New task" aria-label="New task">+</button>
-                <button id="stask-refresh" class="side-icon" title="Fetch the tasks again" aria-label="Fetch the tasks again">↻</button>
+                <button id="stask-refresh" class="side-icon" title="Load the tasks again" aria-label="Load the tasks again">↻</button>
               </div>
               <div class="logs-tools stask-show">
                 <div id="stask-show" class="chips small-chips" role="group" aria-label="Which tasks">
@@ -85,7 +85,7 @@
             </div>
             <div id="stask-one" class="stask-one" hidden>
               <div class="logs-tools">
-                <button id="stask-back" type="button" class="stask-back" title="All the tasks" aria-label="All the tasks">←</button>
+                <button id="stask-back" type="button" class="stask-back" title="Back to all tasks" aria-label="Back to all tasks">←</button>
                 <strong id="stask-id" class="stask-id"></strong>
                 <span class="grow"></span>
                 <span id="stask-acts" class="stask-acts"></span>
@@ -103,18 +103,18 @@
             </div>
           </section>
           <section id="side-spaces" class="side-view page-view spaces-view" role="tabpanel" aria-label="Workspaces" hidden>
-            <button id="spaces-new" type="button" class="theme-item space-new spaces-new" title="Start something new, without a task"><span class="space-plus">+</span><span class="theme-name">New</span></button>
+            <button id="spaces-new" type="button" class="theme-item space-new spaces-new" title="Start new work without a task"><span class="space-plus">+</span><span class="theme-name">New</span></button>
             <ul id="workspaces" class="list"></ul>
             <p id="box" class="muted small"></p>
           </section>
           <section id="side-files" class="side-view" role="tabpanel" aria-label="Files" hidden>
             <div id="files-box" class="files-box">
               <div class="files-tools">
-                <select id="files-root" aria-label="Which tree"></select>
+                <select id="files-root" aria-label="Which folder tree"></select>
                 <span class="grow"></span>
-                <label id="files-upload-label" class="side-icon" title="Upload files into this folder; or drop them here" aria-label="Upload"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg><input type="file" id="files-upload" multiple hidden></label>
-                <button id="files-collapse" class="side-icon" title="Fold every folder" aria-label="Fold every folder"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg></button>
-                <button id="files-refresh" class="side-icon" title="List the folders again" aria-label="List the folders again">↻</button>
+                <label id="files-upload-label" class="side-icon" title="Upload files into this folder. You can also drop them here." aria-label="Upload"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg><input type="file" id="files-upload" multiple hidden></label>
+                <button id="files-collapse" class="side-icon" title="Close all folders" aria-label="Close all folders"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg></button>
+                <button id="files-refresh" class="side-icon" title="Load the folders again" aria-label="Load the folders again">↻</button>
               </div>
               <div id="files-main" class="files-main">
                 <div id="files-list" class="file-browser" role="tree" aria-label="Files"></div>
@@ -124,18 +124,18 @@
           </section>
           <section id="side-search" class="side-view search-view" role="tabpanel" aria-label="Search" hidden>
             <form id="search-form" class="search-form" autocomplete="off">
-              <input id="search-input" type="search" placeholder="Search the files" aria-label="Search the workspace's files" spellcheck="false">
+              <input id="search-input" type="search" placeholder="Search the files" aria-label="Search the files of the workspace" spellcheck="false">
               <button type="button" id="search-case" class="side-icon search-toggle" aria-pressed="false" title="Match case" aria-label="Match case">Aa</button>
-              <button type="button" id="search-regex" class="side-icon search-toggle" aria-pressed="false" title="A regular expression" aria-label="Regular expression">.*</button>
+              <button type="button" id="search-regex" class="side-icon search-toggle" aria-pressed="false" title="Regular expression" aria-label="Regular expression">.*</button>
             </form>
-            <p id="search-note" class="muted small search-note">Searches the workspace's files, new ones too, not those git ignores.</p>
+            <p id="search-note" class="muted small search-note">Searches all files in the workspace, also new files. It skips the files that git ignores.</p>
             <div id="search-results" class="search-results"></div>
           </section>
           <section id="side-checks" class="side-view checks-view" role="tabpanel" aria-label="Checks" hidden>
             <div class="side-head">
-              <div><strong>Checks</strong><div class="muted small">run in the dev box, on this workspace</div></div>
+              <div><strong>Checks</strong><div class="muted small">They run in the dev box, on this workspace.</div></div>
               <span class="grow"></span>
-              <button id="checks-refresh" class="side-icon" title="Look again" aria-label="Look again">↻</button>
+              <button id="checks-refresh" class="side-icon" title="Load again" aria-label="Load again">↻</button>
             </div>
             <div id="checks-list" class="checks-list"><p class="muted small">Loading…</p></div>
             <div id="checks-run" class="checks-run" hidden>
@@ -148,12 +148,21 @@
               <div class="decisions-head">
                 <div class="grow">
                   <h2>Decisions</h2>
-                  <p class="muted small">The app's technical choices, from <code>docs/decisions/</code> in the project: what was decided and why, so nobody undoes it by accident. The agents read them before calling something a mistake. A change here is committed to the app's branch.</p>
+                  <p class="muted small">The technical choices for the app, and why.</p>
                 </div>
                 <button id="decision-new" class="primary">New decision</button>
               </div>
               <label class="search"><span aria-hidden="true">⌕</span><input id="decisions-search" type="search" placeholder="Find a decision…" aria-label="Find a decision" autocomplete="off"></label>
               <div id="decisions" class="decision-cards"><p class="muted small">Loading…</p></div>
+              <div class="how muted small">
+                <h3>How it works</h3>
+                <ul>
+                  <li>Each decision is a file in <code>docs/decisions/</code> in the project.</li>
+                  <li>A decision tells what the team decided and why. Then nobody undoes it by accident.</li>
+                  <li>The agents read the decisions before they call something a mistake.</li>
+                  <li>hi commits each change here to the branch of the app.</li>
+                </ul>
+              </div>
             </div>
           </section>
           <section id="side-people" class="side-view page-view" role="tabpanel" aria-label="Users" hidden>
@@ -274,24 +283,24 @@
     <div id="chat" class="chat" hidden>
       <div class="chat-col">
       <div id="chat-start" class="chat-start" hidden>
-        <div class="chat-start-room"><h2>Start something new</h2><p class="muted small">Say what to do, pick who does it, and send: hi files it as a task, gives it a branch, and opens its chat here.</p></div>
+        <div class="chat-start-room"><h2>Start something new</h2><p class="muted small">Write what to do and pick an agent. hi makes a task and a branch, and opens the chat here.</p></div>
         <div class="chat-bottom">
         <div id="adhoc-form" class="composer start-composer">
           <div class="pic-box">
-            <div id="adhoc-text" class="pic-edit" contenteditable="true" autocomplete="off" role="textbox" aria-multiline="true" aria-label="What to do" data-placeholder="Make the price chart green when it's up… Paste or drop pictures and files"></div>
+            <div id="adhoc-text" class="pic-edit" contenteditable="true" autocomplete="off" role="textbox" aria-multiline="true" aria-label="What to do" data-placeholder="Make the price chart green when the price goes up… Paste or drop pictures and files here."></div>
             <div id="adhoc-pictures" class="pic-previews" hidden></div>
           </div>
           <p id="adhoc-error" class="error"></p>
           <div class="composer-bar">
-            <label class="composer-icon" title="Attach pictures or files (or paste or drop them)" aria-label="Attach"><input type="file" id="adhoc-files" multiple hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></label>
+            <label class="composer-icon" title="Attach pictures or files. You can also paste or drop them." aria-label="Attach"><input type="file" id="adhoc-files" multiple hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></label>
             <span id="adhoc-status" class="composer-who" aria-live="polite"></span>
             <span class="composer-end">
-              <label class="composer-pick"><svg class="spark" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg><select id="adhoc-agent" aria-label="The agent" title="Who does it: the model vendor's coding agent">
+              <label class="composer-pick"><svg class="spark" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg><select id="adhoc-agent" aria-label="The agent" title="The agent that does the work">
               <option value="claude" selected>Claude Code</option>
               <option value="codex">Codex</option>
               <option value="agy" class="agy-only" hidden>Antigravity</option>
               </select></label>
-              <button type="button" id="adhoc-cancel" class="composer-round" title="Cancel: back to the chat" aria-label="Cancel"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+              <button type="button" id="adhoc-cancel" class="composer-round" title="Cancel and go back to the chat" aria-label="Cancel"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
               <button type="button" id="adhoc-go" class="composer-round composer-send" title="Start (Enter)" aria-label="Start"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
             </span>
           </div>
@@ -303,7 +312,7 @@
       </div>
       <div class="chat-bottom">
         <div id="chat-waiting" class="chat-waiting" hidden>
-          <p class="small"><strong>It's asking, in the terminal:</strong></p>
+          <p class="small"><strong>The agent asks a question in the terminal:</strong></p>
           <pre id="chat-screen"></pre>
           <div class="chat-keys">
             <button data-chat-key="1">1</button><button data-chat-key="2">2</button><button data-chat-key="3">3</button><button data-chat-key="4">4</button>
@@ -312,7 +321,7 @@
           </div>
         </div>
         <div id="chat-stopped" class="chat-stopped" hidden>
-          <span id="chat-stopped-why">The agent isn't running in this workspace.</span>
+          <span id="chat-stopped-why">The agent is not running in this workspace.</span>
           <button id="chat-resume" hidden>Resume this session</button>
         </div>
         <form id="chat-form" class="chat-form composer" autocomplete="off">
@@ -322,14 +331,14 @@
             <textarea id="chat-input" rows="2" placeholder="Message the agent…" autocomplete="off"></textarea>
           </div>
           <div class="composer-bar">
-            <label class="chat-attach composer-icon" title="Attach pictures or files (or paste or drop them)" aria-label="Attach"><input type="file" id="chat-files" multiple hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></label>
+            <label class="chat-attach composer-icon" title="Attach pictures or files. You can also paste or drop them." aria-label="Attach"><input type="file" id="chat-files" multiple hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></label>
             <span class="composer-end">
               <span id="chat-pick" class="chat-pick" hidden>
-                <label class="composer-pick"><svg class="spark" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg><select id="chat-model" aria-label="The model" title="The model Claude answers with, from the next message"></select></label>
-                <label class="composer-pick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 4-5"/></svg><select id="chat-effort" aria-label="The effort" title="How hard Claude thinks, from the next message"></select></label>
+                <label class="composer-pick"><svg class="spark" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg><select id="chat-model" aria-label="The model" title="The model that Claude uses, from the next message"></select></label>
+                <label class="composer-pick"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 4-5"/></svg><select id="chat-effort" aria-label="The effort" title="How much Claude thinks, from the next message"></select></label>
               </span>
               <span id="chat-who" class="composer-who"></span>
-              <button type="button" id="chat-stop" class="composer-round" hidden title="Stop what it's doing (Esc)" aria-label="Stop"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg></button>
+              <button type="button" id="chat-stop" class="composer-round" hidden title="Stop the agent (Esc)" aria-label="Stop"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg></button>
               <button id="chat-send" class="composer-round composer-send" title="Send (Enter)" aria-label="Send"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
             </span>
           </div>
@@ -342,19 +351,19 @@
       <form id="term-find" class="term-find" role="search" aria-label="Find in the terminal" hidden>
         <input id="term-find-text" type="search" placeholder="Find in the terminal" aria-label="Find in the terminal" autocomplete="off" spellcheck="false">
         <span id="term-find-count" class="muted small" aria-live="polite"></span>
-        <button type="button" id="term-find-prev" class="small" title="The one before (Shift+Enter)" aria-label="The one before">↑</button>
-        <button type="submit" class="small" title="The next (Enter)" aria-label="The next">↓</button>
+        <button type="button" id="term-find-prev" class="small" title="Previous match (Shift+Enter)" aria-label="Previous match">↑</button>
+        <button type="submit" class="small" title="Next match (Enter)" aria-label="Next match">↓</button>
         <button type="button" id="term-find-close" class="small" title="Close (Esc)" aria-label="Close">✕</button>
       </form>
       <button type="button" id="term-find-open" class="side-icon term-find-open" title="Find in the terminal (Ctrl+Shift+F, ⌘F)" aria-label="Find in the terminal">⌕</button>
-      <div id="keys" class="keys" role="toolbar" aria-label="Keys a phone's keyboard lacks">
+      <div id="keys" class="keys" role="toolbar" aria-label="Keys that a phone keyboard does not have">
         <button data-key="keyboard" aria-label="Show the keyboard" title="Show the keyboard">⌨</button>
         <button data-key="paste">Paste</button>
         <button data-key="esc">Esc</button>
         <button data-key="tab">Tab</button>
         <button data-key="shifttab">Shift+Tab</button>
         <button data-key="enter">Enter</button>
-        <button data-key="ctrl" aria-pressed="false" title="Ctrl with the next key">Ctrl</button>
+        <button data-key="ctrl" aria-pressed="false" title="Press Ctrl with the next key">Ctrl</button>
         <button data-key="up" aria-label="Up">↑</button>
         <button data-key="down" aria-label="Down">↓</button>
         <button data-key="left" aria-label="Left">←</button>
@@ -380,13 +389,13 @@
         <aside id="chat-side" class="side side-right" aria-label="The right panel" hidden>
           <div id="side-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
           <nav class="side-tabs" role="tablist" aria-label="Views">
-            <button data-side="rewind" role="tab" aria-selected="true" title="Rewind: back to before a message, the code and the chat" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
-            <button data-side="git" role="tab" aria-selected="false" title="Source control: what changed, to look at, commit, and ship" aria-label="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="git-count" class="side-badge" hidden></span></button>
-            <button data-side="logs" role="tab" aria-selected="false" title="Logs: what production and the preview print, and the requests they serve" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
-            <button data-side="preview" role="tab" aria-selected="false" title="Preview: the app as the preview or production shows it, here beside the work" aria-label="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
-            <button data-side="release" role="tab" aria-selected="false" title="Publish: where things run, and publishing to production" aria-label="Publish"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><span id="release-count" class="side-badge" hidden></span></button>
-            <button data-side="data" class="owners-only" role="tab" aria-selected="false" title="Data: production's and the preview's, and the snapshots" aria-label="Data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
-            <button data-side="system" role="tab" aria-selected="false" title="System: what runs where, incidents, the helper, and the jobs' rules" aria-label="System"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/><path d="m7 11 2-2 2 3 2-4 2 3h2"/></svg></button>
+            <button data-side="rewind" role="tab" aria-selected="true" title="Rewind: put the code and the chat back to before a message" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
+            <button data-side="git" role="tab" aria-selected="false" title="Source control: see the changes, commit them, and ship them" aria-label="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="git-count" class="side-badge" hidden></span></button>
+            <button data-side="logs" role="tab" aria-selected="false" title="Logs: the output of production and the preview, and the requests they get" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="preview" role="tab" aria-selected="false" title="Preview: see the preview or production next to your work" aria-label="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button data-side="release" role="tab" aria-selected="false" title="Publish: where the app runs, and publish to production" aria-label="Publish"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><span id="release-count" class="side-badge" hidden></span></button>
+            <button data-side="data" class="owners-only" role="tab" aria-selected="false" title="Data: the data of production and the preview, and the snapshots" aria-label="Data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
+            <button data-side="system" role="tab" aria-selected="false" title="System: what runs where, incidents, the helper, and the rules for jobs" aria-label="System"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/><path d="m7 11 2-2 2 3 2-4 2 3h2"/></svg></button>
             <span class="grow"></span>
             <button id="side-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
           </nav>
@@ -396,12 +405,12 @@
                 <strong id="git-branch" class="git-branch"></strong>
                 <div id="git-base" class="muted small"></div>
               </div>
-              <button id="git-refresh" class="side-icon" title="Look again" aria-label="Look again">↻</button>
+              <button id="git-refresh" class="side-icon" title="Load again" aria-label="Load again">↻</button>
             </div>
             <div id="git-ship" class="git-ship"></div>
             <form id="git-form" class="git-form" autocomplete="off">
-              <textarea id="git-message" rows="2" placeholder="Message: what the change does" aria-label="The commit's message"></textarea>
-              <button id="git-commit" class="primary" title="Commit what's staged; with nothing staged, every change (Ctrl+Enter)">Commit</button>
+              <textarea id="git-message" rows="2" placeholder="Message: what the change does" aria-label="The commit message"></textarea>
+              <button id="git-commit" class="primary" title="Commit the staged changes. If nothing is staged, commit all changes. (Ctrl+Enter)">Commit</button>
             </form>
             <p id="git-error" class="error small git-error"></p>
             <div id="git-lists" class="git-lists"><p class="muted small">Loading…</p></div>
@@ -414,19 +423,19 @@
               <span id="git-notes-count" class="small"></span>
               <span class="grow"></span>
               <button type="button" id="git-notes-clear" class="small">Clear</button>
-              <button type="button" id="git-notes-send" class="small primary" title="Put the notes in the chat's box, as one message, to add to and send">Send to the agent</button>
+              <button type="button" id="git-notes-send" class="small primary" title="Put the notes in the chat box as one message. You can add to it, then send it.">Send to the agent</button>
             </div>
           </section>
           <section id="side-logs" class="side-view logs-view" role="tabpanel" aria-label="Logs" hidden>
             <div class="logs-tools">
-              <select id="logs-slot" aria-label="Whose logs"><option value="production">Production</option><option value="preview">Preview</option></select>
+              <select id="logs-slot" aria-label="Production or preview"><option value="production">Production</option><option value="preview">Preview</option></select>
               <div id="logs-source" class="chips small-chips" role="group" aria-label="Which log">
                 <button data-source="output" aria-pressed="true" title="What the app prints">Output</button>
-                <button data-source="requests" aria-pressed="false" title="The requests its address served">Requests</button>
+                <button data-source="requests" aria-pressed="false" title="The requests that its address got">Requests</button>
               </div>
               <span class="grow"></span>
               <button id="logs-errors" class="side-icon" aria-pressed="false" title="Errors only" aria-label="Errors only">!</button>
-              <button id="logs-send" class="side-icon" title="Send what you selected, or the last lines, to Claude" aria-label="Send to Claude">↗</button>
+              <button id="logs-send" class="side-icon" title="Send the selected lines, or the last lines, to Claude" aria-label="Send to Claude">↗</button>
             </div>
             <p id="logs-note" class="muted small logs-note"></p>
             <div id="logs-lines" class="logs-lines log-text" tabindex="0"></div>
@@ -436,7 +445,7 @@
               <select id="preview-slot" aria-label="What to show"></select>
               <span id="preview-act" class="preview-act"></span>
               <span class="grow"></span>
-              <button id="preview-pick" class="side-icon preview-pick" title="Point at a part of the page, for the chat (Alt+S in the page; Shift-click for more, Esc to stop)" aria-label="Point at a part of the page, for the chat" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+              <button id="preview-pick" class="side-icon preview-pick" title="Point at a part of the page for the chat. Alt+S in the page. Shift-click for more. Esc to stop." aria-label="Point at a part of the page for the chat" aria-pressed="false"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
               <button id="preview-reload" class="side-icon" title="Load it again" aria-label="Load it again">↻</button>
               <a id="preview-open" class="side-icon" target="_blank" rel="noopener" title="Open it in a new tab" aria-label="Open it in a new tab">↗</a>
               <button id="preview-wide" class="side-icon side-full-btn" title="Full screen" aria-label="Full screen" aria-pressed="false">⤢</button>
@@ -457,12 +466,11 @@
               </section>
               <section class="releases-card">
                 <h2>Published versions</h2>
-                <p class="developers-only muted small">Add your work to the preview, then publish it to production. The owners roll it back.</p>
+                <p class="developers-only muted small">Add your work to the preview. Then publish it to production. Only owners can roll back.</p>
                 <ul id="releases" class="list"></ul>
               </section>
               <section class="where-card owners-only">
                 <h2>Addresses</h2>
-                <p class="muted small">On the app's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
                 <ul id="addresses" class="where"></ul>
               </section>
             </div>
@@ -470,26 +478,40 @@
           <section id="side-data" class="side-view page-view" role="tabpanel" aria-label="Data" hidden>
             <div class="system-box">
               <div class="system-col">
-                <h2>Production's data</h2>
-                <p class="muted small">What everyone's use of the app has written. Copying the preview's here replaces it, with a snapshot of production's first.</p>
+                <h2>Data in production</h2>
+                <p class="muted small">The data people made in production. If you copy the preview's data here, it replaces this data. hi makes a snapshot first.</p>
                 <dl id="data-production" class="facts"></dl>
                 <div class="data-actions">
                   <button id="data-snapshot">Take a snapshot now</button>
-                  <button id="data-copy">Copy the preview's data to production</button>
+                  <button id="data-copy">Copy the preview data to production</button>
                 </div>
                 <h2>Snapshots</h2>
-                <p class="muted small">The app as it was: production's data, the code, the lead's memory, and the app's record. Daily, before every publish, and before data is copied to production.</p>
                 <ul id="data-snapshots" class="list"><li class="muted small">Loading…</li></ul>
-                <p class="muted small">To put the app back as it was in one, an admin runs <code id="data-restore">hi app restore</code> on the machine; hi takes a snapshot of how it is first.<span id="admin-restore" hidden> <a target="_blank" rel="noopener noreferrer">You're an admin: the admin page ↗</a></span></p>
+                <div class="how muted small">
+                  <h3>How it works</h3>
+                  <ul>
+                    <li>A snapshot keeps the data in production, the code, the memory of the lead, and the record of the app.</li>
+                    <li>hi makes a snapshot each day, before each publish, and before it copies data to production.</li>
+                    <li>To go back to a snapshot, an admin runs <code id="data-restore">hi app restore</code> on the machine. hi makes a snapshot of the app as it is now first.<span id="admin-restore" hidden> <a target="_blank" rel="noopener noreferrer">You are an admin: open the admin page ↗</a></span></li>
+                  </ul>
+                </div>
               </div>
               <div class="system-col">
-                <h2>The preview's data</h2>
-                <p class="muted small">The preview works on a copy of production's, so trying something changes nothing people use. It gets a fresh copy when new work goes on it, if its copy is over an hour old, and after every publish; data the preview gathered that production hasn't got is kept until it is copied to production.</p>
+                <h2>Data in the preview</h2>
+                <p class="muted small">The preview uses a copy of the data in production. What you try there does not change production.</p>
                 <dl id="data-preview" class="facts"></dl>
                 <div class="data-actions">
                   <button id="data-fork">Copy production's data to the preview</button>
                 </div>
-                <label class="check"><input type="checkbox" id="data-empty"> Start the preview empty at each publish, for an app whose people's data the preview shouldn't show</label>
+                <label class="check"><input type="checkbox" id="data-empty"> Start the preview empty at each publish. Use this if the preview must not show the data of the people who use the app.</label>
+                <div class="how muted small">
+                  <h3>How it works</h3>
+                  <ul>
+                    <li>The preview gets a new copy after each publish.</li>
+                    <li>When new work goes on the preview, it gets a new copy if its copy is more than 1 hour old.</li>
+                    <li>If the preview has data that production does not have, hi does not replace it. The data stays until someone copies it to production.</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </section>
@@ -505,11 +527,18 @@
               </div>
               <div class="system-col">
                 <h2>The helper</h2>
-                <p class="muted small">Help and feedback on the app's pages. Feedback reaches the channel for people to handle; someone signed in with their link reports a bug, which hi files as a task.</p>
+                <p class="muted small">Help and feedback on the pages of the app.</p>
                 <label class="check"><input type="checkbox" id="helper-preview" class="owners-control"> On the preview</label>
                 <label class="check"><input type="checkbox" id="helper-production" class="owners-control"> In production</label>
+                <div class="how muted small">
+                  <h3>How it works</h3>
+                  <ul>
+                    <li>hi sends feedback to the app's channel. People there handle it.</li>
+                    <li>A person who signs in with their link can report a bug. hi makes a task from it.</li>
+                  </ul>
+                </div>
                 <h2>Rules for the app's jobs</h2>
-                <p class="muted small">Decisions the lead follows when a job fails, in the people's words.</p>
+                <p class="muted small">What the lead does when a job fails. People write these rules in their own words.</p>
                 <ul id="rules" class="list"></ul>
                 <form id="rule-form" class="setting-form owners-only">
                   <input id="rule-job" placeholder="job" autocomplete="off" spellcheck="false" required>
@@ -527,10 +556,10 @@
 <dialog id="release-dialog">
   <form method="dialog" id="release-form">
     <h2 id="release-title">Publish</h2>
-    <p class="muted">What changes for the people, in their words. hi posts it in the app's channel when it's published.</p>
+    <p class="muted">Write what changes for the users, in words they know. hi posts this in the app's channel after the publish.</p>
     <textarea id="release-notes" rows="8" required></textarea>
     <label class="check" id="release-clean-box" hidden><input type="checkbox" id="release-clean" checked> <span id="release-clean-text">Then close the published tasks and remove their workspaces</span></label>
-    <label class="check" id="release-data-box" hidden><input type="checkbox" id="release-data"> Start production with a copy of the preview's data</label>
+    <label class="check" id="release-data-box" hidden><input type="checkbox" id="release-data"> Start production with a copy of the preview data</label>
     <p id="release-error" class="error"></p>
     <div class="buttons">
       <button value="cancel" formnovalidate>Cancel</button>
@@ -541,16 +570,16 @@
 <dialog id="ticket-dialog">
   <form method="dialog" id="ticket-form" autocomplete="off">
     <h2>New task</h2>
-    <input id="ticket-title" placeholder="What should change: The chart misses the last day" autocomplete="off" required>
+    <input id="ticket-title" placeholder="What must change, for example: The chart does not show the last day" autocomplete="off" required>
     <div class="pic-box ticket-box">
-      <div id="ticket-body" class="pic-edit" contenteditable="true" autocomplete="off" role="textbox" aria-multiline="true" aria-label="What it's about" data-placeholder="What you expected, what happened, how to see it, why it matters. Paste or drop pictures here."></div>
+      <div id="ticket-body" class="pic-edit" contenteditable="true" autocomplete="off" role="textbox" aria-multiline="true" aria-label="Details of the task" data-placeholder="What you expected. What happened. How to see it. Why it is important. Paste or drop pictures here."></div>
       <div id="ticket-attached" class="pic-previews" hidden></div>
     </div>
     <label class="files">Files <input type="file" id="ticket-files" multiple></label>
     <p id="ticket-error" class="error"></p>
     <div class="buttons">
       <button type="button" id="ticket-cancel">Cancel</button>
-      <button id="ticket-go" value="go" class="primary">File the task</button>
+      <button id="ticket-go" value="go" class="primary">Add the task</button>
     </div>
   </form>
 </dialog>
@@ -560,12 +589,12 @@
     <p id="start-task" class="start-task"></p>
     <fieldset class="agents">
       <legend class="muted small">Agent</legend>
-      <label><input type="radio" name="agent" value="claude" checked> <strong>Claude Code</strong> <span class="muted small">reads the task and its files, then asks what isn't clear</span></label>
+      <label><input type="radio" name="agent" value="claude" checked> <strong>Claude Code</strong> <span class="muted small">reads the task and its files, then asks about what is not clear</span></label>
       <label><input type="radio" name="agent" value="codex"> <strong>Codex</strong> <span class="muted small">the same, with Codex</span></label>
-      <label class="agy-only" hidden><input type="radio" name="agent" value="agy"> <strong>Antigravity</strong> <span class="muted small">the same, with Google's agy, on the app's Google account</span></label>
+      <label class="agy-only" hidden><input type="radio" name="agent" value="agy"> <strong>Antigravity</strong> <span class="muted small">the same, with agy from Google, on the Google account of the app</span></label>
       <label><input type="radio" name="agent" value=""> <strong>Shell</strong> <span class="muted small">a branch and a worktree, with a shell</span></label>
     </fieldset>
-    <p class="muted small">A branch from dev, its own worktree, and a workspace in herdr.</p>
+    <p class="muted small">hi makes a branch from dev, a worktree, and a workspace in herdr.</p>
     <p id="start-error" class="error"></p>
     <div class="buttons">
       <button type="button" id="start-cancel">Cancel</button>
@@ -601,7 +630,7 @@
   <p id="decision-meta" class="muted small"></p>
   <div id="decision-body"></div>
   <textarea id="decision-text" class="edit-text" rows="20" spellcheck="true" aria-label="The decision, in Markdown" hidden
-    placeholder="# Keep prices in cents&#10;&#10;What was decided, in a sentence or two: its card shows this.&#10;&#10;## Why&#10;&#10;## Context"></textarea>
+    placeholder="# Keep prices in cents&#10;&#10;Write the decision in one or two sentences. The card shows this text.&#10;&#10;## Why&#10;&#10;## Context"></textarea>
   <p id="decision-error" class="error"></p>
   <div class="buttons">
     <button type="button" id="decision-delete" class="danger">Delete</button>
@@ -613,24 +642,24 @@
 </dialog>
 <dialog id="mode-dialog" class="mode-dialog" aria-labelledby="mode-dialog-title">
   <h2 id="mode-dialog-title">Customize Vibe mode</h2>
-  <p class="muted small">What Vibe mode shows, in this browser. The chat is always there, and Pro mode shows everything.</p>
+  <p class="muted small">Pick what Vibe mode shows in this browser. The chat always shows. Pro mode shows everything.</p>
   <div id="mode-groups" class="mode-groups"></div>
   <div class="buttons">
-    <button type="button" id="mode-reset" class="link">Back to Vibe mode's own</button>
+    <button type="button" id="mode-reset" class="link">Reset Vibe mode</button>
     <span class="grow"></span>
     <button type="button" id="mode-done" class="primary">Done</button>
   </div>
 </dialog>
 <dialog id="stuck-dialog" class="wide stuck-dialog" aria-labelledby="stuck-title">
-  <h2 id="stuck-title">It can't go on the preview yet</h2>
+  <h2 id="stuck-title">This work cannot go on the preview yet</h2>
   <p id="stuck-what"></p>
   <div id="stuck-options" class="stuck-options">
     <button type="button" id="stuck-agent" class="stuck-option"><strong id="stuck-agent-title">Ask the agent to combine them</strong><span id="stuck-agent-text" class="muted small"></span></button>
     <button type="button" id="stuck-replace" class="stuck-option"><strong id="stuck-replace-title">Take out the last change and add this one instead</strong><span id="stuck-replace-text" class="muted small"></span></button>
-    <button type="button" id="stuck-help" class="stuck-option"><strong>Ask for help in Slack</strong><span class="muted small">hi posts this in the app's channel, with the details below, for its developers.</span></button>
+    <button type="button" id="stuck-help" class="stuck-option"><strong>Ask for help in Slack</strong><span class="muted small">hi posts this and the details below in the app's channel. The developers see it there.</span></button>
   </div>
   <p id="stuck-said" class="small" role="status"></p>
-  <details class="stuck-details"><summary class="small muted">Details, for whoever helps</summary><pre id="stuck-error"></pre></details>
+  <details class="stuck-details"><summary class="small muted">Details for the person who helps</summary><pre id="stuck-error"></pre></details>
   <div class="buttons">
     <button type="button" id="stuck-cancel">Cancel</button>
   </div>
@@ -648,14 +677,14 @@
     <summary>Set up once</summary>
     <ol class="small">
       <li id="editor-key"></li>
-      <li>Your computer is on the app's NetBird network, in a group NetBird lets reach <code id="editor-host"></code> on port 22. If your editor can't connect, ask your IT team for that.</li>
-      <li>For an editor that picks hosts from your SSH config (Orca, VS Code's list, JetBrains), and for a key ssh doesn't try by itself, add this to <code>~/.ssh/config</code>:
+      <li>Your computer must be on the app's NetBird network. Its NetBird group must reach <code id="editor-host"></code> on port 22. If your editor cannot connect, ask your IT team for this access.</li>
+      <li>Add this to <code>~/.ssh/config</code>. You need it if your editor picks hosts from your SSH config (Orca, VS Code, JetBrains). You also need it if ssh does not find your key by itself.
         <pre id="editor-config" class="editor-code"></pre>
         <button type="button" id="editor-config-copy" class="small">Copy</button>
       </li>
       <li id="editor-hostkey" hidden></li>
     </ol>
-    <p class="muted small">On its first connect an editor puts its own server in the dev box, in a minute or so; it stays for the next time, and the app's snapshots leave it out. The agents keep working whether an editor is connected or not, and what you change in the editor is in the workspace for them at once.</p>
+    <p class="muted small">When an editor connects for the first time, it puts its own server in the dev box. This takes about 1 minute. The server stays there for the next time. Snapshots do not include it. The agents keep working when an editor is connected. They see your changes in the workspace at once.</p>
   </details>
   <div class="buttons">
     <button type="button" id="editor-close">Close</button>

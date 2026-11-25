@@ -259,7 +259,7 @@ let emailVia = "email";
 $("email-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const address = $("email-address").value.trim();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) { $("email-said").textContent = "Give your email address."; $("email-address").focus(); return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) { $("email-said").textContent = "Type your email address."; $("email-address").focus(); return; }
   const via = event.submitter && event.submitter.value === "slack" ? "slack" : "email";
   const buttons = $("email-form").querySelectorAll("button");
   buttons.forEach((b) => { b.disabled = true; });
@@ -277,7 +277,7 @@ $("email-form").addEventListener("submit", async (event) => {
 $("code-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const code = $("email-code").value.replace(/\s/g, "");
-  if (!/^[0-9]{6}$/.test(code)) { $("email-said").textContent = "The code is the six digits in the " + (emailVia === "slack" ? "Slack DM." : "email."); $("email-code").focus(); return; }
+  if (!/^[0-9]{6}$/.test(code)) { $("email-said").textContent = "Type the six digits from the " + (emailVia === "slack" ? "Slack DM." : "email."); $("email-code").focus(); return; }
   try {
     await api("/api/email/code", { request: emailRequest, code });
     location.href = "/";
@@ -362,8 +362,8 @@ function renderApps() {
   const o = state.org;
   if (o && (!query || "the server".includes(query))) {
     const li = el("li", { class: orgOpen() ? "current" : "" }, el("span", { class: "dot " + (o.up && !o.no_owner ? "idle" : "bad"), "aria-hidden": "true" }),
-      el("button", { class: "stask-row", onclick: () => openOrg(""), title: "The server: its requests, users, admins, policy, and keys" },
-        el("span", { class: "stask-title" }, "The server"), el("span", { class: "stask-num" }, o.up ? (o.running ? o.running + " running" : "") : "doesn't answer")));
+      el("button", { class: "stask-row", onclick: () => openOrg(""), title: "Open the server: requests, users, admins, budgets and keys" },
+        el("span", { class: "stask-title" }, "The server"), el("span", { class: "stask-num" }, o.up ? (o.running ? o.running + " running" : "") : "does not answer")));
     if (o.waiting) li.append(el("span", { class: "count", title: o.waiting + " request" + (o.waiting === 1 ? "" : "s") + " wait" + (o.waiting === 1 ? "s" : "") }, o.waiting));
     list.append(li);
   }
@@ -379,7 +379,7 @@ function renderApps() {
       li.append(el("span", { class: "count signin-mark " + signinClass(app.signin_worst), title: "Sign-ins: " + signinTitle(app) }, "!"));
     }
     const unseen = unseenIncidents(app.name, app.incidents_opened);
-    if (unseen) li.append(el("span", { class: "count", "data-app": app.name, title: unseen + " open incident" + (unseen === 1 ? "" : "s") + " not seen in Incidents yet" }, unseen));
+    if (unseen) li.append(el("span", { class: "count", "data-app": app.name, title: unseen + " open incident" + (unseen === 1 ? "" : "s") + " that you did not see yet" }, unseen));
     if (app.name === openApp) li.dataset.app = app.name;
     list.append(li);
   }
@@ -426,10 +426,10 @@ function renderHomeMachine() {
   if (!u) { box.replaceChildren(); return; }
   const head = el("div", { class: "card-head pad" }, el("span", { class: "dot " + (level(Math.max(u.cpu || 0, u.mem_total ? u.mem_used / u.mem_total : 0, ...u.disks.map((d) => d.used / d.total))) === "bad" ? "bad" : "idle"), "aria-hidden": "true" }),
     el("strong", { class: "card-name" }, state.machine), el("span", { class: "muted small" }, "up " + uptime(u.uptime)), el("span", { class: "grow" }),
-    el("span", { class: "muted small", title: "The load: how many things wanted a core, over 1, 5, and 15 minutes" }, u.cores + " cores · load " + u.load.map((l) => l.toFixed(2)).join(" ")));
+    el("span", { class: "muted small", title: "Load: the average number of tasks that wait for a core, over 1, 5 and 15 minutes" }, u.cores + " cores · load " + u.load.map((l) => l.toFixed(2)).join(" ")));
   const meters = el("div", { class: "meters pad" });
-  meters.append(u.cpu === undefined || u.cpu === null ? meter("CPU", 0, "…") : meter("CPU", u.cpu, percent(u.cpu) + " busy", "The share of all " + u.cores + " cores busy, over the last few seconds"));
-  if (u.mem_total) meters.append(meter("Memory", u.mem_used / u.mem_total, size(u.mem_used) + " of " + size(u.mem_total), "What isn't available to start something new; the kernel's cache is counted as free"));
+  meters.append(u.cpu === undefined || u.cpu === null ? meter("CPU", 0, "…") : meter("CPU", u.cpu, percent(u.cpu) + " busy", "Use of all " + u.cores + " cores in the last few seconds"));
+  if (u.mem_total) meters.append(meter("Memory", u.mem_used / u.mem_total, size(u.mem_used) + " of " + size(u.mem_total), "Memory in use. hi counts the kernel cache as free."));
   if (u.swap_total) meters.append(meter("Swap", u.swap_used / u.swap_total, size(u.swap_used) + " of " + size(u.swap_total)));
   for (const d of u.disks) meters.append(meter("Disk " + d.mount, d.used / d.total, size(d.used) + " of " + size(d.total), size(d.total - d.used) + " free on " + d.mount));
   box.replaceChildren(el("div", { class: "card-box machine-card" }, head, meters));
@@ -441,17 +441,17 @@ function usageOf(name) {
   const app = u && u.apps ? u.apps[name] : null;
   if (!app) return null;
   const row = el("div", { class: "card-usage" });
-  row.append(meter("CPU", app.cpu || 0, app.cpu === undefined || app.cpu === null ? "…" : percent(app.cpu), "Its share of the machine's " + u.cores + " cores: its lead and its boxes"));
-  row.append(meter("Memory", u.mem_total ? app.memory / u.mem_total : 0, size(app.memory), "Its lead and its " + app.boxes + " running boxes, of the machine's " + size(u.mem_total)));
-  row.append(el("div", { class: "meter", title: "Its folder, measured every ten minutes" }, el("div", { class: "meter-head" }, el("span", {}, "Disk"), el("span", { class: "muted small" }, app.disk >= 0 ? size(app.disk) : "…"))));
+  row.append(meter("CPU", app.cpu || 0, app.cpu === undefined || app.cpu === null ? "…" : percent(app.cpu), "CPU use of the app lead and boxes, of " + u.cores + " cores"));
+  row.append(meter("Memory", u.mem_total ? app.memory / u.mem_total : 0, size(app.memory), "Memory of the app lead and " + app.boxes + " running boxes. The machine has " + size(u.mem_total) + "."));
+  row.append(el("div", { class: "meter", title: "Size of the app folder. hi measures it every ten minutes." }, el("div", { class: "meter-head" }, el("span", {}, "Disk"), el("span", { class: "muted small" }, app.disk >= 0 ? size(app.disk) : "…"))));
   return row;
 }
 function usageLine(name) {
   const u = state && state.usage;
   const app = u && u.apps ? u.apps[name] : null;
   if (!app) return "";
-  const cpu = app.cpu === undefined || app.cpu === null ? "" : percent(app.cpu) + " of the machine's CPU, ";
-  return cpu + size(app.memory) + " of memory (its lead and " + app.boxes + " running box" + (app.boxes === 1 ? "" : "es") + ")" + (app.disk >= 0 ? ", " + size(app.disk) + " on disk (its folder)" : "");
+  const cpu = app.cpu === undefined || app.cpu === null ? "" : "CPU " + percent(app.cpu) + ", ";
+  return cpu + "memory " + size(app.memory) + " (the lead and " + app.boxes + " running box" + (app.boxes === 1 ? "" : "es") + ")" + (app.disk >= 0 ? ", disk " + size(app.disk) + " (the app folder)" : "");
 }
 
 function renderHome() {
@@ -461,7 +461,7 @@ function renderHome() {
   $("home-new").hidden = !state.me.machine;
   const note = $("home-note");
   note.hidden = !!state.me.machine;
-  note.textContent = state.me.machine ? "" : "You're an admin of the server: you see the machine and its apps here, and the machine's admins change them.";
+  note.textContent = state.me.machine ? "" : "You are an admin of the server. You can see this machine and its apps. Only an admin of the machine can change them.";
   const cards = $("home-cards");
   cards.replaceChildren();
   const up = state.apps.filter((a) => a.state === "up").length;
@@ -474,7 +474,7 @@ function renderHome() {
   if (!state.apps.length) {
     cards.append(el("div", { class: "app-card empty-card" },
       el("p", {}, state.org ? "No apps on this machine: it runs the server." : "No apps on this machine yet."),
-      el("p", { class: "muted" }, "Make one with + New app, or on the machine with ", el("code", {}, "hi app new <name>"), ".")));
+      el("p", { class: "muted" }, "To make an app, click + New app. Or run ", el("code", {}, "hi app new <name>"), " on the machine.")));
     return;
   }
   for (const app of state.apps) {
@@ -598,12 +598,12 @@ function renderOverview() {
   // they're names nobody reaches, so they don't open.
   const where = el("ul", { class: "list where-list" });
   for (const address of d.addresses) {
-    where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, address.what), " ", el("span", { class: "muted small" }, address.waits ? "once its dev box is on NetBird" : shown(address.url))),
+    where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, address.what), " ", el("span", { class: "muted small" }, address.waits ? "after the dev box joins NetBird" : shown(address.url))),
       d.joined && address.url ? el("a", { class: "button-like small", href: address.url, target: "_blank", rel: "noopener noreferrer" }, "Open ↗") : ""));
   }
-  where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, "Dev page"), " ", el("span", { class: "muted small" }, d.dev_waits ? "once its dev box is on NetBird" : d.dev_page || "while the app runs")),
+  where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, "Dev page"), " ", el("span", { class: "muted small" }, d.dev_waits ? "after the dev box joins NetBird" : d.dev_page || "when the app runs")),
     d.joined ? el("button", { class: "small", onclick: () => openDevPage(d.name) }, "Open ↗") : ""));
-  cards.append(card("Where it is", !d.joined ? el("p", { class: "note warn" }, "Not reachable yet: " + d.name + " hasn't joined NetBird, which its addresses go through. Give it a setup key in ",
+  cards.append(card("Where it is", !d.joined ? el("p", { class: "note warn" }, "You cannot open " + d.name + " yet. All its addresses go through NetBird, and the app did not join NetBird. Give the app a setup key in ",
     el("button", { class: "link-button", onclick: () => showSection("network") }, "Network"), ".") : null, where));
 
   // What it can do.
@@ -621,7 +621,7 @@ function renderOverview() {
 
   // Tell the lead.
   const say = el("form", { class: "say-form", autocomplete: "off" },
-    el("textarea", { id: "say-text", rows: "2", maxlength: "4000", placeholder: "Tell " + d.name + "'s lead something: it answers in the app's channel", "aria-label": "Tell the lead" }),
+    el("textarea", { id: "say-text", rows: "2", maxlength: "4000", placeholder: "Send a message to the lead of " + d.name + ". The lead answers in the app channel.", "aria-label": "Tell the lead" }),
     el("button", { type: "submit" }, "Tell the lead"));
   say.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -638,7 +638,7 @@ function renderOverview() {
   for (const member of d.members) fact(member.role, member.label);
   fact("Channel", d.channel + (d.ops_channel ? ", ops " + d.ops_channel : ""));
   fact("Owners", (d.owners || []).join(", ") || "none");
-  fact("You", d.level === "none" ? "no level in this app" : d.level);
+  fact("You", d.level === "none" ? "no access level in this app" : d.level);
   fact("Dev", d.dev);
   facts.append(el("dt", {}, "Uses"), el("dd", { id: "overview-usage" }, usageLine(d.name) || "…"));
   const lines = [d.snapshot, d.heartbeat].filter(Boolean);
@@ -676,7 +676,7 @@ function signinsCard(d) {
       el("span", { class: "muted small", title: g.seen ? new Date(g.seen).toLocaleString() : "" }, g.seen ? "seen " + ago(g.seen) : ""));
     list.append(item);
   }
-  return card("Sign-ins", el("p", { class: "muted small" }, "The subscriptions its agents run on. The server's channel hears when one stops working, or has less than 10% of its weekly limit left."), list);
+  return card("Sign-ins", el("p", { class: "muted small" }, "The subscriptions that the app agents use. hi tells the server channel when a subscription stops, or has less than 10% of its weekly limit left."), list);
 }
 
 // card is one of an Overview's cards: its title, then what it holds; wide
@@ -695,10 +695,10 @@ function wide(node) {
 const boxStates = { running: "up", paused: "paused", created: "activating", restarting: "activating" };
 function boxesPart(d) {
   const boxes = d.boxes || [];
-  if (!boxes.length) return [el("h2", {}, "Boxes"), el("p", { class: "muted" }, "None of " + d.name + "'s boxes is on the machine now.")];
+  if (!boxes.length) return [el("h2", {}, "Boxes"), el("p", { class: "muted" }, "No box of " + d.name + " is on the machine now.")];
   const running = boxes.filter((b) => b.state === "running").length;
-  const intro = el("p", { class: "muted small" }, running + " of " + boxes.length + " running. Each is a container of its own on this machine, " + state.machine +
-    ", with its own files, processes, and limits; the production, stage, and dev boxes don't share one.");
+  const intro = el("p", { class: "muted small" }, running + " of " + boxes.length + " running. Each box is a separate container on " + state.machine +
+    ". It has its own files, processes and limits. Production, stage and dev boxes do not share a container.");
   const table = el("table", { class: "boxes-table" },
     el("thead", {}, el("tr", {}, el("th", {}, "Box"), el("th", {}, "State"), el("th", { class: "num" }, "CPU"), el("th", { class: "num" }, "Memory"), el("th", {}, ""))));
   const body = el("tbody");
@@ -714,12 +714,12 @@ function boxesPart(d) {
     if (b.state === "running" && b.started) when = "for " + uptime((Date.now() - new Date(b.started)) / 1000);
     else if (b.finished) when = ago(b.finished) + (b.exit_code ? ", exit " + b.exit_code : "");
     const terminal = b.term && b.state === "running" && state.me.machine
-      ? el("button", { class: "small", title: "A shell in the " + b.what, onclick: () => { termWanted = b.term; showSection("terminal"); } }, "Terminal")
+      ? el("button", { class: "small", title: "Open a shell in the " + b.what, onclick: () => { termWanted = b.term; showSection("terminal"); } }, "Terminal")
       : "";
     body.append(el("tr", { "data-box": b.name },
       el("td", {}, el("strong", {}, b.what), b.does ? el("div", { class: "muted small" }, b.does) : null,
         el("div", { class: "muted small box-facts" }, facts.filter(Boolean).join(" · ")),
-        b.oom_kills ? el("div", { class: "warn small" }, b.oom_kills + " process" + (b.oom_kills === 1 ? " was" : "es were") + " killed for want of memory since it started") : null),
+        b.oom_kills ? el("div", { class: "warn small" }, b.oom_kills + " process" + (b.oom_kills === 1 ? " was" : "es were") + " killed because memory was low, since the box started") : null),
       el("td", { class: "nowrap" }, stateDot(boxStates[b.state] || "down"), " ", b.state, el("div", { class: "muted small" }, when)),
       el("td", { class: "num nowrap", "data-cpu": "" }, "…"),
       el("td", { class: "num nowrap", "data-memory": "" }, "…"),
@@ -740,9 +740,9 @@ function boxUsage(name, boxes) {
     const cpu = row.querySelector("[data-cpu]"), memory = row.querySelector("[data-memory]");
     if (b.state !== "running" || !use) { cpu.textContent = b.state === "running" ? "…" : ""; memory.textContent = b.state === "running" ? "…" : ""; memory.className = "num nowrap"; continue; }
     cpu.textContent = use.cpu === undefined || use.cpu === null ? "…" : percent(use.cpu);
-    cpu.title = "Its share of the machine's " + u.cores + " cores";
+    cpu.title = "CPU use, of " + u.cores + " cores";
     memory.textContent = size(use.memory) + (b.memory_max ? " of " + size(b.memory_max) : "");
-    memory.title = b.memory_max ? "Past its limit, a process in it is killed" : "No limit of its own";
+    memory.title = b.memory_max ? "If the box goes past its limit, the kernel kills a process in it" : "This box has no memory limit";
     memory.className = "num nowrap " + (b.memory_max ? level(use.memory / b.memory_max) : "");
   }
 }
@@ -809,7 +809,7 @@ async function openDevPage(app) {
     if (win) win.close();
     const ok = await ask({
       title: "Make me an owner of " + app,
-      text: (answer.why || "") + " An admin of the machine can make themselves an owner. Like any owner change, it is said in the app's channel.",
+      text: (answer.why || "") + " An admin of the machine can make themselves an owner. hi tells the app channel about each owner change.",
       ok: "Make me an owner",
     });
     if (!ok) return;
@@ -824,10 +824,10 @@ async function openDevPage(app) {
 
 // The confirmations, each saying what the action does.
 const actionAsks = {
-  stop: (app) => ({ title: "Stop " + app + "?", text: "Its lead, Stage, and production stop, and it doesn't answer in Slack, until it's started again. Its folder and data stay.", ok: "Stop" }),
-  rebuild: (app) => ({ title: "Rebuild " + app + "?", text: "hi builds the machine's box image again, with Ubuntu's current packages (a few minutes). Every app on this machine moves to it by itself within a few minutes, on the same addresses; dev boxes move when they restart.", ok: "Rebuild" }),
-  freeze: (app) => ({ title: "Freeze " + app + "?", text: "Its boxes stop, and its lead reaches nothing but Slack, until someone unfreezes it. The ops channel is told why.", ok: "Freeze", why: "Why: the ops channel is told" }),
-  pause: (app) => ({ title: "Pause " + app + "?", text: "Its work stops where it is, until someone unpauses it. The ops channel is told why.", ok: "Pause", why: "Why: the ops channel is told" }),
+  stop: (app) => ({ title: "Stop " + app + "?", text: "The lead, stage and production stop. The app does not answer in Slack until someone starts it again. The folder and data stay.", ok: "Stop" }),
+  rebuild: (app) => ({ title: "Rebuild " + app + "?", text: "hi builds the box image of this machine again, with the current Ubuntu packages. This takes a few minutes. Then all apps on this machine move to the new image. Their addresses do not change. Dev boxes move when they restart.", ok: "Rebuild" }),
+  freeze: (app) => ({ title: "Freeze " + app + "?", text: "The boxes stop. The lead can reach only Slack. This continues until someone unfreezes the app. hi tells the ops channel why.", ok: "Freeze", why: "Why? hi tells the ops channel." }),
+  pause: (app) => ({ title: "Pause " + app + "?", text: "The work stops where it is, until someone unpauses the app. hi tells the ops channel why.", ok: "Pause", why: "Why? hi tells the ops channel." }),
 };
 const actionToasts = {
   start: "Starting", restart: "Restarting", stop: "Stopping", rebuild: "Rebuilding", snapshot: "Taking a snapshot of",
@@ -844,7 +844,7 @@ async function act(action, extra) {
   }
   try {
     const job = await api("/api/action", request);
-    toast(actionToasts[action] + " " + app + ". Jobs has its output.");
+    toast(actionToasts[action] + " " + app + ". See the output in Jobs.");
     followJob(job);
     return true;
   } catch (e) {
@@ -886,13 +886,13 @@ function ask({ title, text, ok, why, whyOptional, typed, field, fieldCheck, chec
       event.preventDefault();
       if (field) {
         const value = fieldBox.value.trim();
-        const problem = fieldCheck ? fieldCheck(value) : value ? "" : "Fill it in.";
+        const problem = fieldCheck ? fieldCheck(value) : value ? "" : "Fill in this field.";
         if (problem) { $("ask-error").textContent = problem; return; }
       }
-      if (typed && typedBox.value.trim() !== typed) { $("ask-error").textContent = "Type " + typed + " to say so."; return; }
+      if (typed && typedBox.value.trim() !== typed) { $("ask-error").textContent = "Type " + typed + " to continue."; return; }
       if (field || check) { done({ field: fieldBox.value.trim(), checked: $("ask-check").checked }); return; }
       if (why) {
-        if (!reason.value.trim() && !whyOptional) { $("ask-error").textContent = "Say why: the app's people are told."; return; }
+        if (!reason.value.trim() && !whyOptional) { $("ask-error").textContent = "Give a reason. hi tells the people of the app."; return; }
         done(reason.value.trim() || true);
       } else done(true);
     };
@@ -925,16 +925,16 @@ function renderMachine(force) {
   if (shown === machineShown && !force) return;
   machineShown = shown;
   const version = $("machine-version");
-  version.replaceChildren(el("p", {}, el("strong", {}, "hi " + state.version), state.latest ? el("span", { class: "warn" }, " · " + state.latest + " is out") : el("span", { class: "muted" }, " · the newest, as far as GitHub said")));
+  version.replaceChildren(el("p", {}, el("strong", {}, "hi " + state.version), state.latest ? el("span", { class: "warn" }, " · " + state.latest + " is out") : el("span", { class: "muted" }, " · the newest version on GitHub")));
   version.append(el("button", { class: state.latest ? "primary" : "", onclick: update }, state.latest ? "Update to " + state.latest : "Update hi"));
-  version.append(el("p", { class: "muted small" }, (state.org ? "The server, the apps, and this page restart on the new hi" : "The apps and this page restart on the new hi") + ": each app's lead is away for about half a minute, the page for a second."));
+  version.append(el("p", { class: "muted small" }, (state.org ? "After an update, the server, the apps and this page restart." : "After an update, the apps and this page restart.") + " Each app lead stops for about 30 seconds. This page stops for about one second."));
   badge("machine-badge", state.latest ? 1 : 0);
 
   const reach = $("machine-reach");
   reach.replaceChildren(
     el("p", {}, el("a", { href: state.address }, state.address)),
     el("p", { class: "muted small" }, state.line));
-  if (state.policy) reach.append(el("p", { class: "small" }, "What to ask your IT team: ", el("span", { class: "copyable" }, state.policy), "."));
+  if (state.policy) reach.append(el("p", { class: "small" }, "Ask your IT team for this: ", el("span", { class: "copyable" }, state.policy), "."));
   // What the apps need on this machine, Start at boot among it, with
   // Install (hi_admin.md, release 8).
   reach.append(el("h2", {}, "What the apps need here"), needsBox("", null));
@@ -960,25 +960,25 @@ function renderAdmins() {
   $("admin-add-slack").placeholder = orgAdmins ? "Their Slack member ID" : "Their Slack member ID (optional)";
   $("admin-add-name").placeholder = orgAdmins ? "Their hi user name, such as olga" : "Their name";
   $("admins-note").hidden = !orgAdmins && !state.org_apart;
-  $("admins-note").textContent = orgAdmins ? "Each approves too, in Slack and here." + (state.me.owner ? "" : " The owner adds and removes them.")
-    : state.org_apart ? "The machine's admins: they run it and its apps. The server's owner and admins run the server, in the server's Admins; making someone an admin here doesn't make them an approver." : "";
-  $("admins-title").textContent = orgAdmins ? "The server's owner and admins" : "The machine's admins";
+  $("admins-note").textContent = orgAdmins ? "Each admin can also approve requests, in Slack and here." + (state.me.owner ? "" : " Only the owner adds and removes admins.")
+    : state.org_apart ? "These admins run this machine and its apps. The owner and admins of the server are in the server section Admins. An admin of this machine is not an approver." : "";
+  $("admins-title").textContent = orgAdmins ? "Server owner and admins" : "Machine admins";
   const query = $("people-search").value.trim().toLowerCase();
   const admins = state.admins.filter((a) => (!state.org_apart || a.machine) && (!query || [a.name, a.email, a.slack].join(" ").toLowerCase().includes(query)));
   if (!admins.length) list.append(el("li", { class: "empty" }, "No one matches."));
   for (const admin of admins) {
     const me = admin.name === state.me.name;
     const acts = el("span", { class: "actions" });
-    acts.append(el("button", { onclick: () => newLink(admin, false), title: "A new link, shown to copy; their old one ends" }, "New link"));
-    if (admin.slack) acts.append(el("button", { onclick: () => newLink(admin, true), title: "A new link in their Slack DMs; their old one ends" }, "By Slack"));
+    acts.append(el("button", { onclick: () => newLink(admin, false), title: "Make a new link to copy. Their old link stops working." }, "New link"));
+    if (admin.slack) acts.append(el("button", { onclick: () => newLink(admin, true), title: "Send a new link in a Slack DM. Their old link stops working." }, "By Slack"));
     if (!me && canChange && (!admin.owner || state.org_apart)) acts.append(el("button", { class: "danger", onclick: () => removeAdmin(admin) }, "Remove"));
-    const what = el("span", { class: "what" }, adminPersonName(admin), me ? el("span", { class: "muted" }, " (you)") : null, admin.owner ? el("span", { class: "muted" }, " · the server's owner") : state.org_apart && admin.org ? el("span", { class: "muted" }, " · an admin of the server too") : null,
+    const what = el("span", { class: "what" }, adminPersonName(admin), me ? el("span", { class: "muted" }, " (you)") : null, admin.owner ? el("span", { class: "muted" }, " · server owner") : state.org_apart && admin.org ? el("span", { class: "muted" }, " · also a server admin") : null,
       el("span", { class: "muted small block" }, (admin.slack ? "Slack " + admin.slack : "no Slack member ID") + (admin.email ? " · " + admin.email : "")));
     const li = el("li", {}, what, acts);
     list.append(li);
     if (me && !admin.slack && !orgAdmins && !admin.org) {
       const form = el("form", { class: "stack slack-form", autocomplete: "off" },
-        el("label", { for: "my-slack" }, "Your Slack member ID, so you open apps' dev pages as yourself and get new links by DM (in Slack: your profile, ⋮, Copy member ID):"),
+        el("label", { for: "my-slack" }, "Your Slack member ID. With it, you open dev pages as yourself and get new links in a Slack DM. To find it in Slack, open your profile, click ⋮, then Copy member ID."),
         el("div", { class: "signin-row" }, el("input", { id: "my-slack", required: true, maxlength: "20", placeholder: "U012AB3CD" }), el("button", { class: "primary", type: "submit" }, "Save")));
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -994,12 +994,12 @@ function renderAdmins() {
 }
 
 async function update() {
-  const ok = await ask({ title: state.latest ? "Update hi to " + state.latest + "?" : "Update hi?", text: "hi updates itself, then restarts the apps and this page on the new version. Each app's lead is away for about half a minute; this page for a second, and it comes back by itself.", ok: "Update" });
+  const ok = await ask({ title: state.latest ? "Update hi to " + state.latest + "?" : "Update hi?", text: "hi updates itself. Then it restarts the apps and this page on the new version. Each app lead stops for about 30 seconds. This page stops for about one second, then comes back.", ok: "Update" });
   if (!ok) return;
   try {
     const job = await api("/api/update", {});
     waitFor = state.version;
-    toast("Updating hi. Jobs has its output; this page comes back on the new hi by itself.", true);
+    toast("Updating hi. See the output in Jobs. This page comes back on the new version.", true);
     followJob(job);
   } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
@@ -1013,7 +1013,7 @@ async function newLink(admin, send) {
 }
 
 async function removeAdmin(admin) {
-  const ok = await ask({ title: "Take " + admin.name + " off the admins?", text: "Their links and sign-ins end now. They can still log in to the machine, if they could.", ok: "Remove" });
+  const ok = await ask({ title: "Remove " + admin.name + " from the admins?", text: "Their links and sign-ins stop now. If they can log in to the machine, they still can.", ok: "Remove" });
   if (!ok) return;
   try { toast((await api("/api/admins", { action: "remove", name: admin.name })).text); await refreshState(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
@@ -1051,20 +1051,20 @@ let machines = null;
 
 async function refreshMachines() {
   const box = $("machines-view");
-  if (!machines) box.replaceChildren(el("p", { class: "muted small" }, "Asking the other machines…"));
+  if (!machines) box.replaceChildren(el("p", { class: "muted small" }, "Checking the other machines…"));
   try { machines = await api("/api/machines"); } catch (e) { if (!(e instanceof SignIn)) box.replaceChildren(el("p", { class: "error small" }, e.message)); return; }
   renderMachines();
 }
 
 function machineState(m) {
-  if (m.takes) return el("span", { class: "muted small" }, " takes apps from here" + (m.version ? " · hi " + m.version : ""));
-  return el("span", { class: "warn small" }, " " + (m.problem || "doesn't answer"));
+  if (m.takes) return el("span", { class: "muted small" }, " can take apps from this machine" + (m.version ? " · hi " + m.version : ""));
+  return el("span", { class: "warn small" }, " " + (m.problem || "does not answer"));
 }
 
 function renderMachines() {
   const box = $("machines-view");
   if (!machines) return;
-  const parts = [el("p", { class: "muted small" }, "Apps move between machines with hi, at the same addresses. A machine takes apps from another once it has that machine's key; the key lets it only receive and start apps, not log in.")];
+  const parts = [el("p", { class: "muted small" }, "hi can move an app to another machine. The addresses of the app do not change. A machine can take apps from another machine only if it has the key of that machine. The key lets it receive and start apps. It does not let it log in.")];
 
   // Where this machine moves apps to.
   const to = el("ul", { class: "list machines-list" });
@@ -1073,8 +1073,8 @@ function renderMachines() {
       el("span", { class: "actions" }, el("button", { class: "small", onclick: () => forgetMachine(m.name) }, "Remove"))));
     if (!m.takes) to.append(el("li", { class: "plain" }, machineFix(m)));
   }
-  if (!machines.to.length) to.append(el("li", { class: "empty" }, "None yet: add one here, or in an app's Move…."));
-  const addTo = el("form", { class: "signin-row", autocomplete: "off" }, input({ placeholder: "Its name on NetBird, as this one's is " + machines.machine, title: "The other machine's name on NetBird, as this one's is " + machines.machine, "aria-label": "A machine to move apps to", required: true }), el("button", { type: "submit" }, "Add"));
+  if (!machines.to.length) to.append(el("li", { class: "empty" }, "No machines yet. Add one here, or with Move… on an app."));
+  const addTo = el("form", { class: "signin-row", autocomplete: "off" }, input({ placeholder: "Name on NetBird, for example " + machines.machine, title: "Name of the other machine on NetBird. This machine is " + machines.machine + ".", "aria-label": "A machine to move apps to", required: true }), el("button", { type: "submit" }, "Add"));
   addTo.addEventListener("submit", async (event) => {
     event.preventDefault();
     try { await api("/api/machines", { action: "to", name: addTo.querySelector("input").value.trim() }); addTo.reset(); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
@@ -1083,7 +1083,7 @@ function renderMachines() {
 
   // This machine's key, for another machine to take apps from it.
   parts.push(el("h3", {}, "This machine's key"),
-    el("p", { class: "muted small" }, "For a machine to take apps from this one, paste this on its admin page, under Takes apps from, or run it there as the account that runs hi:"),
+    el("p", { class: "muted small" }, "To let another machine take apps from this one, paste this line on its admin page, under Takes apps from. Or run the line on that machine, as the account that runs hi."),
     el("div", { class: "key-line" }, el("code", {}, machines.line), el("button", { class: "small", onclick: () => copyText(machines.line) }, "Copy")));
 
   // Where this machine takes apps from.
@@ -1091,8 +1091,8 @@ function renderMachines() {
   for (const name of machines.from) {
     from.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, name)), el("span", { class: "actions" }, el("button", { class: "small danger", onclick: () => untakeMachine(name) }, "Remove"))));
   }
-  if (!machines.from.length) from.append(el("li", { class: "empty" }, "None: no machine can move apps here."));
-  const pasted = el("textarea", { rows: "2", maxlength: "800", placeholder: "The other machine's key: the line its admin page shows under This machine's key", "aria-label": "The other machine's key", required: true });
+  if (!machines.from.length) from.append(el("li", { class: "empty" }, "None. No machine can move apps to this machine."));
+  const pasted = el("textarea", { rows: "2", maxlength: "800", placeholder: "Key of the other machine. Its admin page shows the key under This machine's key.", "aria-label": "Key of the other machine", required: true });
   const take = el("form", { class: "stack", autocomplete: "off" }, pasted, el("div", { class: "buttons" }, el("button", { class: "primary", type: "submit" }, "Take apps from it")));
   take.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -1108,12 +1108,12 @@ function machineFix(m) {
   const again = el("button", { class: "small", onclick: () => refreshMachines() }, "Check again");
   if ((m.problem || "").includes("doesn't take apps")) {
     return el("div", { class: "machine-fix small" },
-      el("p", {}, "On " + m.name + "'s admin page, in Machine, Other machines, paste this under Takes apps from (or run it there as the account that runs hi):"),
+      el("p", {}, "Open the admin page of " + m.name + ". Go to Machine, Other machines. Paste this line under Takes apps from. Or run the line on " + m.name + ", as the account that runs hi."),
       el("div", { class: "key-line" }, el("code", {}, machines.line), el("button", { class: "small", onclick: () => copyText(machines.line) }, "Copy")),
       el("div", { class: "data-actions" }, again));
   }
   return el("div", { class: "machine-fix small" },
-    el("p", {}, "Check its name: it's the machine's name on NetBird, as this one's is " + machines.machine + ". The machine needs to be on, on NetBird, and to have hi."),
+    el("p", {}, "Check the name. Use the name of the machine on NetBird. This machine is " + machines.machine + ". The other machine must be on, on NetBird, and have hi."),
     el("div", { class: "data-actions" }, again));
 }
 
@@ -1124,19 +1124,22 @@ function movedView(m) {
   const facts = el("dl", { class: "facts" });
   const fact = (term, value) => { if (value) facts.append(el("dt", {}, term), el("dd", {}, value)); };
   fact("Moved", new Date(m.at).toLocaleString() + " (" + ago(m.at) + ")" + (m.by ? ", by " + m.by : ""));
-  fact("Copied", m.size ? size(m.size) + ": its folder, secrets, NetBird identity, and snapshots" : "");
+  fact("Copied", m.size ? size(m.size) + " (folder, secrets, NetBird identity and snapshots)" : "");
   fact("Took", m.took ? seconds(m.took) : "");
-  fact("Stopped for", m.stopped ? seconds(m.stopped) + ", while the last changes were copied and it started there" : "");
-  fact("Snapshot", m.snapshot ? m.snapshot + ", taken here just before" : "");
-  fact("Its folder here", m.folder ? el("code", {}, m.folder) : "");
+  fact("Stopped for", m.stopped ? seconds(m.stopped) + ". hi copied the last changes and started the app there." : "");
+  fact("Snapshot", m.snapshot ? m.snapshot + ". hi took it here just before the move." : "");
+  fact("Folder here", m.folder ? el("code", {}, m.folder) : "");
   const actions = el("div", { class: "data-actions" });
-  if (m.admin) actions.append(el("a", { class: "button-like primary", href: m.admin, target: "_blank", rel: "noopener noreferrer" }, "Open " + m.to + "'s admin page ↗"));
-  actions.append(el("button", { onclick: () => forgetMoved(m.app) }, "Take it off this list"));
+  if (m.admin) actions.append(el("a", { class: "button-like primary", href: m.admin, target: "_blank", rel: "noopener noreferrer" }, "Open the admin page of " + m.to + " ↗"));
+  actions.append(el("button", { onclick: () => forgetMoved(m.app) }, "Remove from this list"));
   return [
     el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, m.app), el("span", { class: "pill open" }, "moved"), el("span", { class: "muted" }, "to " + m.to)),
-    el("p", { class: "note" }, m.app + " runs on " + m.to + " now, at the same addresses: its people, links, and Slack channel are as they were. Manage it on " + m.to + "'s admin page."),
+    el("p", { class: "note" }, m.app + " runs on " + m.to + " now. Its addresses, people, links and Slack channel did not change. Manage it on the admin page of " + m.to + "."),
     facts, actions,
-    el("p", { class: "muted small" }, "To bring it back: on " + m.to + "'s admin page, open " + m.app + ", Move…, and pick this machine, " + (state && state.move_name ? state.move_name : "this one") + ". Its folder here is kept, so a move back copies only what changed. Taking it off this list keeps the folder.")];
+    el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+      el("li", {}, "To bring the app back, open the admin page of " + m.to + ". Open " + m.app + ", click Move…, and pick " + (state && state.move_name ? state.move_name : "this machine") + "."),
+      el("li", {}, "hi keeps the app folder on this machine. A move back copies only the changes."),
+      el("li", {}, "Remove from this list does not delete the folder.")))];
 }
 
 async function forgetMoved(app) {
@@ -1148,7 +1151,7 @@ async function forgetMachine(name) {
 }
 
 async function untakeMachine(name) {
-  const ok = await ask({ title: "Stop taking apps from " + name + "?", text: name + " can no longer move apps here. Apps it moved here already stay.", ok: "Stop" });
+  const ok = await ask({ title: "Stop taking apps from " + name + "?", text: name + " cannot move apps to this machine after this. Apps that it moved here stay.", ok: "Stop" });
   if (!ok) return;
   try { toast((await api("/api/machines", { action: "untake", name })).text); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
@@ -1160,13 +1163,13 @@ async function moveApp(app) {
   let picked = "";
   let checking = 0;
   $("move-title").textContent = "Move " + app + " to another machine";
-  $("move-text").textContent = "The lead, production, Stage, and the dev page stop for about a minute, then run on the other machine at the same addresses, with the app's data, snapshots, and secrets. The folder here stays, with a note of where the app went.";
+  $("move-text").textContent = "The lead, production, stage and the dev page stop for about one minute. Then they run on the other machine, at the same addresses. hi copies the data, snapshots and secrets of the app. The folder stays on this machine, with a note that tells where the app went.";
   $("move-ok").disabled = true;
   $("move-check").replaceChildren();
   const list = $("move-list");
   const draw = () => {
     list.replaceChildren();
-    if (machines) $("move-add-name").placeholder = "Another machine: its name on NetBird, as this one's is " + machines.machine;
+    if (machines) $("move-add-name").placeholder = "Name of another machine on NetBird, for example " + machines.machine;
     const known = machines ? machines.to : [];
     for (const m of known) {
       const li = el("li", { role: "option", "aria-selected": String(m.name === picked), tabindex: "0" },
@@ -1175,8 +1178,8 @@ async function moveApp(app) {
       li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(m.name); } });
       list.append(li);
     }
-    if (!machines) list.append(el("li", { class: "empty" }, "Asking the other machines…"));
-    else if (!known.length) list.append(el("li", { class: "empty" }, "No machine yet: add the one to move it to."));
+    if (!machines) list.append(el("li", { class: "empty" }, "Checking the other machines…"));
+    else if (!known.length) list.append(el("li", { class: "empty" }, "No machines yet. Add the machine to move the app to."));
   };
   const pick = async (name) => {
     picked = name;
@@ -1192,13 +1195,13 @@ async function moveApp(app) {
     if (view.error) {
       parts.push(el("p", { class: "error small" }, view.error + "."));
       if (view.access) {
-        parts.push(el("p", { class: "small" }, "On " + view.machine + "'s admin page, in Machine, Other machines, paste this under Takes apps from (or run it there as the account that runs hi), then pick it again:"),
+        parts.push(el("p", { class: "small" }, "Open the admin page of " + view.machine + ". Go to Machine, Other machines. Paste this line under Takes apps from. Or run the line on " + view.machine + ", as the account that runs hi. Then pick the machine again."),
           el("div", { class: "key-line" }, el("code", {}, view.access), el("button", { class: "small", onclick: () => copyText(view.access) }, "Copy")));
       }
     } else {
-      parts.push(el("p", { class: "small" }, view.machine + " runs hi " + view.version + "; the folder goes to ", el("code", {}, view.folder), " there."));
-      if (view.problems.length) parts.push(el("p", { class: "error small" }, "What it lacks first:"), el("ul", { class: "small" }, ...view.problems.map((p) => el("li", {}, p))));
-      if (view.warnings.length) parts.push(el("p", { class: "warn small" }, "What works differently there:"), el("ul", { class: "small" }, ...view.warnings.map((w) => el("li", {}, w))));
+      parts.push(el("p", { class: "small" }, view.machine + " runs hi " + view.version + ". The folder goes to ", el("code", {}, view.folder), " on that machine."));
+      if (view.problems.length) parts.push(el("p", { class: "error small" }, "Fix these first:"), el("ul", { class: "small" }, ...view.problems.map((p) => el("li", {}, p))));
+      if (view.warnings.length) parts.push(el("p", { class: "warn small" }, "These work differently on that machine:"), el("ul", { class: "small" }, ...view.warnings.map((w) => el("li", {}, w))));
       if (!view.problems.length) parts.push(el("p", { class: "muted small" }, "Nothing stops the move."));
       $("move-ok").disabled = view.problems.length > 0;
     }
@@ -1225,7 +1228,7 @@ async function moveApp(app) {
     close();
     try {
       const job = await api("/api/action", { app, action: "move", machine });
-      toast("Moving " + app + " to " + machine + ": Jobs follows it.", true);
+      toast("Moving " + app + " to " + machine + ". See the progress in Jobs.", true);
       followJob(job);
       const wait = async () => {
         let answer;
@@ -1233,8 +1236,8 @@ async function moveApp(app) {
         if (answer.job.state === "running") { setTimeout(wait, 3000); return; }
         await refreshState();
         if (openApp === app) { detail = null; refreshDetail(); }
-        if (answer.job.state === "done") toast(app + " moved to " + machine + ", and runs there now.", true);
-        else toast(app + " didn't move, and runs here as before: Jobs has why.", true);
+        if (answer.job.state === "done") toast(app + " moved to " + machine + " and runs there now.", true);
+        else toast(app + " did not move. It runs here as before. See the reason in Jobs.", true);
       };
       setTimeout(wait, 3000);
     } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
@@ -1253,7 +1256,7 @@ async function refreshActivity() {
     const list = await api("/api/activity");
     const box = $("activity-list");
     box.replaceChildren();
-    if (!list.length) box.append(el("li", { class: "empty" }, "Nothing yet: what admins do here shows up here" + (state && state.org ? ", with the server's audit." : ".")));
+    if (!list.length) box.append(el("li", { class: "empty" }, "Nothing yet. Actions of admins show here" + (state && state.org ? ", with the server audit." : ".")));
     for (const entry of list) {
       box.append(el("li", {}, el("div", {}, el("strong", {}, entry.who), " ", entry.what, entry.app ? el("span", { class: "muted" }, " · " + entry.app) : null, entry.org ? el("span", { class: "muted" }, " · the server") : null),
         el("div", { class: "muted small" }, ago(entry.at))));
@@ -1284,8 +1287,8 @@ async function refreshJobs() {
   const list = $("jobs-list");
   list.replaceChildren();
   const shownJobs = jobsShown();
-  if (!openApp && jobs.length) list.append(el("li", { class: "empty" }, "Every job, the machine's too. Open an app for its own."));
-  if (!shownJobs.length) list.append(el("li", { class: "empty" }, openApp ? "No jobs for " + openApp + " in the last two weeks: a restart, a rebuild, or a snapshot runs here, with its output." : "No jobs yet: a restart, a rebuild, a snapshot, or an update runs here, with its output."));
+  if (!openApp && jobs.length) list.append(el("li", { class: "empty" }, "All jobs, also the machine jobs. Open an app to see only its jobs."));
+  if (!shownJobs.length) list.append(el("li", { class: "empty" }, openApp ? "No jobs for " + openApp + " in the last two weeks. Restarts, rebuilds and snapshots show here, with their output." : "No jobs yet. Restarts, rebuilds, snapshots and updates show here, with their output."));
   for (const job of shownJobs) {
     const cls = job.state === "running" ? "working" : job.state === "done" ? "done" : "bad";
     list.append(el("li", {}, el("span", { class: "dot " + cls, "aria-hidden": "true" }),
@@ -1349,7 +1352,7 @@ function logsApp() {
   const here = openApp && !movedOpen() ? openApp : "";
   const app = here || (state && state.org && (orgOpen() || !state.apps.length) ? ":org" : "");
   $("logs-whose").textContent = here ? here : app === ":org" ? "The server" : "The admin page";
-  $("logs-whose").title = here ? here + "'s lead and service" : app === ":org" ? "hi-server.service" : "Open an app, or the server, for its logs";
+  $("logs-whose").title = here ? "The lead and service of " + here : app === ":org" ? "hi-server.service" : "Open an app or the server to see its logs";
   return app;
 }
 $("logs-errors").addEventListener("click", () => {
@@ -1432,8 +1435,8 @@ async function refreshIncidents() {
     const list = whose ? all.filter((i) => i.app === whose) : all;
     const box = $("incidents-list");
     box.replaceChildren();
-    if (!whose && all.length) box.append(el("li", { class: "empty" }, state && state.org ? "Every app's, and the server's. Open one for its own." : "Every app's. Open an app for its own."));
-    if (!list.length) box.append(el("li", { class: "empty" }, (whose === ":org" ? "The server has had no incidents: an instance on its accounts that no request started, or a failed start's machine left behind, shows here" : whose ? whose + " has had no incidents" : "No incidents") + (whose === ":org" ? "." : " in the last month.")));
+    if (!whose && all.length) box.append(el("li", { class: "empty" }, state && state.org ? "Incidents of all apps and the server. Open one to see only its incidents." : "Incidents of all apps. Open an app to see only its incidents."));
+    if (!list.length) box.append(el("li", { class: "empty" }, (whose === ":org" ? "The server has no incidents. An incident is an instance that no request started, or a machine that a failed start left behind" : whose ? whose + " has had no incidents" : "No incidents") + (whose === ":org" ? "." : " in the last month.")));
     for (const incident of list) {
       const cls = incident.status === "closed" ? "done" : incident.status === "waiting" ? "blocked" : "bad";
       box.append(el("li", { class: "incident" },
@@ -1494,7 +1497,7 @@ function requestWhat(r) {
   const who = el("strong", {}, r.user);
   switch (r.kind) {
     case "enroll":
-      return [who, r.owner ? " (an agent, for " + r.owner + ")" : "", " wants to join, from ", el("strong", {}, r.hostname || "a device")];
+      return [who, r.owner ? " (an agent for " + r.owner + ")" : "", " wants to join, from ", el("strong", {}, r.hostname || "a device")];
     case "extend":
       return [who, " asks for ", hours(r.seconds), " more on ", el("strong", {}, r.name)];
     case "serve":
@@ -1516,11 +1519,11 @@ function renderRequests() {
       el("div", { class: "muted small" }, r.id + " · " + ago(r.created) + (r.agent ? " · sent by " + r.agent : "")));
     if (r.reason) li.append(el("div", { class: "small clamp3", title: r.reason }, "Why: " + r.reason));
     if (r.budget) li.append(el("div", { class: (r.over_budget ? "warn" : "muted") + " small" }, r.budget));
-    if (r.waits && r.state === "pending") li.append(el("div", { class: "muted small" }, "Waits for a person: " + r.waits + "."));
+    if (r.waits && r.state === "pending") li.append(el("div", { class: "muted small" }, "A person must approve: " + r.waits + "."));
     if (r.state === "starting") {
-      li.append(el("div", { class: "muted small" }, "Approved by " + (r.decided_by || "?") + "; starting" + (r.progress ? ": " + r.progress : "…")));
+      li.append(el("div", { class: "muted small" }, "Approved by " + (r.decided_by || "?") + ". Starting" + (r.progress ? ": " + r.progress : "…")));
     } else if (r.mine) {
-      li.append(el("div", { class: "muted small" }, "Yours: another approver decides."));
+      li.append(el("div", { class: "muted small" }, "Your request. Another approver decides."));
     } else {
       const acts = el("div", { class: "data-actions" });
       let group = null;
@@ -1529,14 +1532,14 @@ function renderRequests() {
         acts.append(group);
       }
       acts.append(el("button", { class: "primary small", onclick: () => {
-        if (group && !group.value.trim()) { group.focus(); toast(r.user + " is new: choose their group first."); return; }
+        if (group && !group.value.trim()) { group.focus(); toast(r.user + " is a new user. Choose a group first."); return; }
         orgDo({ what: "decide", action: "approve", id: r.id, group: group ? group.value.trim() : "" }, "Approved " + r.id + ".");
       } }, "Approve"));
       if (r.kind === "compute" && r.rate && r.policy_group && !r.over_budget && r.waits) {
-        acts.append(el("button", { class: "small", title: "Approve it, and widen " + r.policy_group + "'s auto-approval so the like of it starts by itself", onclick: () => approveAndAllow(r) }, "Approve, and the like by itself…"));
+        acts.append(el("button", { class: "small", title: "Approve this request. Also change auto-approval for " + r.policy_group + ", so that similar requests start without approval.", onclick: () => approveAndAllow(r) }, "Approve, and auto-approve similar…"));
       }
       acts.append(el("button", { class: "small", onclick: async () => {
-        const why = await ask({ title: "Deny " + r.id + "?", text: r.user + " is told it was denied, and why if you say.", ok: "Deny", why: "Why (optional): " + r.user + " is told", whyOptional: true });
+        const why = await ask({ title: "Deny " + r.id + "?", text: "hi tells " + r.user + " that you denied the request. If you give a reason, hi tells it too.", ok: "Deny", why: "Reason (optional). hi tells " + r.user + ".", whyOptional: true });
         if (why === false) return;
         orgDo({ what: "decide", action: "deny", id: r.id, reason: typeof why === "string" ? why : "" }, "Denied " + r.id + ".");
       } }, "Deny…"));
@@ -1557,7 +1560,7 @@ function renderRunning() {
     if (live.month_budget) sum += " of " + dollars(live.month_budget);
     $("running-sum").textContent = sum;
   }
-  if (!running.length) box.append(el("li", { class: "empty" }, "No machine runs for anyone now."));
+  if (!running.length) box.append(el("li", { class: "empty" }, "No compute machine runs now."));
   const perUser = {};
   for (const r of running) perUser[r.user] = (perUser[r.user] || 0) + 1;
   for (const r of running) {
@@ -1569,14 +1572,14 @@ function renderRunning() {
     if (r.reason) li.append(el("div", { class: "muted small clamp2", title: r.reason }, r.reason));
     const acts = el("div", { class: "data-actions" },
       el("button", { class: "small", onclick: async () => {
-        const ok = await ask({ title: "Stop " + r.name + "?", text: "It stops now, and " + r.user + " is told who stopped it. What's on it and not saved elsewhere is gone.", ok: "Stop" });
+        const ok = await ask({ title: "Stop " + r.name + "?", text: "The machine stops now. hi tells " + r.user + " who stopped it. Data on the machine that is not saved in another place is lost.", ok: "Stop" });
         if (ok) orgDo({ what: "stop", name: r.name }, "Stopping " + r.name + ".");
       } }, "Stop"));
     if (perUser[r.user] > 1) {
       acts.append(el("button", { class: "small danger", onclick: async () => {
-        const ok = await ask({ title: "Stop everything of " + r.user + "?", text: "All " + perUser[r.user] + " of " + r.user + "'s machines stop now. Type their name to say so.", ok: "Stop them all", typed: r.user });
-        if (ok) orgDo({ what: "stop", user: r.user }, "Stopping everything of " + r.user + ".");
-      } }, "Stop all of " + r.user + "'s"));
+        const ok = await ask({ title: "Stop all machines of " + r.user + "?", text: "All " + perUser[r.user] + " machines of " + r.user + " stop now. Type the user name to continue.", ok: "Stop all", typed: r.user });
+        if (ok) orgDo({ what: "stop", user: r.user }, "Stopping all machines of " + r.user + ".");
+      } }, "Stop all of " + r.user));
     }
     li.append(acts);
     box.append(li);
@@ -1661,12 +1664,12 @@ function openOrg(section) {
 function orgHead() {
   const o = state.org;
   return el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "The server"),
-    el("span", { class: "pill " + (o.up ? "open" : "closed") }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), o.up ? "runs" : "doesn't answer"),
+    el("span", { class: "pill " + (o.up ? "open" : "closed") }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), o.up ? "runs" : "does not answer"),
     el("span", { class: "muted" }, orgSection === "overview" ? (o.owner ? "owned by " + o.owner : "") : orgSectionNames[orgSection]));
 }
 const orgCanChange = () => !!(state && state.me && state.me.org);
 function orgReadOnlyNote() {
-  return orgCanChange() ? null : el("p", { class: "note muted small" }, "You see the server: its owner and admins change it.");
+  return orgCanChange() ? null : el("p", { class: "note muted small" }, "You can see the server. Only its owner and admins can change it.");
 }
 
 function renderOrgSection() {
@@ -1701,7 +1704,7 @@ function orgStats(o) {
 function orgOverview(s) {
   const o = state.org;
   const parts = [];
-  if (o.no_owner) parts.push(el("p", { class: "warn" }, "No owner yet. On the machine: ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
+  if (o.no_owner) parts.push(el("p", { class: "warn" }, "The server has no owner yet. On the machine, run ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
   if (o.up) parts.push(el("div", { class: "card-box org-card" }, orgStats(o)));
   // In cards, as an app's Overview.
   const cards = el("div", { class: "admin-cards" });
@@ -1720,7 +1723,7 @@ function orgOverview(s) {
     t.append(el("tr", {}, el("th", { scope: "row" }, "All"), el("td", {}, el("strong", {}, dollars(total)))));
     cards.append(wide(card("Model spend", el("div", { class: "matrix-scroll" }, t))));
   }
-  if (state.org_apart) parts.push(el("p", { class: "muted small" }, "This machine runs apps too. Its admins run the apps; the server's owner and admins (Admins) run the server."));
+  if (state.org_apart) parts.push(el("p", { class: "muted small" }, "This machine also runs apps. The machine admins manage the apps. The server owner and admins (in Admins) manage the server."));
   return parts;
 }
 
@@ -1732,38 +1735,38 @@ function orgNetBlock(n) {
   const block = el("div", { class: "machine-block" });
   const p = n.peer;
   const move = inlineForm([
-    { name: "key", type: "password", placeholder: "A setup key from the network's dashboard (Setup Keys)", required: true },
-    { name: "url", placeholder: "Its management server, when it isn't NetBird's own, such as https://netbird.example.com" },
-    { name: "name", placeholder: "The peer's name (optional; " + ((p && p.name) || "<machine>-server") + " by default)", max: "63", pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?" },
+    { name: "key", type: "password", placeholder: "Setup key from the NetBird dashboard (Setup Keys)", required: true },
+    { name: "url", placeholder: "Management server, if not the NetBird cloud, for example https://netbird.example.com" },
+    { name: "name", placeholder: "Peer name (optional, default " + ((p && p.name) || "<machine>-server") + ")", max: "63", pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?" },
   ], async (v) => {
-    toast("Joining the network: up to a minute and a half…", true);
+    toast("Joining the network. This can take up to 90 seconds…", true);
     const answer = await orgDo({ what: "net", action: "join", key: v.key, url: v.url, name: v.name }, "");
     if (answer === null) return false;
     if (answer.text) toast(answer.text, true);
-  }, p ? "Move it" : "Join");
+  }, p ? "Move" : "Join");
   if (!p) {
-    block.append(el("p", { class: "small" }, n.listen ? "The server listens on this machine's NetBird address, " : "The server has no NetBird address yet", n.listen ? el("code", {}, n.listen) : null,
-      n.listen ? ", so it moves when the machine does." : "."),
-      el("p", { class: "muted small" }, "A NetBird peer of its own lets it move to another network without the machine, and have its own access policies."));
-    if (owns) block.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { move.hidden = !move.hidden; } }, "Give it a peer of its own…")), move);
+    block.append(el("p", { class: "small" }, n.listen ? "The server uses the NetBird address of this machine, " : "The server has no NetBird address yet", n.listen ? el("code", {}, n.listen) : null,
+      n.listen ? ". If the machine moves, the server moves with it." : "."),
+      el("p", { class: "muted small" }, "With its own NetBird peer, the server can move to another network without the machine. It can also have its own access policies."));
+    if (owns) block.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { move.hidden = !move.hidden; } }, "Give the server its own peer…")), move);
     return block;
   }
   block.append(el("p", { class: "incident-head" }, el("span", { class: "dot " + (p.connected ? "idle" : "bad"), "aria-hidden": "true" }),
     "On NetBird as ", el("code", {}, p.fqdn || p.name), p.address ? " (" + p.address + ")" : "", ", at " + (p.network || "NetBird") + "."));
-  if (!p.connected) block.append(el("p", { class: "warn small" }, "Not on its network" + (p.problem ? ": " + p.problem : "") + ". Devices reach the server there again once it's back."));
+  if (!p.connected) block.append(el("p", { class: "warn small" }, "The peer is not on its network" + (p.problem ? ": " + p.problem : "") + ". Devices can reach the server again when the peer is back."));
   const old = [];
-  if (n.old) old.push(el("p", { class: "small" }, "It still answers as ", el("code", {}, n.old.fqdn || n.old.name), ", its peer from before the move, until devices have followed (by " + new Date(n.old.until).toLocaleDateString() + " at the latest)."));
-  if (n.listen) old.push(el("p", { class: "small" }, "It still answers at ", el("code", {}, n.listen), ", this machine's NetBird address from before its peer."));
+  if (n.old) old.push(el("p", { class: "small" }, "The server also answers as ", el("code", {}, n.old.fqdn || n.old.name), ". This is the old peer from before the move. It answers until all devices move to the new address, or until " + new Date(n.old.until).toLocaleDateString() + "."));
+  if (n.listen) old.push(el("p", { class: "small" }, "The server also answers at ", el("code", {}, n.listen), ". This is the NetBird address of this machine, from before the server had its own peer."));
   if (old.length) {
     block.append(...old);
     const recent = (n.old_devices || []).filter((d) => Date.now() - new Date(d.last).getTime() < 24 * 3600 * 1000);
-    block.append(el("p", { class: "muted small" }, recent.length ? "Called there in the last day: " + recent.map((d) => d.user + " on " + d.hostname).join(", ") + ". Devices that call there are told the new address, and follow." : "No device called there in the last day."));
+    block.append(el("p", { class: "muted small" }, recent.length ? "Devices that used the old address in the last day: " + recent.map((d) => d.user + " on " + d.hostname).join(", ") + ". hi tells these devices the new address, and they move to it." : "No device used the old address in the last day."));
     if (owns) block.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
-      if (await ask({ title: "Stop answering at the old addresses?", text: recent.length ? "Devices that haven't followed yet join again at the new address, as the same devices: hi server join " + n.join + "." : "Every device has followed, or none called there for a day.", ok: "Stop" })) { const answer = await orgDo({ what: "net", action: "forget-old" }, ""); if (answer && answer.text) toast(answer.text); }
+      if (await ask({ title: "Stop answering at the old addresses?", text: recent.length ? "Devices that did not move yet must join again at the new address, with hi server join " + n.join + ". They stay the same devices." : "All devices moved, or no device used the old address in the last day.", ok: "Stop" })) { const answer = await orgDo({ what: "net", action: "forget-old" }, ""); if (answer && answer.text) toast(answer.text); }
     } }, "Forget the old address")));
   }
-  if (n.page) block.append(el("p", { class: "small" }, "The admin page is there too: ", el("code", {}, "http://" + (n.join || p.name) + ":1984/"), "."));
-  block.append(el("p", { class: "muted small" }, "Ask your IT team for NetBird policies that let devices reach ", el("code", {}, n.join || p.name), " on TCP 7373", n.page ? ", the admins on TCP 1984," : "", " and the peer reach the team's machines on the ports their models are served on."));
+  if (n.page) block.append(el("p", { class: "small" }, "The admin page is also at ", el("code", {}, "http://" + (n.join || p.name) + ":1984/"), "."));
+  block.append(el("p", { class: "muted small" }, "Ask your IT team for these NetBird policies. Devices can reach ", el("code", {}, n.join || p.name), " on TCP 7373.", n.page ? " Admins can reach it on TCP 1984." : "", " The peer can reach the team machines on the ports that serve their models."));
   if (owns && !n.old) block.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { move.hidden = !move.hidden; } }, "Move to another network…")), move);
   return block;
 }
@@ -1771,23 +1774,23 @@ function orgNetBlock(n) {
 function orgServerBlock(s) {
   const o = state.org;
   const block = el("div", { class: "machine-block" });
-  block.append(el("p", { class: "incident-head" }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), o.up ? "The server runs." : "The server doesn't answer."));
+  block.append(el("p", { class: "incident-head" }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), o.up ? "The server runs." : "The server does not answer."));
   if (o.error) block.append(el("p", { class: "error small" }, o.error));
   const join = (s && s.net && s.net.join) || (s && s.listen);
-  if (join) block.append(el("p", { class: "muted small" }, "Devices join with ", el("code", {}, "hi server join " + join)));
+  if (join) block.append(el("p", { class: "muted small" }, "To join a device, run ", el("code", {}, "hi server join " + join)));
   const actions = el("div", { class: "data-actions" });
   if (o.service === "user") {
-    block.append(el("p", { class: "muted small" }, "A user service, hi-server.service, beside this page."));
+    block.append(el("p", { class: "muted small" }, "The server runs as a user service, hi-server.service, next to this page."));
     actions.append(el("button", { class: "small", onclick: async () => {
-      const ok = await ask({ title: "Restart the server?", text: "It is down for about a second. Machines keep running, and requests wait.", ok: "Restart" });
+      const ok = await ask({ title: "Restart the server?", text: "The server stops for about one second. Machines continue to run, and requests wait.", ok: "Restart" });
       if (ok) orgDo({ what: "restart" }, "The server restarted.");
     } }, o.up ? "Restart" : "Start"));
   } else if (o.service === "system") {
-    block.append(el("p", { class: "warn small" }, "A system service, so this page can't restart it. hi update on the machine makes it a user service, with sudo this once."));
+    block.append(el("p", { class: "warn small" }, "The server runs as a system service, so this page cannot restart it. Run hi update on the machine to make it a user service. This needs sudo one time."));
   } else {
-    block.append(el("p", { class: "warn small" }, "No service runs it. On the machine: ", el("code", {}, "hi server init"), " makes one."));
+    block.append(el("p", { class: "warn small" }, "No service runs the server. To make one, run ", el("code", {}, "hi server init"), " on the machine."));
   }
-  actions.append(el("button", { class: "small", "data-nav": "", onclick: () => showView("logs") }, "Its logs"));
+  actions.append(el("button", { class: "small", "data-nav": "", onclick: () => showView("logs") }, "Logs"));
   block.append(actions);
   return block;
 }
@@ -1801,14 +1804,14 @@ function orgUsers(s) {
     const query = search.value.trim().toLowerCase();
     const shownUsers = users.filter((u) => !query || u.name.includes(query) || (u.group || "").includes(query));
     list.replaceChildren();
-    if (!users.length) list.append(el("li", { class: "empty" }, "Nobody yet: devices ask to join with hi server join, and show up in Requests."));
+    if (!users.length) list.append(el("li", { class: "empty" }, "No users yet. A device asks to join with hi server join. The request shows in Requests."));
     else if (!shownUsers.length) list.append(el("li", { class: "empty" }, "Nobody matches."));
     for (const u of shownUsers) {
       const devices = (u.devices || []).map((d) => d.hostname + (d.last_seen && new Date(d.last_seen).getTime() > 0 ? " (" + ago(d.last_seen) + ")" : ""));
-      list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, u.name), " ", el("span", { class: "muted small" }, (u.group || "no group") + (u.kind === "agent" ? " · an agent of " + u.owner : u.kind === "viewer" ? " · a viewer" : "")),
+      list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, u.name), " ", el("span", { class: "muted small" }, (u.group || "no group") + (u.kind === "agent" ? " · agent of " + u.owner : u.kind === "viewer" ? " · viewer" : "")),
         el("span", { class: "muted small block" }, devices.length ? devices.join(", ") : "no devices")),
         el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => {
-          const ok = await ask({ title: "Remove " + u.name + "?", text: "They and their " + (u.devices || []).length + " devices leave the server: nothing more starts for them. What runs keeps running until it's stopped (Running). Type their name to say so.", ok: "Remove", typed: u.name });
+          const ok = await ask({ title: "Remove " + u.name + "?", text: "The user and their " + (u.devices || []).length + " devices leave the server. Nothing new starts for them. Machines that run now continue until someone stops them in Running. Type the user name to continue.", ok: "Remove", typed: u.name });
           if (ok) orgDo({ what: "user", action: "remove", name: u.name }, u.name + " has left the server.");
         } }, "Remove"))));
     }
@@ -1816,12 +1819,12 @@ function orgUsers(s) {
   search.addEventListener("input", show);
   show();
   const add = inlineForm([
-    { name: "name", placeholder: "Their hi user name, such as olga", required: true, max: "32", pattern: "[a-z0-9._\\-]+" },
-    { name: "group", placeholder: "Their group, such as staff", required: true, max: "32", list: "org-groups" },
-    { name: "key", placeholder: "A device's key, from hi server key on it (optional)" },
+    { name: "name", placeholder: "Their hi user name, for example olga", required: true, max: "32", pattern: "[a-z0-9._\\-]+" },
+    { name: "group", placeholder: "Their group, for example staff", required: true, max: "32", list: "org-groups" },
+    { name: "key", placeholder: "Device key, from hi server key on the device (optional)" },
   ], async (v) => ((await orgDo({ what: "user", action: "add", name: v.name, group: v.group, key: v.key }, v.name + " is on the server.")) === null ? false : undefined), "Add");
   $("org-groups").replaceChildren(...((org && org.groups) || []).map((g) => el("option", { value: g })));
-  return [el("p", { class: "purpose" }, "Everyone whose devices and agents ask the server for compute, by their hi user name, each in a group the policy sets limits for. They aren't the apps' people (People), nor this page's admins."),
+  return [el("p", { class: "purpose" }, "Users ask the server for compute from their devices and agents. Each user is in a group. The policy sets limits for each group. Users are not the people of an app (People), and not admins of this page."),
     heading("Users", plus("Add a user", add)), add, el("div", { class: "logs-tools" }, search), list];
 }
 
@@ -1829,22 +1832,22 @@ function orgUsers(s) {
 function orgAdmins(s) {
   const owner = s.people.owner;
   const owns = !!(state.me && state.me.owner);
-  const parts = [el("p", { class: "purpose" }, "The owner and the admins approve, in Slack and here, and change the server's users, policy, and keys. " +
-    (state.org_apart ? "They sign in to this page for the server; the machine's admins (Machine) run the apps." : "On this machine they are the page's admins too."))];
+  const parts = [el("p", { class: "purpose" }, "The owner and admins approve requests, in Slack and here. They change the users, policy and keys of the server. " +
+    (state.org_apart ? "They sign in to this page to manage the server. The machine admins (Machine) manage the apps." : "On this machine, they are also admins of this page."))];
   const handOn = inlineForm([
-    { name: "slack", placeholder: "The new owner's Slack member ID", required: true, max: "20" },
+    { name: "slack", placeholder: "Slack member ID of the new owner", required: true, max: "20" },
     { name: "email", type: "email", placeholder: "Their email", required: true },
-    { name: "name", placeholder: "Their hi user name (from their email if left out)", max: "32" },
-  ], (v) => orgDo({ what: "owner", slack: v.slack, email: v.email, name: v.name }, "Handed on."), "Hand it on");
+    { name: "name", placeholder: "Their hi user name (if empty, hi uses their email)", max: "32" },
+  ], (v) => orgDo({ what: "owner", slack: v.slack, email: v.email, name: v.name }, "The server has a new owner."), "Change owner");
   parts.push(heading("Owner"));
-  if (!owner) parts.push(el("p", { class: "warn small" }, "The server has no owner yet. On the machine: ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
+  if (!owner) parts.push(el("p", { class: "warn small" }, "The server has no owner yet. On the machine, run ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
   else {
     parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, owner.name), " ", el("span", { class: "muted small" }, "Slack " + owner.slack + (owner.email ? " · " + owner.email : ""))),
-      owns ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { handOn.hidden = !handOn.hidden; } }, "Hand it on…")) : null));
+      owns ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { handOn.hidden = !handOn.hidden; } }, "Change owner…")) : null));
     parts.push(handOn);
   }
   const add = inlineForm([
-    { name: "name", placeholder: "Their hi user name, such as olga", required: true, max: "32" },
+    { name: "name", placeholder: "Their hi user name, for example olga", required: true, max: "32" },
     { name: "slack", placeholder: "Their Slack member ID", required: true, max: "20" },
     { name: "email", type: "email", placeholder: "Their email (optional)" },
   ], async (v) => {
@@ -1857,86 +1860,86 @@ function orgAdmins(s) {
   for (const a of s.people.admins || []) {
     list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, a.name), el("span", { class: "muted small block" }, "Slack " + a.slack + (a.email ? " · " + a.email : "") + (a.by ? " · added by " + a.by : ""))),
       owns ? el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => {
-        if (await ask({ title: "Take " + a.name + " off the server's admins?", text: "They no longer approve, nor change the server." + (state.org_apart ? " If they're one of the machine's admins, they still run it." : " Their links to this page end."), ok: "Remove" })) {
+        if (await ask({ title: "Remove " + a.name + " from the server admins?", text: "They cannot approve requests or change the server after this." + (state.org_apart ? " If they are a machine admin, they still manage the machine." : " Their links to this page stop working."), ok: "Remove" })) {
           const answer = await orgDo({ what: "admins", action: "remove", name: a.slack });
           if (answer) toast(answer.text || "Done.");
         }
       } }, "Remove")) : null));
   }
-  if (!(s.people.admins || []).length) list.append(el("li", { class: "plain muted small" }, "None besides the owner."));
+  if (!(s.people.admins || []).length) list.append(el("li", { class: "plain muted small" }, "No admins other than the owner."));
   parts.push(list);
   const approvers = Object.entries(s.approvers || {}).sort((a, b) => a[1].localeCompare(b[1]));
-  if (approvers.length) parts.push(el("p", { class: "muted small" }, "Approvers in Slack: " + approvers.map(([id, name]) => name).join(", ") + ". Someone who only approves: ", el("code", {}, "hi server approvers add"), "."));
+  if (approvers.length) parts.push(el("p", { class: "muted small" }, "Approvers in Slack: " + approvers.map(([id, name]) => name).join(", ") + ". To add a person who only approves, run ", el("code", {}, "hi server approvers add"), "."));
   return parts;
 }
 
 // Keys: the providers' and the server's OpenRouter key, set or not, never shown.
 function orgKeys(s) {
-  const parts = [heading("Compute providers"), el("p", { class: "muted small" }, "The server starts machines with these. Each key is checked with its provider before it's kept, and never shown again.")];
+  const parts = [heading("Compute providers"), el("p", { class: "muted small" }, "The server uses these keys to start machines. hi checks each key with the provider before it keeps it. hi never shows a key again.")];
   const list = el("ul", { class: "list" });
   for (const p of s.providers || []) {
-    const form = inlineForm([{ name: "key", type: "password", placeholder: p.name + "'s API key", required: true }], (v) => orgDo({ what: "provider", action: "set", name: p.name, key: v.key }, p.name + "'s key is kept."), "Check and keep");
+    const form = inlineForm([{ name: "key", type: "password", placeholder: "API key for " + p.name, required: true }], (v) => orgDo({ what: "provider", action: "set", name: p.name, key: v.key }, "hi saved the key for " + p.name + "."), "Check and save");
     list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, p.name), " ", el("span", { class: p.set ? "muted small" : "warn small" }, p.set ? "set" : "not set")),
       el("span", { class: "actions" }, el("button", { onclick: () => { form.hidden = !form.hidden; } }, p.set ? "Replace" : "Set"),
-        p.set ? el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Remove " + p.name + "'s key?", text: "Nothing new starts on " + p.name + ". What runs there now keeps running, and still stops at its time.", ok: "Remove" })) orgDo({ what: "provider", action: "remove", name: p.name }, p.name + "'s key is gone."); } }, "Remove") : null)));
+        p.set ? el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Remove the key for " + p.name + "?", text: "Nothing new starts on " + p.name + ". Machines that run there now continue, and stop at their usual time.", ok: "Remove" })) orgDo({ what: "provider", action: "remove", name: p.name }, "hi removed the key for " + p.name + "."); } }, "Remove") : null)));
     list.append(el("li", { class: "plain" }, form));
   }
   parts.push(list);
   const ai = s.ai || {};
-  parts.push(heading("Models for hi q"), el("p", { class: "muted small" }, "hi q on the server's devices asks models through the server, with the server's key."));
+  parts.push(heading("Models for hi q"), el("p", { class: "muted small" }, "On the server devices, hi q sends model requests through the server. The server uses its own key."));
   const aiBlock = el("div", { class: "machine-block" });
   aiBlock.append(el("p", {}, ai.has_key ? (ai.on ? "On" : "Off") : "No key yet", ai.model ? el("span", { class: "muted small" }, " · " + ai.model + (ai.url ? " at " + shown(ai.url).replace(/^https?:\/\//, "") : "")) : null));
   if (ai.usage) aiBlock.append(el("p", { class: "muted small" }, "This month: " + ai.usage));
   const aiForm = inlineForm([
-    { name: "key", type: "password", placeholder: ai.has_key ? "A new OpenRouter key (empty keeps the one there)" : "The OpenRouter key", required: !ai.has_key },
-    { name: "model", placeholder: "The default model", value: ai.model || "" },
-  ], (v) => orgDo({ what: "ai", action: "set", key: v.key, model: v.model }, "Checked and kept: hi q uses it now."), "Check and keep");
+    { name: "key", type: "password", placeholder: ai.has_key ? "New OpenRouter key (leave empty to keep the current key)" : "OpenRouter key", required: !ai.has_key },
+    { name: "model", placeholder: "Default model", value: ai.model || "" },
+  ], (v) => orgDo({ what: "ai", action: "set", key: v.key, model: v.model }, "hi checked and saved it. hi q uses it now."), "Check and save");
   const aiActions = el("div", { class: "data-actions" });
   aiBlock.append(aiActions);
   aiActions.append(el("button", { class: "small", onclick: () => { aiForm.hidden = !aiForm.hidden; } }, ai.has_key ? "Change…" : "Set the key…"));
   if (ai.has_key) {
     aiActions.append(el("button", { class: "small", onclick: () => orgDo({ what: "ai", action: ai.on ? "off" : "on" }, ai.on ? "Turned off." : "Turned on.") }, ai.on ? "Turn off" : "Turn on"));
-    aiActions.append(el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove the OpenRouter key?", text: "hi q on the server's devices can no longer ask models through the server.", ok: "Remove" })) orgDo({ what: "ai", action: "remove" }, "The key is gone."); } }, "Remove the key"));
+    aiActions.append(el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove the OpenRouter key?", text: "hi q on the server devices cannot send model requests through the server after this.", ok: "Remove" })) orgDo({ what: "ai", action: "remove" }, "hi removed the key."); } }, "Remove the key"));
   }
   parts.push(aiBlock, aiForm);
-  parts.push(el("p", { class: "muted small" }, "This machine's own keys, for its apps, are in Keys on the left."));
+  parts.push(el("p", { class: "muted small" }, "The keys of this machine, for its apps, are in Keys on the left."));
   return parts;
 }
 
 function orgTemplates(s) {
   const tForm = inlineForm([
-    { name: "name", placeholder: "Its name, such as team", required: true, max: "32" },
-    { name: "url", placeholder: "Its git URL, https://…", required: true },
-    { name: "ref", placeholder: "The branch or tag (optional)" },
-    { name: "token", type: "password", placeholder: "A token that reads it, if it's private (kept, never shown)" },
-  ], (v) => orgDo({ what: "template", action: "add", name: v.name, url: v.url, ref: v.ref, token: v.token }, "Serving " + v.name + "'s templates."), "Add");
+    { name: "name", placeholder: "Name, for example team", required: true, max: "32" },
+    { name: "url", placeholder: "Git URL, https://…", required: true },
+    { name: "ref", placeholder: "Branch or tag (optional)" },
+    { name: "token", type: "password", placeholder: "Read token, if the repository is private (hi never shows it)" },
+  ], (v) => orgDo({ what: "template", action: "add", name: v.name, url: v.url, ref: v.ref, token: v.token }, "The server now serves the templates of " + v.name + "."), "Add");
   const templates = el("ul", { class: "list" });
   for (const t of s.templates || []) {
     templates.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, t.name), el("span", { class: "muted small block" }, shown(t.url) + (t.ref ? " @ " + t.ref : "")),
       el("span", { class: "muted small block" }, (t.layers || []).length + " templates, " + (t.skills || []).length + " skills" + (t.commit ? " · " + t.commit.slice(0, 7) : "") + (t.fetched ? " · " + ago(t.fetched) : "")),
       t.problem ? el("span", { class: "warn small block" }, t.problem) : null),
       el("span", { class: "actions" }, el("button", { onclick: () => orgDo({ what: "template", action: "sync", name: t.name }, "Fetched " + t.name + ".") }, "Sync"),
-        el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop serving " + t.name + "?", text: "Devices no longer see its templates and skills. Projects made from them keep what they have.", ok: "Stop serving" })) orgDo({ what: "template", action: "remove", name: t.name }, "Stopped serving " + t.name + "."); } }, "Remove"))));
+        el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop serving " + t.name + "?", text: "Devices cannot see its templates and skills after this. Projects made from them do not change.", ok: "Stop serving" })) orgDo({ what: "template", action: "remove", name: t.name }, "Stopped serving " + t.name + "."); } }, "Remove"))));
   }
-  if (!(s.templates || []).length) templates.append(el("li", { class: "plain muted small" }, "None: hi init offers only hi's own."));
-  return [el("p", { class: "purpose" }, "Repositories of templates and skills that hi init offers on the server's devices."), heading("Templates", plus("Serve a repository's templates", tForm)), tForm, templates];
+  if (!(s.templates || []).length) templates.append(el("li", { class: "plain muted small" }, "None. hi init offers only the built-in templates."));
+  return [el("p", { class: "purpose" }, "Repositories of templates and skills. hi init offers them on the server devices."), heading("Templates", plus("Add a template repository", tForm)), tForm, templates];
 }
 
 function orgData(s) {
   const dForm = inlineForm([
-    { name: "orgs", placeholder: "Hugging Face organizations, space between them", required: true },
-    { name: "token", type: "password", placeholder: "A Hugging Face token that reads them (kept, never shown)", required: true },
-  ], (v) => orgDo({ what: "data", action: "add", orgs: v.orgs.split(/[\s,]+/).filter(Boolean), token: v.token }, "Serving their data."), "Add");
+    { name: "orgs", placeholder: "Hugging Face organizations, with spaces between them", required: true },
+    { name: "token", type: "password", placeholder: "Hugging Face read token (hi never shows it)", required: true },
+  ], (v) => orgDo({ what: "data", action: "add", orgs: v.orgs.split(/[\s,]+/).filter(Boolean), token: v.token }, "The server now serves their data."), "Add");
   const data = el("ul", { class: "list" });
   for (const d of s.data || []) {
     data.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, d.org),
       el("span", { class: "muted small block" }, d.datasets + " datasets, " + d.models + " models, " + d.buckets + " buckets" + (d.account ? " · as " + d.account + (d.role ? " (" + d.role + ")" : "") : "")),
       d.problem ? el("span", { class: "warn small block" }, d.problem) : null),
       el("span", { class: "actions" }, el("button", { onclick: () => orgDo({ what: "data", action: "test", name: d.org }, "Checked " + d.org + ".") }, "Test"),
-        el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop serving " + d.org + "?", text: "hi data no longer reaches its datasets and models. Its token is forgotten.", ok: "Stop serving" })) orgDo({ what: "data", action: "remove", name: d.org }, "Stopped serving " + d.org + "."); } }, "Remove"))));
+        el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop serving " + d.org + "?", text: "hi data cannot reach its datasets and models after this. hi deletes its token.", ok: "Stop serving" })) orgDo({ what: "data", action: "remove", name: d.org }, "Stopped serving " + d.org + "."); } }, "Remove"))));
   }
   if (!(s.data || []).length) data.append(el("li", { class: "plain muted small" }, "None."));
-  return [el("p", { class: "purpose" }, "Hugging Face organizations whose datasets and models hi data reaches on the server's devices."), heading("Data", plus("Serve a Hugging Face organization", dForm)), dForm, data];
+  return [el("p", { class: "purpose" }, "Hugging Face organizations. On the server devices, hi data can reach their datasets and models."), heading("Data", plus("Serve a Hugging Face organization", dForm)), dForm, data];
 }
 
 function orgModels(s) {
@@ -1944,10 +1947,10 @@ function orgModels(s) {
   const list = (s.ai && s.ai.served_list) || [];
   for (const m of list) {
     served.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, m.name), el("span", { class: "muted small block" }, (m.model || "") + (m.user ? " · " + m.user : "") + (m.host ? " on " + m.host : "") + " · " + (m.state && m.state !== "approved" ? m.state : m.up ? "up" : "stopped"))),
-      el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop passing requests to " + m.name + "?", text: "hi q stops sending the server's requests to it. The machine keeps serving it.", ok: "Stop" })) orgDo({ what: "served", name: m.name }, "Stopped passing requests to " + m.name + "."); } }, "Remove"))));
+      el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop sending requests to " + m.name + "?", text: "hi q stops sending server requests to this model. The machine continues to serve it.", ok: "Stop" })) orgDo({ what: "served", name: m.name }, "Stopped sending requests to " + m.name + "."); } }, "Remove"))));
   }
-  if (!list.length) served.append(el("li", { class: "plain muted small" }, "None: hi serve llm --org on a machine names one to the server."));
-  return [el("p", { class: "purpose" }, "Models served on the team's machines, which hi q passes the server's requests to."), served];
+  if (!list.length) served.append(el("li", { class: "plain muted small" }, "None. To add one, run hi serve llm --org on a machine."));
+  return [el("p", { class: "purpose" }, "Models that team machines serve. hi q sends server requests to these models."), served];
 }
 
 // The server's Slack app, set up here as hi server slack setup does on the
@@ -1959,12 +1962,12 @@ function orgSlack(s) {
   const slack = el("div", { class: "machine-block" });
   const owns = orgCanChange() && !!state.me.owner;
   const sl = s.slack || {};
-  if (sl.set) slack.append(el("p", { class: "small" }, "Approvals go to the channel ", el("code", {}, sl.channel || "?"), ", and to each approver's Home tab."),
-    owns && !slackSetup ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { slackSetup = {}; renderOrgSection(); } }, "Change its tokens or channel…")) : null);
-  else slack.append(el("p", { class: "warn small" }, "Not set up, so approvals are only here and on the machine." + (owns ? " Set it up below." : " The server's owner sets it up here, or on the machine: "), owns ? null : el("code", {}, "hi server slack setup")));
+  if (sl.set) slack.append(el("p", { class: "small" }, "hi sends approvals to the channel ", el("code", {}, sl.channel || "?"), ", and to the Home tab of each approver."),
+    owns && !slackSetup ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { slackSetup = {}; renderOrgSection(); } }, "Change tokens or channel…")) : null);
+  else slack.append(el("p", { class: "warn small" }, "Slack is not set up. Approvals are only here and on the machine." + (owns ? " Set it up below." : " The server owner can set it up here, or on the machine with "), owns ? null : el("code", {}, "hi server slack setup")));
   const approvers = Object.entries(s.approvers || {}).sort((a, b) => a[1].localeCompare(b[1]));
-  if (approvers.length) slack.append(el("p", { class: "muted small" }, "Approvers: " + approvers.map(([id, name]) => name).join(", ") + ". The owner and the admins approve; someone who only approves: ", el("code", {}, "hi server approvers add"), "."));
-  const parts = [el("p", { class: "purpose" }, "The server's Slack app: where approvals, warnings, and reports go."), slack];
+  if (approvers.length) slack.append(el("p", { class: "muted small" }, "Approvers: " + approvers.map(([id, name]) => name).join(", ") + ". The owner and admins approve. To add a person who only approves, run ", el("code", {}, "hi server approvers add"), "."));
+  const parts = [el("p", { class: "purpose" }, "The Slack app of the server. hi sends approvals, warnings and reports to it."), slack];
   if (owns && (!sl.set || slackSetup)) parts.push(slackSetupForm(sl));
   return parts;
 }
@@ -1973,8 +1976,8 @@ function slackSetupForm(sl) {
   const st = slackSetup || (slackSetup = {});
   const box = el("div", { class: "new-step" });
   const bound = (attrs, key) => { const i = input(attrs); i.value = st[key] || ""; i.addEventListener("input", () => { st[key] = i.value; }); return i; };
-  const app = bound({ type: "password", placeholder: sl.has_app ? "Kept; paste again to change it" : "xapp-…" }, "app");
-  const bot = bound({ type: "password", placeholder: sl.set ? "Kept; paste again to change it" : "xoxb-…" }, "bot");
+  const app = bound({ type: "password", placeholder: sl.has_app ? "Saved. Paste a new token to change it." : "xapp-…" }, "app");
+  const bot = bound({ type: "password", placeholder: sl.set ? "Saved. Paste a new token to change it." : "xoxb-…" }, "bot");
   const error = el("p", { class: "error" }, st.error || "");
   const tokens = () => ({ app_token: (st.app || "").trim(), bot_token: (st.bot || "").trim() });
   const check = el("button", { type: "button", class: (st.checked ? "" : "primary"), onclick: async () => {
@@ -1986,13 +1989,13 @@ function slackSetupForm(sl) {
     renderOrgSection();
   } }, st.checked ? (st.channels ? "Read the channels again" : "Check again") : "Check the tokens");
   box.append(el("h2", {}, sl.set ? "Change the Slack app" : "Set up the Slack app"),
-    el("p", {}, "The server has a Slack app of its own, made from a manifest hi writes for it. Approvals, warnings, and reports go to one private channel, and approvers act from there."),
+    el("p", {}, "The server has its own Slack app. hi writes the manifest for it. hi sends approvals, warnings and reports to one private channel. Approvers act from that channel."),
     el("ol", { class: "how" },
-      el("li", {}, el("a", { class: "button-like rainbow", href: sl.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), " opens Slack with the manifest filled in. Pick the workspace, then ", el("strong", {}, "Create"), "."),
-      el("li", {}, "The app token is on the page Slack opens, under ", el("strong", {}, "Basic Information → App-Level Tokens"), ": generate one with the connections:write scope (xapp-…)."),
-      el("li", {}, "Then ", el("strong", {}, "Install to Workspace"), ", and allow it. The bot token is under ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…)."),
-      el("li", {}, "Make a private channel for approvals, and invite the app to it: in the channel, ", el("code", {}, "/invite @" + (st.user || "hi server")), ". Then check the tokens, and pick the channel.")),
-    el("details", { class: "small" }, el("summary", { class: "muted" }, "The manifest, to paste by hand (api.slack.com/apps → Create New App → From a manifest → JSON)"),
+      el("li", {}, "Click ", el("a", { class: "button-like rainbow", href: sl.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), ". Slack opens with the manifest filled in. Pick the workspace, then click ", el("strong", {}, "Create"), "."),
+      el("li", {}, "On the page that Slack opens, go to ", el("strong", {}, "Basic Information → App-Level Tokens"), ". Generate an app token with the connections:write scope (xapp-…)."),
+      el("li", {}, "Click ", el("strong", {}, "Install to Workspace"), ", and allow it. Copy the bot token from ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…)."),
+      el("li", {}, "Make a private channel for approvals. Invite the app with ", el("code", {}, "/invite @" + (st.user || "hi server")), " in the channel. Then check the tokens and pick the channel.")),
+    el("details", { class: "small" }, el("summary", { class: "muted" }, "Manifest to paste by hand (api.slack.com/apps → Create New App → From a manifest → JSON)"),
       el("div", { class: "data-actions" }, el("button", { type: "button", class: "small", onclick: () => copyText(sl.manifest) }, "Copy the manifest")),
       el("pre", { class: "job-output manifest" }, sl.manifest || "")),
     field("App token", app), field("Bot token", bot), el("div", { class: "data-actions" }, check));
@@ -2000,17 +2003,17 @@ function slackSetupForm(sl) {
     // Without channels:read and groups:read the app can't list them: its ID, then.
     let pick;
     if (st.channels) {
-      pick = el("select", { "aria-label": "The approvals channel" }, el("option", { value: "" }, "Choose a channel"),
+      pick = el("select", { "aria-label": "Approvals channel" }, el("option", { value: "" }, "Choose a channel"),
         ...st.channels.map((ch) => el("option", { value: ch.id, selected: ch.id === st.channel }, (ch.private ? "🔒 " : "#") + ch.name)));
       if (st.channel && !st.channels.some((ch) => ch.id === st.channel)) pick.append(el("option", { value: st.channel, selected: true }, st.channel));
       pick.addEventListener("change", () => { st.channel = pick.value; });
     } else {
-      pick = input({ placeholder: "C0123456789", "aria-label": "The approvals channel's ID", maxlength: "20" });
+      pick = input({ placeholder: "C0123456789", "aria-label": "Approvals channel ID", maxlength: "20" });
       pick.value = st.channel || "";
       pick.addEventListener("input", () => { st.channel = pick.value.trim(); });
     }
     const connect = el("button", { type: "button", class: "primary", onclick: async () => {
-      if (!st.channel) { error.textContent = st.channels ? "Choose the channel approvals go to." : "Give the channel's ID, such as C0123456789."; return; }
+      if (!st.channel) { error.textContent = st.channels ? "Choose the channel for approvals." : "Type the channel ID, for example C0123456789."; return; }
       connect.disabled = true; error.textContent = "";
       try {
         const a = (await api("/api/org", Object.assign({ what: "slack", action: "set", channel: st.channel }, tokens()))).answer || {};
@@ -2019,10 +2022,10 @@ function slackSetupForm(sl) {
         await Promise.all([refreshState(), refreshOrg(), refreshOrgSettings()]);
       } catch (e) { if (!(e instanceof SignIn)) { st.error = e.message; error.textContent = e.message; } connect.disabled = false; }
     } }, "Connect");
-    box.append(el("p", { class: "muted small" }, "Both work, in the workspace " + (st.team || "?") + " as @" + (st.user || "?") + ". " +
-      (!st.channels ? "" : st.channels.length ? st.channels.length + " channels the app is in." : "The app is in no channel yet: invite it, then read the channels again.")),
+    box.append(el("p", { class: "muted small" }, "Both tokens work, in the workspace " + (st.team || "?") + " as @" + (st.user || "?") + ". " +
+      (!st.channels ? "" : st.channels.length ? "The app is in " + st.channels.length + " channels." : "The app is in no channel yet. Invite it, then read the channels again.")),
       st.problem ? el("p", { class: "warn small" }, st.problem) : null,
-      field(st.channels ? "The approvals channel" : "The approvals channel's ID", pick, (st.channels ? "" : "At the bottom of the channel's details in Slack. ") + "Connect posts there to say so, and the server sends its approvals there from then on."),
+      field(st.channels ? "Approvals channel" : "Approvals channel ID", pick, (st.channels ? "" : "Find the ID at the bottom of the channel details in Slack. ") + "Connect posts a message in the channel. After that, the server sends its approvals there."),
       el("div", { class: "data-actions" }, connect, sl.set ? el("button", { type: "button", onclick: () => { slackSetup = null; renderOrgSection(); } }, "Cancel") : null));
   }
   box.append(error);
@@ -2031,9 +2034,9 @@ function slackSetupForm(sl) {
 
 function orgWalls(s) {
   const wForm = inlineForm([
-    { name: "name", placeholder: "Where the screen is, such as Office TV", required: true, max: "40" },
-    { name: "full", type: "checkbox", label: "Names in full, not initials" },
-    { name: "reasons", type: "checkbox", label: "Why each machine was asked for" },
+    { name: "name", placeholder: "Where the screen is, for example Office TV", required: true, max: "40" },
+    { name: "full", type: "checkbox", label: "Show full names, not initials" },
+    { name: "reasons", type: "checkbox", label: "Show the reason for each machine request" },
   ], async (v) => {
     try {
       const answer = await api("/api/walls", { action: "add", name: v.name, full: v.full, reasons: v.reasons });
@@ -2044,10 +2047,10 @@ function orgWalls(s) {
   const walls = el("ul", { class: "list" });
   for (const w of s.walls || []) {
     walls.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, w.name), el("span", { class: "muted small block" }, (w.full ? "names in full" : "initials") + (w.reasons ? ", with reasons" : "") + " · by " + (w.by || "?") + " " + ago(w.made) + (w.seen ? " · open " + ago(w.seen) : " · not opened yet"))),
-      el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => { if (await ask({ title: "End " + w.name + "'s wall link?", text: "The screen stops showing anything at once.", ok: "End it" })) wallEnd(w.name); } }, "End"))));
+      el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => { if (await ask({ title: "End the wall link for " + w.name + "?", text: "The screen stops showing data immediately.", ok: "End" })) wallEnd(w.name); } }, "End"))));
   }
-  if (!(s.walls || []).length) walls.append(el("li", { class: "plain muted small" }, "None: a screen opens a wall link in a browser, read-only."));
-  return [el("p", { class: "purpose" }, "Running and Requests on a screen, read-only, from a link that works until it's ended."), heading("Wall screens", plus("A wall link for a screen", wForm)), wForm, walls];
+  if (!(s.walls || []).length) walls.append(el("li", { class: "plain muted small" }, "None. A screen opens a wall link in a browser. The link is read-only."));
+  return [el("p", { class: "purpose" }, "Show Running and Requests on a screen. The link is read-only. It works until an admin ends it."), heading("Wall screens", plus("Make a wall link for a screen", wForm)), wForm, walls];
 }
 
 async function wallEnd(name) {
@@ -2056,12 +2059,12 @@ async function wallEnd(name) {
 
 function groupLine(g) {
   const bits = [];
-  if (g.max_hours) bits.push("up to " + g.max_hours + " h a start");
+  if (g.max_hours) bits.push("up to " + g.max_hours + " h for each start");
   if (g.hardware && g.hardware.length) bits.push("only " + g.hardware.join(", "));
-  if (g.auto_approve) bits.push("approved by itself up to " + dollars(g.auto_approve.max_price_per_hour) + "/h for " + g.auto_approve.max_hours + " h");
-  if (g.user_monthly_budget_usd) bits.push(dollars(g.user_monthly_budget_usd) + " a user a month");
-  if (g.group_monthly_budget_usd) bits.push(dollars(g.group_monthly_budget_usd) + " for the group a month");
-  return bits.join(", ") || "no limits; every start needs a person";
+  if (g.auto_approve) bits.push("auto-approved up to " + dollars(g.auto_approve.max_price_per_hour) + "/h for " + g.auto_approve.max_hours + " h");
+  if (g.user_monthly_budget_usd) bits.push(dollars(g.user_monthly_budget_usd) + " for each user each month");
+  if (g.group_monthly_budget_usd) bits.push(dollars(g.group_monthly_budget_usd) + " for the group each month");
+  return bits.join(", ") || "no limits. A person approves each start";
 }
 
 // People: everyone with a level in the apps. The server's users are the server's.
@@ -2074,7 +2077,7 @@ $("people-add").addEventListener("click", () => openPerson("new"));
 // Keys: the machine's, set or not, never shown. The server's are the server's.
 function renderKeys() {
   const parts = [state && state.org ? vaultLine() : vaultBlock(false), machineKeysBlock(), mailBlock()];
-  if (state && state.org) parts.push(el("p", { class: "muted small" }, "The server's keys, for its compute providers and hi q, are in ", el("button", { class: "link-button", "data-nav": "", onclick: () => openOrg("keys") }, "the server's Keys"), "."));
+  if (state && state.org) parts.push(el("p", { class: "muted small" }, "The server keys, for compute providers and hi q, are in ", el("button", { class: "link-button", "data-nav": "", onclick: () => openOrg("keys") }, "Server > Keys"), "."));
   $("keys-view").replaceChildren(...parts);
 }
 
@@ -2102,15 +2105,14 @@ function policyCovers(auto, a) {
 }
 const byPolicy = (a) => (a.by || "").startsWith("policy");
 const byPerson = (a) => !!a.by && !byPolicy(a);
-const groupsOf = (name) => name + (name.endsWith("s") ? "'" : "'s");
 // policyAsked is a group's requests of the last 30 days.
 function policyAsked(spend, name) { return ((spend && spend.asked) || []).filter((a) => a.group === name); }
 
 function policyRuleWords(g) {
   const a = g.auto_approve;
-  if (!a) return "Every request waits for a person.";
-  return "A start at up to " + dollars(a.max_price_per_hour) + "/h for up to " + hoursText(a.max_hours) + " starts without a person" +
-    (g.user_monthly_budget_usd || g.group_monthly_budget_usd ? ", while its user and group are under their monthly budgets" : "") + "; more waits for a person.";
+  if (!a) return "A person must approve each request.";
+  return "A request for up to " + dollars(a.max_price_per_hour) + "/h and up to " + hoursText(a.max_hours) + " starts without approval" +
+    (g.user_monthly_budget_usd || g.group_monthly_budget_usd ? ", if the user and group are under their monthly budgets" : "") + ". A larger request waits for a person.";
 }
 
 function policyPreviewWords(name, g, spend) {
@@ -2118,8 +2120,8 @@ function policyPreviewWords(name, g, spend) {
   if (!asked.length) return "No requests from this group in the last 30 days.";
   const people = asked.filter(byPerson).length;
   const covered = asked.filter((a) => policyCovers(g.auto_approve, a)).length;
-  let text = "Last 30 days: " + asked.length + (asked.length === 1 ? " request" : " requests") + ", " + people + " of them decided by a person. ";
-  text += g.auto_approve ? "This rule starts " + covered + " of the " + asked.length + " by itself." : "With no auto-approval, a person decides all of them.";
+  let text = "Last 30 days: " + asked.length + (asked.length === 1 ? " request" : " requests") + ". A person decided " + people + " of them. ";
+  text += g.auto_approve ? "This rule auto-approves " + covered + " of the " + asked.length + "." : "There is no auto-approval, so a person decides all of them.";
   return text;
 }
 
@@ -2135,26 +2137,26 @@ function renderPolicy() {
   const changed = () => { policyEdited = true; };
   const parts = [orgHead()];
   if (orgReadOnlyNote()) parts.push(orgReadOnlyNote());
-  if (!p.exists) parts.push(el("p", { class: "muted small" }, "None yet: this is the example to start from."));
-  parts.push(el("p", { class: "purpose" }, "Each group's monthly budgets, its limits, and what starts without a person. A request within the group's auto-approval starts at once while its user and group are under budget; the rest wait for an approver, in Slack and in Requests. Going over a budget never stops what runs: it warns, and new requests go to a person. It applies to the next request."));
-  if (p.error) parts.push(el("p", { class: "error" }, "The policy on the machine doesn't read: " + p.error));
+  if (!p.exists) parts.push(el("p", { class: "muted small" }, "No policy yet. This is an example to start from."));
+  parts.push(el("p", { class: "purpose" }, "Monthly budgets, limits and auto-approval for each group."));
+  if (p.error) parts.push(el("p", { class: "error" }, "hi cannot read the policy on the machine: " + p.error));
   // Where the approvals come from: the groups a person still decides for.
   const waiting = Object.keys(policyDraft.groups).map((name) => [name, policyAsked(spend, name).filter((a) => byPerson(a) && !policyCovers(policyDraft.groups[name].auto_approve, a)).length]).filter(([, n]) => n > 0);
   if (waiting.length) {
-    parts.push(el("p", { class: "warn small" }, "In the last 30 days, a person decided " + waiting.map(([name, n]) => n + " of " + groupsOf(name)).join(", ") + " requests that the rules below still send to a person."));
+    parts.push(el("p", { class: "warn small" }, "In the last 30 days, a person decided these requests: " + waiting.map(([name, n]) => n + " from " + name).join(", ") + ". The rules below still send them to a person."));
   }
   const outside = Object.entries(spend.users || {}).filter(([, u]) => u.group && !policyDraft.groups[u.group]).map(([name, u]) => name + " (" + u.group + ")");
-  if (outside.length) parts.push(el("p", { class: "muted small" }, "In a group the policy doesn't name, so a person approves all they ask: " + outside.join(", ") + "."));
+  if (outside.length) parts.push(el("p", { class: "muted small" }, "These users are in a group that is not in the policy. A person approves all their requests: " + outside.join(", ") + "."));
   const error = el("p", { class: "error", id: "policy-error" });
   if (policyText) {
-    const area = el("textarea", { id: "policy-text", class: "policy-text", rows: "24", spellcheck: "false", "aria-label": "The policy, as JSON" });
+    const area = el("textarea", { id: "policy-text", class: "policy-text", rows: "24", spellcheck: "false", "aria-label": "Policy as JSON" });
     area.value = JSON.stringify(policyDraft, null, 2);
     area.addEventListener("input", changed);
     parts.push(area);
   } else {
     for (const [name, g] of Object.entries(policyDraft.groups)) parts.push(policyGroup(name, g, spend, changed));
     const add = el("form", { class: "say-form", autocomplete: "off" },
-      el("input", { id: "policy-new-group", maxlength: "32", placeholder: "A new group's name, such as students", "aria-label": "A new group's name" }),
+      el("input", { id: "policy-new-group", maxlength: "32", placeholder: "Name of a new group, for example students", "aria-label": "Name of a new group" }),
       el("button", { type: "submit" }, "Add the group"));
     add.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -2178,8 +2180,13 @@ function renderPolicy() {
   parts.push(error);
   parts.push(el("div", { class: "data-actions" },
     el("button", { class: "primary", onclick: savePolicy }, "Check and save"),
-    el("button", { "data-nav": "", onclick: () => { if (policyText) { try { policyDraft = JSON.parse($("policy-text").value); } catch (e) { error.textContent = "That isn't JSON: " + e.message; return; } } policyText = !policyText; renderPolicy(); } }, policyText ? "As a form" : "As text"),
+    el("button", { "data-nav": "", onclick: () => { if (policyText) { try { policyDraft = JSON.parse($("policy-text").value); } catch (e) { error.textContent = "This is not valid JSON: " + e.message; return; } } policyText = !policyText; renderPolicy(); } }, policyText ? "As a form" : "As text"),
     el("button", { onclick: () => { policyDraft = null; policyEdited = false; renderPolicy(); } }, "Undo my changes")));
+  parts.push(el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+    el("li", {}, "A request inside the auto-approval of its group starts immediately, if the user and group are under budget."),
+    el("li", {}, "Other requests wait for an approver, in Slack and in Requests."),
+    el("li", {}, "A budget never stops a machine that runs. When a user or group goes over budget, hi sends a warning, and new requests go to a person."),
+    el("li", {}, "A change applies to the next request."))));
   box.replaceChildren(...parts);
 }
 
@@ -2199,7 +2206,7 @@ function policyGroup(name, g, spend, changed) {
         ? meter(user, u.spend / g.user_monthly_budget_usd, dollars(u.spend) + " of " + dollars(g.user_monthly_budget_usd))
         : el("div", { class: "meter" }, el("div", { class: "meter-head" }, el("span", {}, user), el("span", { class: "muted small" }, dollars(u.spend)))));
     }
-    if (members.length > 12) rows.push(el("p", { class: "muted small" }, "And " + (members.length - 12) + " more: Users lists them."));
+    if (members.length > 12) rows.push(el("p", { class: "muted small" }, "And " + (members.length - 12) + " more. See them in Users."));
     budgets.replaceChildren(...rows);
   };
   const redraw = () => { words.textContent = policyRuleWords(g); preview.textContent = policyPreviewWords(name, g, spend); drawSpend(); changed(); };
@@ -2211,11 +2218,11 @@ function policyGroup(name, g, spend, changed) {
   const setKey = (key) => (value) => { if (value === undefined || value === 0) delete g[key]; else g[key] = value; };
   const hardware = el("input", { value: (g.hardware || []).join(", "), placeholder: "any", "aria-label": name + ": only this hardware" });
   hardware.addEventListener("input", () => { const list = hardware.value.split(/[\s,]+/).filter(Boolean); if (list.length) g.hardware = list; else delete g.hardware; changed(); });
-  const auto = el("input", { type: "checkbox", "aria-label": name + ": approved without a person" });
+  const auto = el("input", { type: "checkbox", "aria-label": name + ": auto-approve" });
   auto.checked = !!g.auto_approve;
   const autoFields = el("div", { class: "policy-fields", hidden: !g.auto_approve },
-    num("Up to $ an hour", () => g.auto_approve && g.auto_approve.max_price_per_hour, (v) => { g.auto_approve = Object.assign({}, g.auto_approve, { max_price_per_hour: v || 0 }); }, "0.01"),
-    num("For up to hours a start", () => g.auto_approve && g.auto_approve.max_hours, (v) => { g.auto_approve = Object.assign({}, g.auto_approve, { max_hours: v || 0 }); }, "0.5"));
+    num("Up to $ per hour", () => g.auto_approve && g.auto_approve.max_price_per_hour, (v) => { g.auto_approve = Object.assign({}, g.auto_approve, { max_price_per_hour: v || 0 }); }, "0.01"),
+    num("Up to hours for each start", () => g.auto_approve && g.auto_approve.max_hours, (v) => { g.auto_approve = Object.assign({}, g.auto_approve, { max_hours: v || 0 }); }, "0.5"));
   auto.addEventListener("change", () => {
     if (auto.checked) g.auto_approve = g.auto_approve || { max_price_per_hour: 1, max_hours: 2 };
     else delete g.auto_approve;
@@ -2224,30 +2231,30 @@ function policyGroup(name, g, spend, changed) {
   });
   // Cover what the group asked in the last 30 days, rounded up.
   const asked = policyAsked(spend, name);
-  const cover = asked.length ? el("button", { class: "small", title: "Set the auto-approval to the dearest rate and the longest start the group asked for in the last 30 days", onclick: () => {
+  const cover = asked.length ? el("button", { class: "small", title: "Set auto-approval to the highest rate and longest start that the group asked for in the last 30 days", onclick: () => {
     const rate = Math.ceil(Math.max(...asked.map((a) => a.rate)) * 100 - 1e-6) / 100;
     const hours = Math.ceil(Math.max(...asked.map((a) => a.hours)) * 2 - 1e-6) / 2;
     g.auto_approve = { max_price_per_hour: Math.max(rate, (g.auto_approve && g.auto_approve.max_price_per_hour) || 0), max_hours: Math.max(hours, (g.auto_approve && g.auto_approve.max_hours) || 0) };
     changed();
     renderPolicy();
-  } }, "Cover what it asked lately") : null;
+  } }, "Cover recent requests") : null;
   const kept = [];
-  if (g.template_sources) kept.push("its template sources");
-  if (g.data) kept.push("its data");
+  if (g.template_sources) kept.push("template sources");
+  if (g.data) kept.push("data");
   card.append(el("div", { class: "card-head pad" }, el("strong", { class: "card-name" }, name),
     el("span", { class: "muted small" }, members.length + (members.length === 1 ? " user" : " users")), el("span", { class: "grow" }),
     el("button", { class: "small danger", onclick: () => { delete policyDraft.groups[name]; changed(); renderPolicy(); } }, "Remove the group")));
   card.append(budgets);
-  card.append(el("h3", { class: "pad policy-sub" }, "Approved without a person"));
-  card.append(el("div", { class: "data-actions pad" }, el("label", { class: "check small" }, auto, " On, within:"), el("span", { class: "grow" }), cover));
+  card.append(el("h3", { class: "pad policy-sub" }, "Auto-approval"));
+  card.append(el("div", { class: "data-actions pad" }, el("label", { class: "check small" }, auto, " On, with these limits:"), el("span", { class: "grow" }), cover));
   card.append(autoFields, words, preview);
   card.append(el("h3", { class: "pad policy-sub" }, "Budgets and limits"));
   card.append(el("div", { class: "policy-fields" },
-    num("$ a user a month", () => g.user_monthly_budget_usd, setKey("user_monthly_budget_usd")),
-    num("$ for the group a month", () => g.group_monthly_budget_usd, setKey("group_monthly_budget_usd")),
-    num("Up to hours a start", () => g.max_hours, setKey("max_hours")),
+    num("$ for each user each month", () => g.user_monthly_budget_usd, setKey("user_monthly_budget_usd")),
+    num("$ for the group each month", () => g.group_monthly_budget_usd, setKey("group_monthly_budget_usd")),
+    num("Up to hours for each start", () => g.max_hours, setKey("max_hours")),
     el("label", { class: "field wide" }, el("span", { class: "muted small" }, "Only this hardware"), hardware)));
-  if (kept.length) card.append(el("p", { class: "muted small pad" }, "Also " + kept.join(" and ") + ", kept as they are; change them as text."));
+  if (kept.length) card.append(el("p", { class: "muted small pad" }, "This group also has " + kept.join(" and ") + ". hi keeps them. To change them, use As text."));
   words.textContent = policyRuleWords(g);
   preview.textContent = policyPreviewWords(name, g, spend);
   drawSpend();
@@ -2260,8 +2267,8 @@ async function approveAndAllow(r) {
   const rate = Math.ceil((parseFloat(String(r.rate || "").replace(/[^0-9.]/g, "")) || 0) * 100 - 1e-6) / 100;
   const hours = Math.ceil(((r.max_seconds || 0) / 3600) * 2 - 1e-6) / 2;
   const group = r.policy_group;
-  const ok = await ask({ title: "Approve the like of " + r.id + " by itself?", ok: "Approve and save",
-    text: "From now on, what the " + group + " group asks for at up to " + dollars(rate) + "/h, for up to " + hoursText(hours) + " a start, starts without a person while its user and group are under budget. A rule that already allows more stays as it is. " + r.id + " is approved now. Org, Budgets and approval changes it later." });
+  const ok = await ask({ title: "Auto-approve requests like " + r.id + "?", ok: "Approve and save",
+    text: "From now on, requests from the group " + group + " for up to " + dollars(rate) + "/h and up to " + hoursText(hours) + " for each start do not need a person. This applies while the user and group are under budget. A rule that already allows more does not change. You approve " + r.id + " now. To change the rule later, go to Server > Budgets and approval." });
   if (!ok) return;
   try {
     const settings = await api("/api/org/settings");
@@ -2273,8 +2280,8 @@ async function approveAndAllow(r) {
     g.auto_approve = { max_price_per_hour: Math.max(rate, was.max_price_per_hour || 0), max_hours: Math.max(hours, was.max_hours || 0) };
     await api("/api/org", { what: "policy", text: JSON.stringify(policy, null, 2) });
     if (!policyEdited) policyDraft = null;
-  } catch (e) { if (!(e instanceof SignIn)) toast("The policy wasn't saved: " + e.message, true); return; }
-  orgDo({ what: "decide", action: "approve", id: r.id, group: "" }, "Approved " + r.id + "; the like of it starts by itself from now on.");
+  } catch (e) { if (!(e instanceof SignIn)) toast("hi did not save the policy: " + e.message, true); return; }
+  orgDo({ what: "decide", action: "approve", id: r.id, group: "" }, "Approved " + r.id + ". Similar requests are auto-approved from now on.");
 }
 
 async function savePolicy() {
@@ -2285,7 +2292,7 @@ async function savePolicy() {
     await api("/api/org", { what: "policy", text });
     policyEdited = false;
     policyDraft = null;
-    toast("Saved. It applies to the next request.");
+    toast("Saved. The change applies to the next request.");
     await refreshOrgSettings();
     renderPolicy();
   } catch (e) {
@@ -2300,12 +2307,12 @@ function renderHomeOrg() {
   const o = state.org;
   if (!o) { box.replaceChildren(); return; }
   const card = el("div", { class: "card-box org-card" });
-  const head = el("button", { class: "card-head pad org-open", onclick: () => openOrg(""), title: "Open the server: its requests, users, admins, policy, and keys" },
+  const head = el("button", { class: "card-head pad org-open", onclick: () => openOrg(""), title: "Open the server: requests, users, admins, budgets and keys" },
     el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), el("strong", { class: "card-name" }, "The server"),
-    el("span", { class: "muted small" }, o.up ? "runs" : "doesn't answer"), el("span", { class: "grow" }), o.owner ? el("span", { class: "muted small" }, "owned by " + o.owner) : null);
+    el("span", { class: "muted small" }, o.up ? "runs" : "does not answer"), el("span", { class: "grow" }), o.owner ? el("span", { class: "muted small" }, "owned by " + o.owner) : null);
   card.append(head);
-  if (o.no_owner) card.append(el("p", { class: "warn small pad" }, "No owner yet. On the machine: ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
-  if (!o.up) card.append(el("p", { class: "error small pad" }, o.error || "The server doesn't answer."));
+  if (o.no_owner) card.append(el("p", { class: "warn small pad" }, "The server has no owner yet. On the machine, run ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
+  if (!o.up) card.append(el("p", { class: "error small pad" }, o.error || "The server does not answer."));
   else card.append(orgStats(o));
   box.replaceChildren(card);
 }
@@ -2345,16 +2352,16 @@ async function loadNewHome() {
 function renderNewHome() {
   const box = $("newapp");
   const parts = [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "New app"))];
-  parts.push(el("p", { class: "purpose" }, "An app for the people in one Slack channel, with its lead, its members, and its project. Ten steps, as hi app new asks them; what's done is kept, so you can stop and carry on."));
-  const name = el("input", { id: "new-name", required: true, maxlength: "20", pattern: "[a-z][a-z0-9-]*", placeholder: "Its name, such as payments", "aria-label": "The app's name", autocomplete: "off" });
-  const folder = el("input", { id: "new-folder", maxlength: "300", placeholder: (newHome.folder || "~") + "/app-<name>", "aria-label": "Its folder", autocomplete: "off" });
+  parts.push(el("p", { class: "purpose" }, "An app serves the people in one Slack channel. It has a lead, members and a project. There are ten steps, the same as in hi app new. hi saves each step, so you can stop and continue later."));
+  const name = el("input", { id: "new-name", required: true, maxlength: "20", pattern: "[a-z][a-z0-9-]*", placeholder: "App name, for example payments", "aria-label": "App name", autocomplete: "off" });
+  const folder = el("input", { id: "new-folder", maxlength: "300", placeholder: (newHome.folder || "~") + "/app-<name>", "aria-label": "App folder", autocomplete: "off" });
   const file = el("input", { id: "new-file", type: "file", accept: ".json,application/json", "aria-label": "Answers from a file" });
   const error = el("p", { class: "error small" });
   name.addEventListener("input", () => { folder.placeholder = (newHome.folder || "~") + "/app-" + (name.value.trim() || "<name>"); });
   const form = el("form", { class: "new-start stack", autocomplete: "off" },
-    el("label", { class: "field" }, el("span", { class: "muted small" }, "Its name: lowercase letters, digits, and dashes. Its folder and its Slack command are named after it."), name),
-    el("label", { class: "field" }, el("span", { class: "muted small" }, "Its folder, where its project, tasks, and memory live"), folder),
-    el("label", { class: "field" }, el("span", { class: "muted small" }, "From a file: answers someone wrote before, as hi app new --from takes them (no secrets in it)"), file),
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Name. Use lowercase letters, digits and dashes. The folder and the Slack command get this name."), name),
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Folder. The project, tasks and memory of the app go here."), folder),
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Answers from a file, in the format of hi app new --from. Do not put secrets in it."), file),
     error,
     el("div", { class: "data-actions" }, el("button", { class: "primary", type: "submit", id: "new-start", disabled: true }, "Start")));
   form.addEventListener("submit", async (event) => {
@@ -2362,7 +2369,7 @@ function renderNewHome() {
     error.textContent = "";
     let from = null;
     if (file.files && file.files[0]) {
-      try { from = JSON.parse(await file.files[0].text()); } catch (e) { error.textContent = "That file isn't JSON: " + e.message; return; }
+      try { from = JSON.parse(await file.files[0].text()); } catch (e) { error.textContent = "This file is not valid JSON: " + e.message; return; }
     }
     try {
       draft = await api("/api/new", { action: "start", name: name.value.trim(), folder: folder.value.trim(), from });
@@ -2371,7 +2378,7 @@ function renderNewHome() {
       renderDraft();
     } catch (e) { if (!(e instanceof SignIn)) error.textContent = e.message; }
   });
-  parts.push(el("h2", {}, "What every app needs on this machine"),
+  parts.push(el("h2", {}, "What all apps need on this machine"),
     needsBox("", (ready) => { const start = $("new-start"); if (start) start.disabled = !ready; }));
   parts.push(form);
 
@@ -2379,27 +2386,27 @@ function renderNewHome() {
     const list = el("ul", { class: "list" });
     for (const d of newHome.drafts) {
       const done = newSteps.filter(([key]) => d.done && d.done[key]).length;
-      list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, d.name), " ", el("span", { class: "muted small" }, d.job_state === "running" ? "being created" : d.job_state === "failed" ? "creating it failed: see Jobs" : done + " of 10 steps"),
-        el("span", { class: "muted small block" }, (d.by || "?") + " started it " + ago(d.started) + " · " + d.folder)),
-        el("span", { class: "actions" }, el("button", { onclick: () => openNew(d.name) }, "Carry on"),
+      list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, d.name), " ", el("span", { class: "muted small" }, d.job_state === "running" ? "hi is making it" : d.job_state === "failed" ? "failed. See Jobs" : done + " of 10 steps"),
+        el("span", { class: "muted small block" }, "started by " + (d.by || "?") + " " + ago(d.started) + " · " + d.folder)),
+        el("span", { class: "actions" }, el("button", { onclick: () => openNew(d.name) }, "Continue"),
           el("button", { class: "danger", onclick: async () => {
-            if (!(await ask({ title: "Discard the new app " + d.name + "?", text: "Its answers and the tokens given for it are forgotten. Nothing was made yet.", ok: "Discard" }))) return;
+            if (!(await ask({ title: "Discard the new app " + d.name + "?", text: "hi deletes the answers and tokens for this app. hi did not make the app yet.", ok: "Discard" }))) return;
             try { await api("/api/new", { action: "discard", name: d.name }); loadNewHome(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
           } }, "Discard"))));
     }
-    parts.push(el("h2", {}, "Under way"), list);
+    parts.push(el("h2", {}, "In progress"), list);
   }
 
-  parts.push(el("h2", {}, "Bring one back"));
-  parts.push(el("p", { class: "muted small" }, "An app's folder that's here but isn't an app on this machine: one removed with its folder kept, or moved, or copied from another machine. It starts again from what its folder holds."));
+  parts.push(el("h2", {}, "Bring an app back"));
+  parts.push(el("p", { class: "muted small" }, "These app folders are on this machine, but they are not apps here now. An admin removed the app and kept the folder, or moved the app, or copied the folder from another machine. The app starts again from its folder."));
   const back = el("ul", { class: "list" });
   for (const b of newHome.back || []) {
     back.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, b.name), el("span", { class: "muted small block" }, b.folder + (b.purpose ? " · " + b.purpose : ""))),
       el("span", { class: "actions" }, el("button", { onclick: () => bringBack(b.folder, b.name) }, "Bring back"))));
   }
-  if (!(newHome.back || []).length) back.append(el("li", { class: "plain muted small" }, "None beside the apps' folders."));
+  if (!(newHome.back || []).length) back.append(el("li", { class: "plain muted small" }, "None, other than the folders of the apps."));
   parts.push(back);
-  const typed = el("input", { maxlength: "300", placeholder: "Or its folder's full path", "aria-label": "An app's folder" });
+  const typed = el("input", { maxlength: "300", placeholder: "Or the full path of the app folder", "aria-label": "App folder" });
   const backForm = el("form", { class: "say-form", autocomplete: "off" }, typed, el("button", { type: "submit" }, "Bring back"));
   backForm.addEventListener("submit", (event) => { event.preventDefault(); if (typed.value.trim()) bringBack(typed.value.trim(), ""); });
   parts.push(backForm);
@@ -2408,8 +2415,8 @@ function renderNewHome() {
 }
 
 async function bringBack(folder, name) {
-  if (!(await ask({ title: "Bring back " + (name || "the app in " + folder) + "?", text: "It becomes an app on this machine again, by its name, and starts: hi app up " + folder + ".", ok: "Bring it back" }))) return;
-  try { const job = await api("/api/apps", { action: "back", folder }); toast("Bringing it back. Jobs has its output."); followJob(job); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  if (!(await ask({ title: "Bring back " + (name || "the app in " + folder) + "?", text: "hi makes it an app on this machine again, with the same name, and starts it. This is the same as hi app up " + folder + ".", ok: "Bring back" }))) return;
+  try { const job = await api("/api/apps", { action: "back", folder }); toast("Bringing the app back. See the output in Jobs."); followJob(job); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
 
 async function loadDraft(name, first) {
@@ -2448,7 +2455,7 @@ async function saveStep(answers) {
 }
 
 function stepNav() {
-  const nav = el("div", { class: "chips new-steps", role: "group", "aria-label": "The steps" });
+  const nav = el("div", { class: "chips new-steps", role: "group", "aria-label": "Steps" });
   newSteps.forEach(([key, label], i) => {
     const done = draft.done && draft.done[key];
     nav.append(el("button", { "aria-pressed": String(i === newStep), class: done ? "done" : "", onclick: () => { newStep = i; renderDraft(); } }, (done ? "✓ " : (i + 1) + " ") + label));
@@ -2479,7 +2486,7 @@ function renderDraft() {
   const box = $("newapp");
   const parts = [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "New app " + d.name), el("span", { class: "muted small" }, d.folder))];
   if (d.job) {
-    const words = { running: "It's being created now: Jobs has its output.", failed: "Creating it failed: Jobs has why. Fix the step it names, and Create again.", done: "It's made." };
+    const words = { running: "hi is making the app now. See the output in Jobs.", failed: "hi could not make the app. See the reason in Jobs. Fix the step that it names, then click Create again.", done: "The app is ready." };
     parts.push(el("p", { class: "note " + (d.job_state === "failed" ? "error" : "") }, words[d.job_state] || ""));
   }
   parts.push(stepNav());
@@ -2492,8 +2499,8 @@ function renderDraft() {
   switch (key) {
     case "lead": {
       const lead = input({ id: "s-lead", maxlength: "40", value: (c.members.lead && c.members.lead.name) || "", placeholder: d.name });
-      body.append(el("p", {}, "The lead talks with the people in the app's Slack channel. Give it a name of its own, such as a person's, or leave it as " + d.name + "."),
-        field("The lead's name", lead, "In Slack it's @" + d.handle + (d.done.lead ? "" : " (after Next, by the name you give)") + "; its command is " + d.slash + "."));
+      body.append(el("p", {}, "The lead talks with the people in the Slack channel of the app. Give it a name, for example a person's name. Or keep " + d.name + "."),
+        field("Lead name", lead, "In Slack, the lead is @" + d.handle + (d.done.lead ? "" : " (after Next, it uses the name you give)") + ". Its command is " + d.slash + "."));
       collect = () => ({ lead_name: lead.value.trim() });
       break;
     }
@@ -2505,37 +2512,37 @@ function renderDraft() {
       break;
     }
     case "slack": {
-      const bot = input({ id: "s-bot", type: "password", placeholder: d.has_bot ? "Kept; paste again to change it" : "xoxb-…" });
-      const app = input({ id: "s-app", type: "password", placeholder: d.has_app ? "Kept; paste again to change it" : "xapp-…" });
-      body.append(el("p", {}, "Each app has a Slack app of its own, made from a manifest hi writes for it."),
+      const bot = input({ id: "s-bot", type: "password", placeholder: d.has_bot ? "Saved. Paste a new value to change it." : "xoxb-…" });
+      const app = input({ id: "s-app", type: "password", placeholder: d.has_app ? "Saved. Paste a new value to change it." : "xapp-…" });
+      body.append(el("p", {}, "Each app has its own Slack app. hi writes the manifest for it."),
         el("ol", { class: "how" },
-          el("li", {}, el("a", { class: "button-like rainbow", href: d.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), " opens Slack with the manifest filled in. Pick the workspace, then ", el("strong", {}, "Create"), "."),
-          el("li", {}, "The app token is on the page Slack opens, under ", el("strong", {}, "Basic Information → App-Level Tokens"), ": generate one with the connections:write scope (xapp-…)."),
-          el("li", {}, "Then ", el("strong", {}, "Install to Workspace"), ", and allow it. The bot token is under ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…).")),
-        el("details", { class: "small" }, el("summary", { class: "muted" }, "The manifest, to paste by hand (api.slack.com/apps → Create New App → From a manifest → JSON)"), el("pre", { class: "job-output manifest" }, d.manifest)),
+          el("li", {}, "Click ", el("a", { class: "button-like rainbow", href: d.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), ". Slack opens with the manifest filled in. Pick the workspace, then click ", el("strong", {}, "Create"), "."),
+          el("li", {}, "On the page that Slack opens, go to ", el("strong", {}, "Basic Information → App-Level Tokens"), ". Generate an app token with the connections:write scope (xapp-…)."),
+          el("li", {}, "Click ", el("strong", {}, "Install to Workspace"), ", and allow it. Copy the bot token from ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…).")),
+        el("details", { class: "small" }, el("summary", { class: "muted" }, "Manifest to paste by hand (api.slack.com/apps → Create New App → From a manifest → JSON)"), el("pre", { class: "job-output manifest" }, d.manifest)),
         field("App token", app), field("Bot token", bot),
-        d.workspace ? el("p", { class: "muted small" }, "Both work, in the workspace " + d.workspace + ".") : "");
+        d.workspace ? el("p", { class: "muted small" }, "Both tokens work, in the workspace " + d.workspace + ".") : "");
       collect = () => ({ bot_token: bot.value.trim(), app_token: app.value.trim() });
       break;
     }
     case "channel": {
-      const main = el("select", { id: "s-channel", "aria-label": "The app's channel" });
-      const ops = el("select", { id: "s-ops", "aria-label": "The ops channel" });
+      const main = el("select", { id: "s-channel", "aria-label": "App channel" });
+      const ops = el("select", { id: "s-ops", "aria-label": "Ops channel" });
       const fill = () => {
         const list = slackLists.channels || [];
         const options = (value, none) => [none ? el("option", { value: "" }, none) : el("option", { value: "" }, "Choose a channel"), ...list.map((ch) => el("option", { value: ch.id, selected: ch.id === value }, (ch.private ? "🔒 " : "#") + ch.name))];
         main.replaceChildren(...options(c.channel, ""));
-        ops.replaceChildren(...options(c.ops_channel, "None: everything goes to the main channel"));
+        ops.replaceChildren(...options(c.ops_channel, "None. All messages go to the main channel."));
         if (c.channel && !list.some((ch) => ch.id === c.channel)) main.append(el("option", { value: c.channel, selected: true }, c.channel));
       };
       fill();
-      const refresh = el("button", { type: "button", class: "small", onclick: async () => { await loadSlack("channels"); fill(); note.textContent = slackLists.error || (slackLists.channels || []).length + " channels the app is in."; } }, "Read again");
-      const note = el("p", { class: "muted small" }, slackLists.error || (slackLists.channels ? slackLists.channels.length + " channels the app is in." : "…"));
-      body.append(el("p", {}, "Invite the Slack app to the app's channel first: in the channel, ", el("code", {}, "/invite @" + d.handle), ". Then read the channels it's in again, and pick it."),
+      const refresh = el("button", { type: "button", class: "small", onclick: async () => { await loadSlack("channels"); fill(); note.textContent = slackLists.error || "The app is in " + (slackLists.channels || []).length + " channels."; } }, "Read again");
+      const note = el("p", { class: "muted small" }, slackLists.error || (slackLists.channels ? "The app is in " + slackLists.channels.length + " channels." : "…"));
+      body.append(el("p", {}, "First, invite the Slack app to the app channel. In the channel, type ", el("code", {}, "/invite @" + d.handle), ". Then click Read again, and pick the channel."),
         el("div", { class: "data-actions" }, refresh), note,
-        field("The app's channel", main),
-        field("An ops channel, for operations and security (optional)", ops, "Incidents, warnings, downtime, advisories, keys, and access, for the people with the know-how. A private one, for owners and developers. Invite the app there too."));
-      if (!slackLists.channels) loadSlack("channels").then(() => { if (key === "channel" && newSteps[newStep][0] === "channel") { fill(); note.textContent = slackLists.error || slackLists.channels.length + " channels the app is in."; } });
+        field("App channel", main),
+        field("Ops channel, for operations and security (optional)", ops, "hi sends incidents, warnings, downtime, advisories, key changes and access changes here. Use a private channel for owners and developers. Invite the app to it too."));
+      if (!slackLists.channels) loadSlack("channels").then(() => { if (key === "channel" && newSteps[newStep][0] === "channel") { fill(); note.textContent = slackLists.error || "The app is in " + slackLists.channels.length + " channels."; } });
       collect = () => ({ channel: main.value, ops_channel: ops.value });
       break;
     }
@@ -2563,7 +2570,7 @@ function renderDraft() {
         if (!chosen.size) chips.append(el("span", { class: "muted small" }, "Nobody yet."));
       };
       search.addEventListener("input", draw);
-      body.append(el("p", {}, "Owners build the app in the dev box and release it from the dev page. Pick them from the workspace's people."), el("div", { class: "chosen-row" }, el("span", { class: "muted small" }, "Owners: "), chips), search, list);
+      body.append(el("p", {}, "Owners build the app in the dev box and publish it from the dev page. Pick the owners from the people in the workspace."), el("div", { class: "chosen-row" }, el("span", { class: "muted small" }, "Owners: "), chips), search, list);
       draw(); drawChips();
       if (!slackLists.people) loadSlack("people").then(() => { draw(); drawChips(); });
       collect = () => ({ owners: [...chosen] });
@@ -2575,14 +2582,14 @@ function renderDraft() {
     case "models": {
       m.shared = m.shared || [];
       let way = d.own_key ? "own" : c.openrouter_from ? "shared" : m.shared.length && !m.openrouter ? "shared" : m.openrouter ? "machine" : "own";
-      const key = input({ id: "s-orkey", type: "password", placeholder: d.has_own_key ? "Kept; paste again to change it" : "sk-or-…" });
+      const key = input({ id: "s-orkey", type: "password", placeholder: d.has_own_key ? "Saved. Paste a new value to change it." : "sk-or-…" });
       const pick = sharedKeyPicker(m.shared, c.openrouter_from, "An OpenRouter key, sk-or-…, from openrouter.ai/settings/keys.");
-      const ways = { shared: el("div", { class: "field" }, el("span", { class: "muted small" }, "The shared key"), pick.box), own: field("The app's OpenRouter key", key) };
+      const ways = { shared: el("div", { class: "field" }, el("span", { class: "muted small" }, "Shared key"), pick.box), own: field("OpenRouter key of the app", key) };
       const show = () => { for (const [k, f] of Object.entries(ways)) f.hidden = k !== way; };
-      body.append(el("p", {}, "The lead, and the app itself, use models through OpenRouter" + (Object.values(c.members).some((x) => x.provider === "chatgpt" || x.agent === "codex") ? ", and the roles on ChatGPT fall back on it" : "") + ". The app's own key bills and limits its use apart; a shared key or this machine's counts it together with the other apps on it. No box ever holds it."),
-        radios("s-or", [["machine", "This machine's key, Hermes'" + (m.openrouter ? "" : ": none here"), !m.openrouter],
-          ["shared", "A shared key from the vault: one key several apps use, changed in one place"],
-          ["own", "A key of the app's own (openrouter.ai/settings/keys)"]], way, (v) => { way = v; show(); if (way === "own") key.focus(); }),
+      body.append(el("p", {}, "The lead and the app use models through OpenRouter" + (Object.values(c.members).some((x) => x.provider === "chatgpt" || x.agent === "codex") ? ". Roles on ChatGPT use OpenRouter as a fallback" : "") + ". With its own key, the app has separate billing and limits. A shared key or the machine key counts use together with the other apps. No box ever holds the key."),
+        radios("s-or", [["machine", "The key of this machine (the Hermes key)" + (m.openrouter ? "" : ". There is none here"), !m.openrouter],
+          ["shared", "A shared key from the vault. Many apps can use one key, and you change it in one place"],
+          ["own", "A key for this app only (openrouter.ai/settings/keys)"]], way, (v) => { way = v; show(); if (way === "own") key.focus(); }),
         ways.shared, ways.own);
       show();
       collect = () => ({ own_key: way === "own", openrouter_key: way === "own" ? key.value.trim() : "", openrouter_from: way === "shared" ? pick.value() : "" });
@@ -2592,7 +2599,7 @@ function renderDraft() {
       collect = renderCode(body, d);
       break;
     case "network": {
-      const nb = input({ id: "s-netbird", type: "password", placeholder: d.has_netbird ? "Kept; paste again to change it" : "A NetBird setup key (optional)" });
+      const nb = input({ id: "s-netbird", type: "password", placeholder: d.has_netbird ? "Saved. Paste a new value to change it." : "NetBird setup key (optional)" });
       const current = c.addresses || "";
       const addresses = current === "" ? (m.domain ? "domain" : "netbird") : current === "netbird" || current === "names" ? current : "host";
       let choice = addresses;
@@ -2603,14 +2610,14 @@ function renderDraft() {
       const extra = el("div", { class: "stack" });
       const drawExtra = () => {
         extra.replaceChildren();
-        if (choice === "names") extra.append(field("Production's name; Stage and the dev page go under it", production), el("label", { class: "check small" }, https, " Your IT team's proxy ends TLS in front of them: the links say https"));
-        if (choice === "host") extra.append(field("The name your IT team keeps, pointing at the app's NetBird address", host, "Production is http://<name>/, the preview :8080, and the dev page :8888."));
+        if (choice === "names") extra.append(field("Production name. Stage and the dev page use names under it.", production), el("label", { class: "check small" }, https, " A proxy of your IT team handles TLS for these names, so the links use https"));
+        if (choice === "host") extra.append(field("Name that your IT team keeps. It points to the NetBird address of the app.", host, "Production is http://<name>/, the preview is :8080, and the dev page is :8888."));
       };
       const options = [];
-      if (m.domain) options.push(["domain", "This machine's domain, on https: " + m.domain + " and the like"]);
-      options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", m.peer ? "The NetBird name, " + m.peer + ", on plain http" : "The name NetBird gives its dev box, on plain http"]);
-      body.append(el("p", {}, "The app's addresses are on your NetBird network, and the owners build in its dev box over SSH there. The dev box joins with a setup key, once: in NetBird's dashboard, Setup Keys. Without one now, nobody reaches its addresses or its dev page until it joins, with a key in the app's Network, or hi app dev " + d.name + " netbird."),
-        field("NetBird setup key", nb), el("h2", {}, "What the addresses are named"), radios("s-addr", options, choice, (v) => { choice = v; drawExtra(); }), extra);
+      if (m.domain) options.push(["domain", "The domain of this machine, on https: " + m.domain + " and names like it"]);
+      options.push(["names", "A name for each address, kept by your IT team"], ["host", "One name kept by your IT team, with ports"], ["netbird", m.peer ? "The NetBird name, " + m.peer + ", on plain http" : "The NetBird name of the dev box, on plain http"]);
+      body.append(el("p", {}, "The addresses of the app are on your NetBird network. The owners build in the dev box over SSH on that network. The dev box joins NetBird one time, with a setup key from the NetBird dashboard (Setup Keys). If you give no key now, nobody can open the addresses or the dev page until the dev box joins. To join later, give a key in Network of the app, or run hi app dev " + d.name + " netbird."),
+        field("NetBird setup key", nb), el("h2", {}, "Address names"), radios("s-addr", options, choice, (v) => { choice = v; drawExtra(); }), extra);
       drawExtra();
       collect = () => ({ netbird_key: nb.value.trim(), addresses: choice, production: production.value.trim(), https: https.checked, host: host.value.trim() });
       break;
@@ -2619,9 +2626,9 @@ function renderDraft() {
       const beat = input({ value: d.heartbeat || "", placeholder: "https://hc-ping.com/… (optional)" });
       const every = input({ value: c.heartbeat_every || "", placeholder: "1m" });
       const machine = input({ value: d.machine_heartbeat || "", placeholder: "https://hc-ping.com/… (optional)" });
-      body.append(el("p", {}, "Heartbeats tell an outside service, such as healthchecks.io (free for 20 checks), that the app runs; it alerts when they stop. Make a check there, and set there who hears of a stop: your IT team, or the ops channel."),
-        field("The app's heartbeat URL", beat, "One is sent now, to see that it arrives."), field("Every", every, "Between 30s and 1h; 1m unless you say."));
-      if (!m.heartbeat) body.append(field("This machine's heartbeat URL", machine, "This machine has none: one says it's up, whichever of its apps run."));
+      body.append(el("p", {}, "A heartbeat tells an outside service that the app runs. An example is healthchecks.io, which is free for 20 checks. The service sends an alert when the heartbeats stop. Make a check there. Then set who gets the alert, for example your IT team or the ops channel."),
+        field("Heartbeat URL of the app", beat, "hi sends one heartbeat now, as a test."), field("Every", every, "From 30s to 1h. The default is 1m."));
+      if (!m.heartbeat) body.append(field("Heartbeat URL of this machine", machine, "This machine has no heartbeat. A machine heartbeat tells that the machine is up, even if no app runs."));
       collect = () => ({ heartbeat: beat.value.trim(), every: every.value.trim(), machine_heartbeat: machine.value.trim() });
       break;
     }
@@ -2634,7 +2641,7 @@ function renderDraft() {
     const buttons = el("div", { class: "data-actions" });
     if (newStep > 0) buttons.append(el("button", { type: "button", onclick: () => { newStep--; renderDraft(); } }, "Back"));
     buttons.append(el("button", { id: "step-next", class: "primary", type: "button", onclick: () => collect && saveStep(collect()) }, "Next"));
-    buttons.append(el("span", { class: "grow" }), el("button", { type: "button", onclick: () => openNew("") }, "Later"));
+    buttons.append(el("span", { class: "grow" }), el("button", { type: "button", onclick: () => openNew("") }, "Continue later"));
     parts.push(buttons);
   }
   box.replaceChildren(...parts);
@@ -2662,14 +2669,14 @@ function renderMembers(body, d) {
   const c = d.config, m = d.machine;
   const roles = ["lead", ...Object.keys(c.members).filter((r) => r !== "lead").sort()];
   const rows = {};
-  body.append(el("p", {}, "Each role's agent and model, and for Hermes who pays: OpenRouter, or a ChatGPT plan (falling back to OpenRouter), and how hard it thinks."));
+  body.append(el("p", {}, "Set the agent, model and effort for each role. For Hermes, also set who pays: OpenRouter, or a ChatGPT plan with OpenRouter as a fallback."));
   const signin = el("div", { class: "card-box pad stack" });
   const claude = el("div", { class: "card-box pad stack" });
   let chatgptChoice = d.chatgpt_signin || (m.chatgpt ? "machine" : "app");
   m.shared = m.shared || [];
   let claudeWay = c.claude_from ? "shared" : d.has_claude || !m.claude ? "own" : "machine";
-  const claudeToken = input({ type: "password", placeholder: d.has_claude ? "Kept; paste again to change it" : "sk-ant-oat…, from claude setup-token" });
-  const claudePick = sharedKeyPicker(m.shared, c.claude_from, "A Claude token, sk-ant-oat…, from claude setup-token signed in to the account that pays.");
+  const claudeToken = input({ type: "password", placeholder: d.has_claude ? "Saved. Paste a new value to change it." : "sk-ant-oat…, from claude setup-token" });
+  const claudePick = sharedKeyPicker(m.shared, c.claude_from, "A Claude token, sk-ant-oat…. Get it with claude setup-token, signed in to the account that pays.");
   const needs = () => {
     let chatgpt = false, cl = false;
     for (const role of roles) {
@@ -2684,46 +2691,46 @@ function renderMembers(body, d) {
     const n = needs();
     signin.hidden = !n.chatgpt;
     claude.hidden = !n.claude;
-    signin.replaceChildren(el("strong", {}, "ChatGPT sign-in"), el("p", { class: "muted small" }, "The roles on ChatGPT sign in once, for all of them: the app's own, with a code on any device (only the app refreshes it), or this machine's, Codex's."),
-      radios("s-chatgpt", [["app", "The app's own"], ["machine", "This machine's, Codex's" + (m.chatgpt ? "" : ": not signed in"), !m.chatgpt]], chatgptChoice, (v) => { chatgptChoice = v; drawSignins(); }));
+    signin.replaceChildren(el("strong", {}, "ChatGPT sign-in"), el("p", { class: "muted small" }, "All roles on ChatGPT use one sign-in. Use a sign-in for the app only, with a code on any device. Only the app refreshes it. Or use the Codex sign-in of this machine."),
+      radios("s-chatgpt", [["app", "For the app only"], ["machine", "The Codex sign-in of this machine" + (m.chatgpt ? "" : " (not signed in)"), !m.chatgpt]], chatgptChoice, (v) => { chatgptChoice = v; drawSignins(); }));
     if (chatgptChoice === "app") {
       if (d.chatgpt) signin.append(el("p", { class: "small" }, "Signed in: " + d.chatgpt + "."));
-      if (d.chatgpt_code) signin.append(el("p", {}, "Open ", el("a", { href: d.chatgpt_url, target: "_blank", rel: "noopener noreferrer" }, d.chatgpt_url + " ↗"), ", sign in to the ChatGPT account that pays, and type ", el("code", { class: "big-code" }, d.chatgpt_code), ". This page sees when it's done."));
+      if (d.chatgpt_code) signin.append(el("p", {}, "Open ", el("a", { href: d.chatgpt_url, target: "_blank", rel: "noopener noreferrer" }, d.chatgpt_url + " ↗"), ". Sign in to the ChatGPT account that pays, and type ", el("code", { class: "big-code" }, d.chatgpt_code), ". This page shows when you are done."));
       if (d.chatgpt_error) signin.append(el("p", { class: "error small" }, d.chatgpt_error));
       signin.append(el("button", { type: "button", class: "small", onclick: async () => {
         try { draft = await api("/api/new", { action: "chatgpt", name: d.name }); renderDraft(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
-      } }, d.chatgpt ? "Sign in again" : d.chatgpt_code ? "A new code" : "Sign in"));
+      } }, d.chatgpt ? "Sign in again" : d.chatgpt_code ? "Get a new code" : "Sign in"));
     }
     const showClaude = () => { claudeToken.hidden = claudeWay !== "own"; claudePick.box.hidden = claudeWay !== "shared"; };
-    claude.replaceChildren(el("strong", {}, "Claude"), el("p", { class: "muted small" }, "This machine's sign-in; a shared key from the vault, one token several apps use; or a token of the app's own. A token comes from claude setup-token, signed in to the account that pays, and lasts a year."),
-      radios("s-claude", [["machine", "This machine's sign-in" + (m.claude ? "" : ": none here"), !m.claude], ["shared", "A shared key from the vault"], ["own", "The app's own token"]], claudeWay, (v) => { claudeWay = v; showClaude(); if (v === "own") claudeToken.focus(); }),
+    claude.replaceChildren(el("strong", {}, "Claude"), el("p", { class: "muted small" }, "Use the sign-in of this machine, a shared key from the vault, or a token for the app only. Many apps can use one shared key. Get a token with claude setup-token, signed in to the account that pays. A token lasts one year."),
+      radios("s-claude", [["machine", "The sign-in of this machine" + (m.claude ? "" : " (none here)"), !m.claude], ["shared", "A shared key from the vault"], ["own", "A token for the app only"]], claudeWay, (v) => { claudeWay = v; showClaude(); if (v === "own") claudeToken.focus(); }),
       claudePick.box, claudeToken);
     showClaude();
   };
   for (const role of roles) {
     const member = c.members[role];
-    const agent = el("select", { "aria-label": role + "'s agent", disabled: role === "lead" });
+    const agent = el("select", { "aria-label": role + ": agent", disabled: role === "lead" });
     for (const [v, label] of [["hermes", "Hermes"], ["claude", "Claude Code"], ["codex", "Codex"]]) agent.append(el("option", { value: v, selected: member.agent === v }, label));
-    const model = input({ value: member.model || "", placeholder: member.agent === "hermes" && member.provider === "chatgpt" ? "the plan's first" : "the agent's own", "aria-label": role + "'s model" });
+    const model = input({ value: member.model || "", placeholder: member.agent === "hermes" && member.provider === "chatgpt" ? "first model of the plan" : "default of the agent", "aria-label": role + ": model" });
     const provider = el("select", { "aria-label": role + ": who pays" });
-    provider.append(el("option", { value: "openrouter", selected: member.provider !== "chatgpt" }, "OpenRouter, per call"), el("option", { value: "chatgpt", selected: member.provider === "chatgpt" }, "A ChatGPT plan, falling back to OpenRouter"));
-    const effort = el("select", { "aria-label": role + "'s effort" });
+    provider.append(el("option", { value: "openrouter", selected: member.provider !== "chatgpt" }, "OpenRouter, per call"), el("option", { value: "chatgpt", selected: member.provider === "chatgpt" }, "A ChatGPT plan, with OpenRouter as fallback"));
+    const effort = el("select", { "aria-label": role + ": effort" });
     for (const e of m.efforts) effort.append(el("option", { value: e, selected: (member.effort || "medium") === e }, e));
-    const fallback = input({ value: member.fallback || "", placeholder: "the usual one", "aria-label": role + "'s fallback on OpenRouter" });
+    const fallback = input({ value: member.fallback || "", placeholder: "the default", "aria-label": role + ": fallback on OpenRouter" });
     const models = el("datalist", { id: "models-" + role });
     for (const name of d.chatgpt_models || []) models.append(el("option", { value: name }));
     model.setAttribute("list", "models-" + role);
     const providerField = field("Who pays", provider);
     const sync = () => {
       providerField.hidden = agent.value !== "hermes";
-      model.placeholder = agent.value === "hermes" && provider.value === "chatgpt" ? "the plan's first" : "the agent's own";
+      model.placeholder = agent.value === "hermes" && provider.value === "chatgpt" ? "first model of the plan" : "default of the agent";
       drawSignins();
     };
     agent.addEventListener("change", () => { model.value = ""; sync(); });
     provider.addEventListener("change", sync);
     rows[role] = { agent, model, provider, effort, fallback };
     body.append(el("div", { class: "card-box member-card" }, el("div", { class: "card-head pad" }, el("strong", { class: "card-name" }, role)),
-      el("div", { class: "policy-fields" }, field("Agent", agent), field("Model", model), providerField, field("Effort", effort), field("Fallback on OpenRouter", fallback, "Only if OpenRouter lacks the usual one")), models));
+      el("div", { class: "policy-fields" }, field("Agent", agent), field("Model", model), providerField, field("Effort", effort), field("Fallback on OpenRouter", fallback, "Only if OpenRouter does not have the default model")), models));
     providerField.hidden = agent.value !== "hermes";
   }
   body.append(signin, claude);
@@ -2742,26 +2749,26 @@ function renderMembers(body, d) {
 function renderCode(body, d) {
   const code = Object.assign({}, d.code);
   const m = d.machine;
-  const options = [["new", "A new web app: a blank page on Bun, with a database, tests, and the helper's chat"], ["empty", "A repository with only a README"]];
+  const options = [["new", "A new web app: a blank page on Bun, with a database, tests and the helper chat"], ["empty", "A repository with only a README"]];
   for (const t of m.templates) options.push(["template:" + t.name, t.name + (t.summary ? ": " + t.summary : "")]);
-  options.push(["adopt", "Someone's project, such as github.com/owner/name, or a folder here: adopted"]);
+  options.push(["adopt", "Adopt a project, for example github.com/owner/name, or a folder on this machine"]);
   let kind = code.kind === "template" ? "template:" + code.template : code.kind;
-  const source = input({ value: code.source || "", placeholder: "github.com/owner/name, a URL, or a folder's path" });
-  const ref = input({ value: code.ref || "", placeholder: "its default branch" });
+  const source = input({ value: code.source || "", placeholder: "github.com/owner/name, a URL, or a folder path" });
+  const ref = input({ value: code.ref || "", placeholder: "default branch" });
   const shallow = el("input", { type: "checkbox" }); shallow.checked = !!code.shallow;
   const push = el("input", { type: "checkbox", id: "s-push" }); push.checked = !!code.push;
   push.addEventListener("change", () => drawForge());
   const nosurvey = el("input", { type: "checkbox" }); nosurvey.checked = !!code.no_survey;
   // Where the project is kept too: nowhere else, GitHub, or GitLab.
   let forge = code.gitlab ? "gitlab" : code.github ? "github" : "";
-  const repoName = input({ value: code.gitlab || code.github || "", "aria-label": "The repository" });
+  const repoName = input({ value: code.gitlab || code.github || "", "aria-label": "Repository" });
   const forgeBox = el("div", { class: "stack" });
   const drawForge = () => {
     const push = kind === "adopt" && d.look && d.look.can_push && document.querySelector("#s-push") && document.querySelector("#s-push").checked;
-    forgeBox.replaceChildren(el("h2", {}, "Kept on GitHub or GitLab too"),
-      radios("s-forge", [["", "No: it stays on this machine"], ["github", "GitHub: a new private repository, with this machine's GitHub sign-in (gh)" + (m.gh ? "" : "; gh isn't here: hi install gh"), !m.gh], ["gitlab", "GitLab, gitlab.com or your own: a new private project, with this machine's GitLab sign-in (glab)" + (m.glab ? "" : "; glab isn't here: hi install glab, then glab auth login"), !m.glab]], forge, (v) => { forge = v; drawForge(); }));
-    if (forge === "github") { repoName.placeholder = "owner/name, such as octocat/world-clock"; forgeBox.append(field("The repository", repoName, "It's made if it isn't there; an empty one that's there is used. The app pushes every merge there.")); }
-    if (forge === "gitlab") { repoName.placeholder = "group/name on gitlab.com, or host/group/name, such as gitlab.example.com/team/billing"; forgeBox.append(field("The project", repoName, "It's made if it isn't there; an empty one that's there is used. The app pushes every merge there.")); }
+    forgeBox.replaceChildren(el("h2", {}, "Also keep it on GitHub or GitLab"),
+      radios("s-forge", [["", "No. It stays on this machine"], ["github", "GitHub: a new private repository, with the GitHub sign-in (gh) of this machine" + (m.gh ? "" : ". gh is not installed. Run hi install gh"), !m.gh], ["gitlab", "GitLab (gitlab.com or your own): a new private project, with the GitLab sign-in (glab) of this machine" + (m.glab ? "" : ". glab is not installed. Run hi install glab, then glab auth login"), !m.glab]], forge, (v) => { forge = v; drawForge(); }));
+    if (forge === "github") { repoName.placeholder = "owner/name, for example octocat/world-clock"; forgeBox.append(field("Repository", repoName, "hi makes it if it does not exist. hi uses an empty one that exists. The app pushes each merge to it.")); }
+    if (forge === "gitlab") { repoName.placeholder = "group/name on gitlab.com, or host/group/name, for example gitlab.example.com/team/billing"; forgeBox.append(field("Project", repoName, "hi makes it if it does not exist. hi uses an empty one that exists. The app pushes each merge to it.")); }
     forgeBox.hidden = !!push;
   };
   const adoptBox = el("div", { class: "stack" });
@@ -2777,30 +2784,30 @@ function renderCode(body, d) {
     fact("About", l.description);
     fact("Size", l.size_mb ? l.size_mb + " MB" + (l.files ? ", " + l.files + " files" : "") : l.files ? l.files + " files" : "");
     fact("Branch", l.branch);
-    fact("Licence", l.licence || (l.github ? "none said" : ""));
+    fact("Licence", l.licence || (l.github ? "not given" : ""));
     look.append(el("div", { class: "card-box pad" }, facts,
-      l.archived ? el("p", { class: "warn small" }, "It's archived: nobody works on it now.") : null,
-      l.private ? el("p", { class: "muted small" }, "It's private: fetched with this machine's " + (l.gitlab ? "GitLab sign-in (glab)." : "GitHub sign-in.")) : null,
-      l.folder ? el("p", { class: "muted small" }, "A folder here is copied without its history or its secrets; nothing in it changes.") : null));
+      l.archived ? el("p", { class: "warn small" }, "The project is archived. Nobody works on it now.") : null,
+      l.private ? el("p", { class: "muted small" }, "The project is private. hi gets it with the " + (l.gitlab ? "GitLab sign-in (glab)" : "GitHub sign-in") + " of this machine.") : null,
+      l.folder ? el("p", { class: "muted small" }, "hi copies the folder without its history or secrets. hi does not change the folder.") : null));
   };
   const drawAdopt = () => {
     adoptBox.hidden = kind !== "adopt";
     const l = d.look && d.look.source === source.value.trim() ? d.look : null;
-    adoptBox.replaceChildren(field("The project", source), el("div", { class: "data-actions" }, el("button", { type: "button", class: "small", onclick: lookNow }, "Look at it")), look);
+    adoptBox.replaceChildren(field("Project", source), el("div", { class: "data-actions" }, el("button", { type: "button", class: "small", onclick: lookNow }, "Check it")), look);
     if (l && !l.folder && !l.error) {
       adoptBox.append(field("Branch, tag, or commit (optional)", ref));
-      if (l.big) adoptBox.append(el("label", { class: "check small" }, shallow, " Only its latest commit: it's over 1 GB. Without it, its whole history, so the members see why code is the way it is."));
-      else adoptBox.append(el("label", { class: "check small" }, shallow, " Only its latest commit (smaller and quicker; the copy stays on this machine)"));
-      if (l.can_push) adoptBox.append(el("label", { class: "check small" }, push, " It's yours: this machine's " + (l.gitlab ? "GitLab sign-in (glab)" : "GitHub sign-in") + " can push there. The app pushes its merges there, and the branch production and tags release-1, release-2, …"));
+      if (l.big) adoptBox.append(el("label", { class: "check small" }, shallow, " Only the latest commit. The project is over 1 GB. With the full history, the members can see why the code is as it is."));
+      else adoptBox.append(el("label", { class: "check small" }, shallow, " Only the latest commit (smaller and faster; the copy stays on this machine)"));
+      if (l.can_push) adoptBox.append(el("label", { class: "check small" }, push, " Push to it. The " + (l.gitlab ? "GitLab sign-in (glab)" : "GitHub sign-in") + " of this machine can push there. The app pushes its merges, the branch production, and the tags release-1, release-2, …"));
     }
-    if (l && !l.error) adoptBox.append(el("label", { class: "check small" }, nosurvey, " Skip the first task, the survey that makes it run and maps it"));
+    if (l && !l.error) adoptBox.append(el("label", { class: "check small" }, nosurvey, " Skip the first task (the survey that makes the project run and maps it)"));
     drawLook();
   };
   const lookNow = async () => {
     try { draft = await api("/api/new", { action: "look", name: d.name, source: source.value.trim() }); d.look = draft.look; drawAdopt(); } catch (e) { if (!(e instanceof SignIn)) $("step-error").textContent = e.message; }
   };
   source.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); lookNow(); } });
-  body.append(el("p", {}, "The app keeps its own copy of the project in " + d.folder + "/repo."), radios("s-code", options, kind, (v) => { kind = v; drawAdopt(); drawForge(); }), adoptBox, forgeBox);
+  body.append(el("p", {}, "The app keeps a copy of the project in " + d.folder + "/repo."), radios("s-code", options, kind, (v) => { kind = v; drawAdopt(); drawForge(); }), adoptBox, forgeBox);
   drawAdopt();
   drawForge();
   return () => {
@@ -2814,7 +2821,7 @@ function renderCode(body, d) {
 // sudo password, which the page passes to that install alone. ready says
 // whether nothing is missing, each time the list is drawn.
 function needsBox(name, ready) {
-  const box = el("div", { class: "needs" }, el("p", { class: "muted small" }, "Checking what an app needs on this machine…"));
+  const box = el("div", { class: "needs" }, el("p", { class: "muted small" }, "Checking what apps need on this machine…"));
   let busy = "";
   const draw = async () => {
     let view;
@@ -2825,23 +2832,23 @@ function needsBox(name, ready) {
       return;
     }
     const missing = view.needs.filter((n) => !n.present);
-    const password = missing.some((n) => n.root) ? input({ type: "password", placeholder: "The sudo password of the account that runs hi", "aria-label": "The machine's sudo password", autocomplete: "new-password" }) : null;
+    const password = missing.some((n) => n.root) ? input({ type: "password", placeholder: "sudo password of the account that runs hi", "aria-label": "sudo password of the machine", autocomplete: "new-password" }) : null;
     const error = el("p", { class: "error small" });
     const install = async (ids) => {
       error.textContent = "";
       const root = view.needs.some((n) => ids.includes(n.id) && n.root);
-      if (root && password && !password.value) { error.textContent = "What needs root takes the machine's sudo password."; password.focus(); return; }
+      if (root && password && !password.value) { error.textContent = "This install needs root. Type the sudo password."; password.focus(); return; }
       try {
         const job = await api("/api/needs", { ids, password: root && password ? password.value : "" });
         busy = job.id;
-        toast("Installing. Jobs has its output.", true);
+        toast("Installing. See the output in Jobs.", true);
         draw();
         const wait = async () => {
           let answer;
           try { answer = await api("/api/job?id=" + encodeURIComponent(job.id) + "&from=0"); } catch (e) { setTimeout(wait, 2000); return; }
           if (answer.job.state === "running") { setTimeout(wait, 2000); return; }
           busy = "";
-          if (answer.job.state === "failed") toast("Installing failed: Jobs has why.", true);
+          if (answer.job.state === "failed") toast("The install failed. See the reason in Jobs.", true);
           draw();
         };
         setTimeout(wait, 2000);
@@ -2852,9 +2859,9 @@ function needsBox(name, ready) {
         el("span", { class: "muted small" }, n.for + (n.present ? "" : n.root ? " · missing, needs the sudo password" : " · missing"))),
       n.present || busy ? "" : el("button", { class: "small", onclick: () => install([n.id]) }, "Install")));
     const parts = [el("ul", { class: "list needs-list" }, ...rows)];
-    if (busy) parts.push(el("p", { class: "muted small" }, "Installing: Jobs follows it, and this list checks again when it's done."));
+    if (busy) parts.push(el("p", { class: "muted small" }, "Installing. See the progress in Jobs. This list checks again when the install is done."));
     else if (missing.length) {
-      if (password) parts.push(field("For what needs root, the sudo password of the account that runs hi: used for this install alone, never kept", password));
+      if (password) parts.push(field("Some tools need root. Type the sudo password of the account that runs hi. hi uses it for this install only, and does not keep it.", password));
       if (missing.length > 1) parts.push(el("div", { class: "data-actions" }, el("button", { class: "primary", onclick: () => install(missing.map((n) => n.id)) }, "Install all")));
       parts.push(error);
     }
@@ -2872,31 +2879,31 @@ function renderReview(body, d) {
   fact("Name", d.name + " · @" + d.handle + " · " + d.slash);
   fact("Folder", d.folder);
   fact("Purpose", c.purpose);
-  fact("Slack", d.workspace ? "the workspace " + d.workspace : "");
+  fact("Slack", d.workspace ? "workspace " + d.workspace : "");
   fact("Channel", c.channel + (c.ops_channel ? ", ops " + c.ops_channel : ""));
   fact("Owners", (c.owners || []).join(", "));
   for (const role of Object.keys(c.members).sort((a, b) => (a === "lead" ? -1 : b === "lead" ? 1 : a.localeCompare(b)))) {
     const x = c.members[role];
-    fact(role, x.agent + (x.model ? " · " + x.model : "") + (x.provider === "chatgpt" ? " · on ChatGPT" : "") + (x.effort ? " · " + x.effort : "") + (x.fallback ? " · falls back to " + x.fallback : ""));
+    fact(role, x.agent + (x.model ? " · " + x.model : "") + (x.provider === "chatgpt" ? " · on ChatGPT" : "") + (x.effort ? " · " + x.effort : "") + (x.fallback ? " · fallback " + x.fallback : ""));
   }
-  fact("OpenRouter", d.own_key ? "the app's own key" : c.openrouter_from ? c.openrouter_from + ", shared from the vault" : "this machine's key");
-  fact("Code", d.code.kind === "adopt" ? "adopts " + d.code.source + (d.code.push ? ", and pushes there" : "") : d.code.kind === "template" ? "the template " + d.code.template : d.code.kind === "empty" ? "an empty repository" : "a new web app");
+  fact("OpenRouter", d.own_key ? "a key for this app only" : c.openrouter_from ? c.openrouter_from + ", a shared key from the vault" : "the key of this machine");
+  fact("Code", d.code.kind === "adopt" ? "adopts " + d.code.source + (d.code.push ? ", and pushes to it" : "") : d.code.kind === "template" ? "the template " + d.code.template : d.code.kind === "empty" ? "an empty repository" : "a new web app");
   if (d.code.github) fact("GitHub", d.code.github);
   if (d.code.gitlab) fact("GitLab", d.code.gitlab);
-  fact("Network", (d.has_netbird ? "joins NetBird now" : "joins NetBird later: its addresses don't work until it does, with a setup key in its Network") + "; addresses " + (c.addresses || "on this machine's domain"));
+  fact("Network", (d.has_netbird ? "joins NetBird now" : "joins NetBird later. The addresses do not work until it joins, with a setup key in Network") + ". Addresses: " + (c.addresses || "on the domain of this machine"));
   fact("Heartbeat", d.heartbeat || "none");
-  body.append(el("p", {}, "Create makes it as hi app new would with these answers, then starts it. Jobs follows it, and the app opens here when it's up."), facts);
+  body.append(el("p", {}, "Create makes the app with these answers, the same as hi app new, then starts it. See the progress in Jobs. The app opens here when it is up."), facts);
   const create = el("button", { class: "primary", disabled: true, onclick: async () => {
     create.disabled = true;
     try {
       const job = await api("/api/new", { action: "create", name: d.name });
-      toast("Creating " + d.name + ". Jobs has its output; it opens here when it's up.", true);
+      toast("Creating " + d.name + ". See the output in Jobs. The app opens here when it is up.", true);
       creating = { job: job.id, name: d.name };
       followJob(job);
       loadDraft(d.name, false);
     } catch (e) { create.disabled = false; if (!(e instanceof SignIn)) $("step-error").textContent = e.message; }
   } }, "Create " + d.name);
-  body.append(el("h2", {}, "What it needs on this machine"),
+  body.append(el("h2", {}, "What the app needs on this machine"),
     needsBox(d.name, (ready) => { create.disabled = !ready || d.job_state === "running"; }));
   body.append(el("div", { class: "data-actions" }, el("button", { onclick: () => { newStep = newSteps.length - 1; renderDraft(); } }, "Back"), create));
 }
@@ -2904,14 +2911,14 @@ let creating = null;
 
 // Rename and Remove, from an app's Overview.
 async function renameApp(app) {
-  const answer = await ask({ title: "Rename " + app + "?", text: "Its Slack bot, its command, its service, and its folder (when it's named after the app) take the new name; its memory, tasks, and snapshots stay. It stops while it's done and starts again. Afterwards, update its Slack app's manifest (Slack shows the new name only then). Type the app's name to say so.", ok: "Rename", field: "The new name", fieldCheck: (v) => (/^[a-z][a-z0-9-]{0,19}$/.test(v) && v !== app ? "" : "A new name: lowercase letters, digits, and dashes, up to 20."), typed: app });
+  const answer = await ask({ title: "Rename " + app + "?", text: "The Slack bot, command and service get the new name. The folder also gets it, if the folder has the app name. Memory, tasks and snapshots stay. The app stops during the rename, then starts again. After the rename, update the manifest of the Slack app. Slack shows the new name only after that. Type the app name to continue.", ok: "Rename", field: "New name", fieldCheck: (v) => (/^[a-z][a-z0-9-]{0,19}$/.test(v) && v !== app ? "" : "Give a new name. Use lowercase letters, digits and dashes, up to 20."), typed: app });
   if (!answer) return;
-  try { const job = await api("/api/apps", { action: "rename", app, to: answer.field }); toast("Renaming " + app + " to " + answer.field + ". Jobs has its output."); creating = { job: job.id, name: answer.field }; followJob(job); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  try { const job = await api("/api/apps", { action: "rename", app, to: answer.field }); toast("Renaming " + app + " to " + answer.field + ". See the output in Jobs."); creating = { job: job.id, name: answer.field }; followJob(job); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
 async function removeApp(app) {
-  const answer = await ask({ title: "Remove " + app + "?", text: "It stops, and its service, its name here, and its members' boxes are deleted. Its snapshots stay. Its Slack app and channel, and a GitHub repository if it has one, stay too. Type the app's name to say so.", ok: "Remove", typed: app, check: "Keep its folder, so it can come back (Bring one back)", checked: true });
+  const answer = await ask({ title: "Remove " + app + "?", text: "The app stops. hi deletes its service, its name on this machine and the boxes of its members. The snapshots stay. The Slack app, the channel and any GitHub repository also stay. Type the app name to continue.", ok: "Remove", typed: app, check: "Keep the folder, so the app can come back (Bring an app back)", checked: true });
   if (!answer) return;
-  try { const job = await api("/api/apps", { action: "remove", app, keep_folder: answer.checked }); toast("Removing " + app + ". Jobs has its output."); followJob(job); openView(""); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  try { const job = await api("/api/apps", { action: "remove", app, keep_folder: answer.checked }); toast("Removing " + app + ". See the output in Jobs."); followJob(job); openView(""); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
 
 // ---------------------------------------------------------------------------
@@ -2958,7 +2965,7 @@ async function refreshSettings() {
 async function change(what, fields, done) {
   try {
     const answer = await api("/api/app/settings", Object.assign({ app: openApp, what }, fields));
-    if (answer.job) { toast((done || "Started") + ". Jobs has its output.", true); followJob(answer.job); }
+    if (answer.job) { toast((done || "Started") + ". See the output in Jobs.", true); followJob(answer.job); }
     else toast(done || firstLine(answer.text) || "Done.", true);
     await refreshSettings();
     return true;
@@ -3001,12 +3008,12 @@ function spendBudget(s) {
   const box = el("div", { class: "machine-block" });
   if (b.monthly) box.append(meter("This month", b.month_usd / b.monthly, dollars(b.month_usd) + " of " + dollars(b.monthly)));
   if (b.daily) box.append(meter("Today", b.day_usd / b.daily, dollars(b.day_usd) + " of " + dollars(b.daily)));
-  if (!b.monthly && !b.daily) box.append(el("p", { class: "muted small" }, "No budget: the app's calls that cost money aren't stopped at any amount."));
+  if (!b.monthly && !b.daily) box.append(el("p", { class: "muted small" }, "No budget. hi does not stop paid calls of the app at any amount."));
   if (b.stopped) box.append(el("p", { class: "warn small" }, b.message));
   if (!s.may_change) return box;
   const monthly = el("input", { type: "number", min: "0", step: "1", placeholder: "Monthly, $", value: b.monthly || "", "aria-label": "Monthly budget in dollars" });
   const daily = el("input", { type: "number", min: "0", step: "1", placeholder: "Daily, $ (optional)", value: b.daily || "", "aria-label": "Daily budget in dollars" });
-  const form = el("form", { class: "signin-row spend-budget", autocomplete: "off" }, monthly, daily, el("button", { class: "small", type: "submit" }, "Set the budget"));
+  const form = el("form", { class: "signin-row spend-budget", autocomplete: "off" }, monthly, daily, el("button", { class: "small", type: "submit" }, "Set budget"));
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
@@ -3015,13 +3022,17 @@ function spendBudget(s) {
       refreshSettings();
     } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
   });
-  box.append(form, el("p", { class: "muted small" }, "At the budget hi stops the app's calls that cost money, its agents' and its code's; calls a Claude or ChatGPT plan pays go on. Its ops channel hears at 80% and 100%. Empty, or 0, is none."));
+  box.append(form, el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+    el("li", {}, "At the budget, hi stops the paid calls of the app, from its agents and its code."),
+    el("li", {}, "Calls that a Claude or ChatGPT plan pays for continue."),
+    el("li", {}, "hi tells the ops channel at 80% and at 100%."),
+    el("li", {}, "Empty or 0 means no budget."))));
   return box;
 }
 
 function sectionSpend(s) {
   const sp = s.spend;
-  const parts = [el("p", { class: "purpose" }, "What the app's model calls cost through hi: its agents', its dev box's, and its own code's in production and the preview, whichever key paid. Calls a Claude or ChatGPT sign-in paid count in tokens, not dollars.")];
+  const parts = [el("p", { class: "purpose" }, "The cost of model calls that the app makes through hi. This includes calls from its agents, its dev box, and its code in production and the preview, with any key. hi counts calls on a Claude or ChatGPT sign-in in tokens, not dollars.")];
   const months = sp.months.length ? sp.months : [sp.month];
   if (!months.includes(sp.month)) months.unshift(sp.month);
   const pick = el("select", { "aria-label": "Month" }, ...months.map((m) => el("option", { value: m, selected: m === sp.month }, monthName(m))));
@@ -3029,7 +3040,7 @@ function sectionSpend(s) {
   parts.push(el("div", { class: "data-actions spend-head" }, el("strong", { class: "spend-total" }, dollars(sp.usd)), el("span", { class: "muted small" }, sp.calls + (sp.calls === 1 ? " call" : " calls")), el("span", { class: "grow" }), pick));
   parts.push(spendBudget(s));
   if (!sp.calls) {
-    parts.push(el("p", { class: "muted small" }, "No model calls through hi this month yet. An agent's calls count from its box's next start on this hi."));
+    parts.push(el("p", { class: "muted small" }, "No model calls through hi this month yet. hi counts the calls of an agent after its box starts again on this version of hi."));
     return parts;
   }
   const table = (title, rows, money, name) => {
@@ -3068,23 +3079,33 @@ function closeTerm() {
 }
 
 function sectionTerminal(s) {
-  const parts = [el("p", {}, "A shell in one of " + s.name + "'s boxes that run, as the box's own user. Not on the machine: the boxes hold none of the app's keys. Each terminal is said in Activity and the app's ops channel, and closes after 30 minutes without a key.")];
-  if (!s.you) parts.push(el("p", { class: "note" }, "Only the machine's owner" + (s.owner ? ", " + s.owner + "," : "") + " opens a terminal here: the server's owner. On the machine, hi server owner <Slack ID> --email <address> hands it on."));
+  const parts = [el("p", {}, "A shell in a running box of " + s.name + ", as the user of the box.")];
+  if (!s.you) parts.push(el("p", { class: "note" }, "Only the owner of the machine" + (s.owner ? ", " + s.owner + "," : "") + " can open a terminal here. This is the server owner. To change the owner, run hi server owner <Slack ID> --email <address> on the machine."));
   if (!s.boxes.length) {
     if (adminTerm && adminTerm.app === s.name) closeTerm();
-    parts.push(el("p", { class: "muted" }, "None of " + s.name + "'s boxes runs now."));
+    parts.push(el("p", { class: "muted" }, "No box of " + s.name + " runs now."));
+    parts.push(terminalHow());
     return parts;
   }
   if (!s.you) {
     parts.push(el("ul", { class: "list" }, ...s.boxes.map((b) => el("li", {}, b.label))));
+    parts.push(terminalHow());
     return parts;
   }
   const mine = adminTerm && adminTerm.app === s.name;
-  const select = el("select", { "aria-label": "The box" });
+  const select = el("select", { "aria-label": "Box" });
   for (const b of s.boxes) select.append(el("option", { value: b.id, selected: mine ? adminTerm.box === b.id : termWanted === b.id }, b.label));
   parts.push(el("div", { class: "data-actions" }, select, el("button", { onclick: () => openTerm(s.name, select.value) }, mine ? "Open again" : "Open")));
   if (mine) parts.push(adminTerm.node);
+  parts.push(terminalHow());
   return parts;
+}
+
+function terminalHow() {
+  return el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+    el("li", {}, "The shell is in the box, not on the machine. The boxes hold no keys of the app."),
+    el("li", {}, "hi writes each terminal in Activity and tells the ops channel of the app."),
+    el("li", {}, "A terminal closes after 30 minutes without a key press.")));
 }
 
 function openTerm(app, box) {
@@ -3115,7 +3136,7 @@ function openTerm(app, box) {
   socket.onmessage = (event) => term.write(typeof event.data === "string" ? event.data : new Uint8Array(event.data));
   socket.onclose = (event) => {
     if (t.closing) return;
-    why.textContent = "The terminal closed" + (event.reason ? ": " + event.reason : "") + ". Open again opens a new one.";
+    why.textContent = "The terminal closed" + (event.reason ? ": " + event.reason : "") + ". Click Open again for a new terminal.";
   };
   term.onData((data) => { if (socket.readyState === 1) socket.send(encoder.encode(data)); });
   const resize = () => {
@@ -3136,7 +3157,7 @@ function levelSelect(value, label, onchange) {
 }
 async function setLevel(app, person, name, level, select, before) {
   const words = { owner: "an owner", pro: "a developer", contributor: "a contributor", none: "nobody in it" };
-  if (!(await ask({ title: "Make " + (name || person) + " " + words[level] + " of " + app + "?", text: level === "none" ? "Their level goes, and their private links and SSH key with it. The app's channel hears it." : "The app's channel hears it." + (level === "owner" ? " An owner is an owner only: a level they had goes." : ""), ok: "Change it" }))) { if (select) select.value = before; return false; }
+  if (!(await ask({ title: "Make " + (name || person) + " " + words[level] + " of " + app + "?", text: level === "none" ? "They lose their access level, their private links and their SSH key. hi tells the app channel." : "hi tells the app channel." + (level === "owner" ? " An owner has only the owner level. Their old level goes." : ""), ok: "Change" }))) { if (select) select.value = before; return false; }
   try {
     await api("/api/app/settings", { app, what: "level", person, level });
     toast((name || person) + " is " + words[level] + " of " + app + ".");
@@ -3149,24 +3170,24 @@ function sectionPeople(s) {
   for (const p of s.people) {
     const keyButtons = el("span", { class: "actions" },
       el("button", { class: "small", onclick: async () => {
-        const answer = await ask({ title: (p.name || p.id) + "'s SSH key for the dev box", text: "Their public key, such as the contents of ~/.ssh/id_ed25519.pub. A key they had before stops working.", ok: "Save", field: "ssh-ed25519 AAAA…" });
-        if (answer) change("sshkey", { person: p.id, key: answer.field }, (p.name || p.id) + "'s SSH key is in the dev box.");
+        const answer = await ask({ title: "SSH key of " + (p.name || p.id) + " for the dev box", text: "Paste their public key, for example the contents of ~/.ssh/id_ed25519.pub. Their old key stops working.", ok: "Save", field: "ssh-ed25519 AAAA…" });
+        if (answer) change("sshkey", { person: p.id, key: answer.field }, "The SSH key of " + (p.name || p.id) + " is in the dev box.");
       } }, p.key ? "New key" : "Set key"),
-      p.key ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Take " + (p.name || p.id) + "'s SSH key out?", text: "They can no longer SSH into the dev box.", ok: "Take it out" })) change("sshkey", { person: p.id, remove: true }); } }, "Remove key") : null);
+      p.key ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Remove the SSH key of " + (p.name || p.id) + "?", text: "They cannot SSH into the dev box after this.", ok: "Remove" })) change("sshkey", { person: p.id, remove: true }); } }, "Remove key") : null);
     list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, p.name || p.id), " ", el("span", { class: "muted small" }, p.id), el("span", { class: "muted small block" }, p.key ? "SSH key " + p.key : p.level === "owner" || p.level === "pro" ? "no SSH key" : "")),
-      levelSelect(p.level, (p.name || p.id) + "'s level", async (level, select) => { if (await setLevel(s.name, p.id, p.name, level, select, p.level)) refreshSettings(); }), keyButtons));
+      levelSelect(p.level, "Access level of " + (p.name || p.id), async (level, select) => { if (await setLevel(s.name, p.id, p.name, level, select, p.level)) refreshSettings(); }), keyButtons));
   }
   if (!s.people.length) list.append(el("li", { class: "plain muted small" }, "Nobody yet."));
   const id = el("input", { maxlength: "200", placeholder: "Their email, or Slack member ID", "aria-label": "Their email, or Slack member ID" });
   let level = "pro";
-  const add = el("form", { class: "say-form", autocomplete: "off" }, id, levelSelect("pro", "Their level", (v) => { level = v; }), el("button", { type: "submit" }, "Add"));
+  const add = el("form", { class: "say-form", autocomplete: "off" }, id, levelSelect("pro", "Their access level", (v) => { level = v; }), el("button", { type: "submit" }, "Add"));
   add.addEventListener("submit", async (event) => {
     event.preventDefault();
     const who = id.value.trim();
     if (!who) return;
     // By email: the machine's list finds their Slack account (hi_people.md).
     if (who.includes("@")) {
-      if (!(await ask({ title: "Make " + who + " " + ({ owner: "an owner", pro: "a developer", contributor: "a contributor" })[level] + " of " + s.name + "?", text: "The app's channel hears it.", ok: "Add" }))) return;
+      if (!(await ask({ title: "Make " + who + " " + ({ owner: "an owner", pro: "a developer", contributor: "a contributor" })[level] + " of " + s.name + "?", text: "hi tells the app channel.", ok: "Add" }))) return;
       try {
         const answer = await api("/api/person", { action: "add", email: who, levels: { [s.name]: level } });
         toast(answer.text, true);
@@ -3177,8 +3198,15 @@ function sectionPeople(s) {
     }
     if (await setLevel(s.name, who, "", level, null, "none")) { id.value = ""; refreshSettings(); }
   });
-  return [el("p", { class: "purpose" }, "Owners build in the dev box and release; developers too, except rollbacks, production's data and settings, keys, and who is who; contributors report bugs. Vibe and Pro are views of the dev page, each person's own choice. The same as hi app owners and hi app access, and owners change all but owners on the dev page."),
-    list, el("h2", {}, "Add someone"), add, el("p", { class: "muted small" }, "By email, with Slack or without: someone in the app's Slack workspace is added as their Slack account there. Their SSH key, sign-ins, and other apps: People, on the left.")];
+  return [el("p", { class: "purpose" }, "The people of the app and their access levels."),
+    list, el("h2", {}, "Add a person"), add, el("p", { class: "muted small" }, "Type an email or a Slack member ID. If the person is in the Slack workspace of the app, hi adds their Slack account."),
+    el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+      el("li", {}, "Owners build in the dev box and publish."),
+      el("li", {}, "Developers can do the same, but not rollbacks. They also cannot change production data, production env variables, keys or access levels."),
+      el("li", {}, "Contributors report bugs."),
+      el("li", {}, "Vibe and Pro are views of the dev page. Each person picks their own view."),
+      el("li", {}, "This is the same as hi app owners and hi app access. On the dev page, owners can change all levels except owner."),
+      el("li", {}, "To see the SSH key, sign-ins and other apps of a person, open People on the left.")))];
 }
 
 // signinNote is how the open app's sign-in of a kind is, for Agents.
@@ -3191,17 +3219,17 @@ function signinNote(kind) {
 }
 
 function sectionAgents(s) {
-  const parts = [el("p", { class: "purpose" }, "Each role's model, who pays for it, and how hard it thinks; the app restarts when one changes. The same as hi app member.")];
+  const parts = [el("p", { class: "purpose" }, "The model, payer and effort of each role. The app restarts after a change. This is the same as hi app member.")];
   for (const m of s.members) {
     const provider = el("select", { "aria-label": m.role + ": who pays", disabled: m.agent !== "hermes" });
-    for (const [v, text] of [["openrouter", "OpenRouter, per call"], ["chatgpt", "A ChatGPT plan, falling back to OpenRouter"], ["claude", "Claude's plan"]]) {
+    for (const [v, text] of [["openrouter", "OpenRouter, per call"], ["chatgpt", "A ChatGPT plan, with OpenRouter as fallback"], ["claude", "Claude plan"]]) {
       if (v === "claude" && m.agent !== "claude") continue;
       if (v !== "claude" && m.agent === "claude") continue;
       provider.append(el("option", { value: v, selected: m.provider === v }, text));
     }
-    const model = el("input", { value: m.model || "", placeholder: "the agent's own", "aria-label": m.role + "'s model" });
-    const fallback = el("input", { value: m.fallback || "", placeholder: "the usual one", "aria-label": m.role + "'s fallback" });
-    const effort = el("select", { "aria-label": m.role + "'s effort" });
+    const model = el("input", { value: m.model || "", placeholder: "default of the agent", "aria-label": m.role + ": model" });
+    const fallback = el("input", { value: m.fallback || "", placeholder: "the default", "aria-label": m.role + ": fallback" });
+    const effort = el("select", { "aria-label": m.role + ": effort" });
     for (const e of ["low", "medium", "high", "xhigh", "max"]) effort.append(el("option", { value: e, selected: m.effort === e }, e));
     parts.push(el("div", { class: "card-box member-card" }, el("div", { class: "card-head pad" }, el("strong", { class: "card-name" }, m.role), el("span", { class: "muted small" }, m.label)),
       el("div", { class: "policy-fields" }, field("Who pays", provider), field("Model", model), field("Fallback on OpenRouter", fallback), field("Effort", effort)),
@@ -3212,73 +3240,73 @@ function sectionAgents(s) {
         if (fallback.value.trim() !== (m.fallback || "")) fields.fallback = fallback.value.trim();
         if (effort.value !== m.effort) fields.effort = effort.value;
         if (Object.keys(fields).length === 1) { toast("Nothing changed."); return; }
-        change("member", fields, "The " + m.role + " is changed; the app restarts.");
+        change("member", fields, "The " + m.role + " changed. The app restarts.");
       } }, "Save"))));
   }
   // Keys and sign-ins.
-  const or = el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "OpenRouter: "), s.openrouter_from ? s.openrouter_from + ", a shared key from the vault" : s.own_openrouter ? "the app's own key" : "this machine's key" + (s.machine_openrouter ? "" : ", which it hasn't got")));
-  const orShared = useSharedRow(s, s.openrouter_from, "An OpenRouter key, sk-or-…, from openrouter.ai/settings/keys.", (from) => change("openrouter", { from }, "The app's OpenRouter key is " + from + "."));
+  const or = el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "OpenRouter: "), s.openrouter_from ? s.openrouter_from + ", a shared key from the vault" : s.own_openrouter ? "a key for this app only" : "the key of this machine" + (s.machine_openrouter ? "" : ". This machine has no key")));
+  const orShared = useSharedRow(s, s.openrouter_from, "An OpenRouter key, sk-or-…, from openrouter.ai/settings/keys.", (from) => change("openrouter", { from }, "The app now uses the OpenRouter key " + from + "."));
   or.append(el("div", { class: "data-actions" },
-    el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "The app's own OpenRouter key", text: "Its use is billed and limited apart. It's checked, kept on the machine, and never shown again.", ok: "Check and keep", field: "sk-or-…" }); if (answer) change("openrouter", { key: answer.field }, "The app has its own OpenRouter key."); } }, s.own_openrouter ? "Replace the key" : "Give it its own key"),
+    el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "OpenRouter key for this app only", text: "The app gets separate billing and limits. hi checks the key and keeps it on the machine. hi never shows it again.", ok: "Check and save", field: "sk-or-…" }); if (answer) change("openrouter", { key: answer.field }, "The app has its own OpenRouter key."); } }, s.own_openrouter ? "Replace the key" : "Give the app its own key"),
     orShared.button,
-    s.own_openrouter || s.openrouter_from ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Use this machine's OpenRouter key?", text: s.openrouter_from ? "The app stops using " + s.openrouter_from + "." : "The app's own key is forgotten.", ok: "Use the machine's" })) change("openrouter", { remove: true }); } }, "Use this machine's") : null),
+    s.own_openrouter || s.openrouter_from ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Use the OpenRouter key of this machine?", text: s.openrouter_from ? "The app stops using " + s.openrouter_from + "." : "hi deletes the key of the app.", ok: "Use the machine key" })) change("openrouter", { remove: true }); } }, "Use the machine key") : null),
     orShared.row);
   const models = el("input", { type: "checkbox" });
   models.checked = s.models;
   models.addEventListener("change", () => change("models", { on: models.checked }));
-  parts.push(el("h2", {}, "The dev page's chat"), el("label", { class: "check" }, models, " Developers pick its model and effort, beside the message box; a pick is also the dev box's default for new sessions. Off, the picker isn't there, and each session keeps what it starts with (hi app models)."));
+  parts.push(el("h2", {}, "Dev page chat"), el("label", { class: "check" }, models, " Developers can pick the model and effort next to the message box. The pick is also the default for new sessions in the dev box. When this is off, there is no picker, and each session keeps its first model (hi app models)."));
   parts.push(el("h2", {}, "Keys and sign-ins"), or);
   if (s.uses_chatgpt) {
-    parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "ChatGPT: "), s.chatgpt ? "the app's own sign-in, " + s.chatgpt : "this machine's sign-in, Codex's" + (s.machine_chatgpt ? "" : ", which isn't signed in")),
-      s.chatgpt_failed ? el("p", { class: "error small" }, "It stopped working: " + s.chatgpt_failed + ". Sign in again.") : signinNote("chatgpt"),
-      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("chatgpt", {}, "Signing in: the code to type is in Jobs") }, s.chatgpt ? "Sign in again" : "Sign the app in"),
-        s.chatgpt ? el("button", { class: "small", onclick: () => change("chatgpt", { machine: true }) }, "Use this machine's") : "")));
+    parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "ChatGPT: "), s.chatgpt ? "a sign-in for this app only, " + s.chatgpt : "the Codex sign-in of this machine" + (s.machine_chatgpt ? "" : ", which is not signed in")),
+      s.chatgpt_failed ? el("p", { class: "error small" }, "The sign-in stopped working: " + s.chatgpt_failed + ". Sign in again.") : signinNote("chatgpt"),
+      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("chatgpt", {}, "Signing in. Find the code to type in Jobs") }, s.chatgpt ? "Sign in again" : "Sign the app in"),
+        s.chatgpt ? el("button", { class: "small", onclick: () => change("chatgpt", { machine: true }) }, "Use the machine sign-in") : "")));
   }
   if (s.uses_claude) {
-    const clShared = useSharedRow(s, s.claude_from, "A Claude token, sk-ant-oat…, from claude setup-token signed in to the account that pays.", (from) => change("claude", { from }, "The app's Claude members use " + from + "."));
-    parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "Claude: "), s.claude_from ? s.claude_from + ", a shared key from the vault" : s.own_claude ? "the app's own token" : "this machine's sign-in" + (s.machine_claude ? "" : ", which isn't there")),
+    const clShared = useSharedRow(s, s.claude_from, "A Claude token, sk-ant-oat…. Get it with claude setup-token, signed in to the account that pays.", (from) => change("claude", { from }, "The Claude members of the app now use " + from + "."));
+    parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "Claude: "), s.claude_from ? s.claude_from + ", a shared key from the vault" : s.own_claude ? "a token for this app only" : "the sign-in of this machine" + (s.machine_claude ? "" : ", which does not exist")),
       signinNote("claude"),
-      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "The app's own Claude token", text: "From claude setup-token, signed in to the account that pays; it lasts a year. Kept on the machine, never shown again.", ok: "Keep it", field: "sk-ant-oat…" }); if (answer) change("claude", { key: answer.field }, "The app has its own Claude token."); } }, s.own_claude ? "Replace the token" : "Give it its own token"),
+      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "Claude token for this app only", text: "Get it with claude setup-token, signed in to the account that pays. It lasts one year. hi keeps it on the machine and never shows it again.", ok: "Save", field: "sk-ant-oat…" }); if (answer) change("claude", { key: answer.field }, "The app has its own Claude token."); } }, s.own_claude ? "Replace the token" : "Give the app its own token"),
         clShared.button,
-        s.own_claude || s.claude_from ? el("button", { class: "small", onclick: () => change("claude", { machine: true }) }, "Use this machine's") : ""),
+        s.own_claude || s.claude_from ? el("button", { class: "small", onclick: () => change("claude", { machine: true }) }, "Use the machine sign-in") : ""),
       clShared.row));
   }
   // Stage's limit, and the boxes' memory.
   const usd = el("input", { value: s.stage_limit > 0 ? String(s.stage_limit) : "", placeholder: "off", "aria-label": "Dollars a day", class: "small-input" });
-  parts.push(el("h2", {}, "Stage's model calls"), el("p", { class: "small" }, (s.stage_limit > 0 ? "Up to $" + s.stage_limit.toFixed(2) + " a day" : "No daily limit") + "; today $" + s.stage_spent.toFixed(2) + " in " + s.stage_calls + " call" + (s.stage_calls === 1 ? "" : "s") + ". Production has no limit from hi."),
-    el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "$ a day"), usd, el("button", { class: "small", onclick: () => change("limit", { usd: usd.value.trim() || "off" }) }, "Save"), el("button", { class: "small", onclick: () => change("limit", { usd: "off" }) }, "No limit")));
-  const dev = el("input", { value: s.memory_dev, class: "small-input", "aria-label": "The dev box's memory" });
-  const app = el("input", { value: s.memory_app, class: "small-input", "aria-label": "The app's boxes' memory" });
-  parts.push(el("h2", {}, "Memory"), el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "The dev box"), dev, el("button", { class: "small", onclick: () => change("memory", { box: "dev", size: dev.value.trim() }) }, "Save"),
-    el("span", { class: "muted small" }, "Stage's and production's boxes"), app, el("button", { class: "small", onclick: () => change("memory", { box: "app", size: app.value.trim() }) }, "Save"),
-    s.memory_own ? el("button", { class: "small", onclick: () => change("memory", { box: "default" }) }, "hi's default") : ""), el("p", { class: "muted small" }, "Such as 24g or 512m. Running boxes get it at once."));
+  parts.push(el("h2", {}, "Stage model calls"), el("p", { class: "small" }, (s.stage_limit > 0 ? "Up to $" + s.stage_limit.toFixed(2) + " each day" : "No daily limit") + ". Today: $" + s.stage_spent.toFixed(2) + " in " + s.stage_calls + " call" + (s.stage_calls === 1 ? "" : "s") + ". hi sets no limit for production."),
+    el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "$ each day"), usd, el("button", { class: "small", onclick: () => change("limit", { usd: usd.value.trim() || "off" }) }, "Save"), el("button", { class: "small", onclick: () => change("limit", { usd: "off" }) }, "No limit")));
+  const dev = el("input", { value: s.memory_dev, class: "small-input", "aria-label": "Dev box memory" });
+  const app = el("input", { value: s.memory_app, class: "small-input", "aria-label": "Memory of stage and production boxes" });
+  parts.push(el("h2", {}, "Memory"), el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "Dev box"), dev, el("button", { class: "small", onclick: () => change("memory", { box: "dev", size: dev.value.trim() }) }, "Save"),
+    el("span", { class: "muted small" }, "Stage and production boxes"), app, el("button", { class: "small", onclick: () => change("memory", { box: "app", size: app.value.trim() }) }, "Save"),
+    s.memory_own ? el("button", { class: "small", onclick: () => change("memory", { box: "default" }) }, "Use the hi default") : ""), el("p", { class: "muted small" }, "For example 24g or 512m. Running boxes get the change immediately."));
   return parts;
 }
 
 function sectionSlack(s) {
-  const ops = el("input", { value: s.ops_channel || "", placeholder: "C… (empty: none)", "aria-label": "The ops channel's ID", class: "small-input wide-input" });
-  const bot = el("input", { type: "password", placeholder: "xoxb-… (empty keeps the one it has)", "aria-label": "Bot token" });
-  const appToken = el("input", { type: "password", placeholder: "xapp-… (empty keeps the one it has)", "aria-label": "App token" });
+  const ops = el("input", { value: s.ops_channel || "", placeholder: "C… (empty for none)", "aria-label": "Ops channel ID", class: "small-input wide-input" });
+  const bot = el("input", { type: "password", placeholder: "xoxb-… (leave empty to keep the current token)", "aria-label": "Bot token" });
+  const appToken = el("input", { type: "password", placeholder: "xapp-… (leave empty to keep the current token)", "aria-label": "App token" });
   const copy = el("button", { class: "small", onclick: () => copyText(s.manifest) }, "Copy the manifest");
   return [
     el("dl", { class: "facts" }, el("dt", {}, "Bot"), el("dd", {}, "@" + s.handle + " · " + s.slash), el("dt", {}, "Channel"), el("dd", {}, s.channel), el("dt", {}, "Tokens"), el("dd", {}, (s.has_bot ? "bot token set" : "no bot token") + ", " + (s.has_app ? "app token set" : "no app token"))),
-    el("h2", {}, "Ops channel"), el("p", { class: "muted small" }, "A second channel for incidents, warnings, security, keys, and access, for the people with the know-how. Invite the app there first: /invite @" + s.handle + "."),
+    el("h2", {}, "Ops channel"), el("p", { class: "muted small" }, "A second channel for incidents, warnings, security, keys and access. First invite the app with /invite @" + s.handle + " in that channel."),
     el("div", { class: "data-actions" }, ops, el("button", { class: "small", onclick: () => change("ops", { channel: ops.value.trim() }) }, "Save")),
-    el("h2", {}, "Tokens"), el("p", { class: "muted small" }, "When Slack gave new ones: the app token under Basic Information, the bot token under OAuth & Permissions. Each is checked; the app restarts."),
-    field("App token", appToken), field("Bot token", bot), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("slack", { bot: bot.value.trim(), app_token: appToken.value.trim() }, "The tokens are kept; the app restarts.") }, "Check and keep")),
-    el("h2", {}, "The Slack app's manifest"), el("p", { class: "muted small" }, "To update the Slack app after a hi update, or a rename: at api.slack.com/apps, open the app, App Manifest, paste this over it, Save, and reinstall if Slack asks."),
+    el("h2", {}, "Tokens"), el("p", { class: "muted small" }, "Use this when Slack gives new tokens. The app token is under Basic Information. The bot token is under OAuth & Permissions. hi checks each token, then the app restarts."),
+    field("App token", appToken), field("Bot token", bot), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("slack", { bot: bot.value.trim(), app_token: appToken.value.trim() }, "hi saved the tokens. The app restarts.") }, "Check and save")),
+    el("h2", {}, "Slack app manifest"), el("p", { class: "muted small" }, "Update the Slack app after a hi update or a rename. At api.slack.com/apps, open the app and go to App Manifest. Paste this manifest over the old one and click Save. Reinstall the app if Slack asks."),
     el("div", { class: "data-actions" }, copy, el("a", { class: "button-like", href: "https://api.slack.com/apps", target: "_blank", rel: "noopener noreferrer" }, "Your Slack apps ↗")),
-    el("details", { class: "small" }, el("summary", { class: "muted" }, "The manifest"), el("pre", { class: "job-output manifest" }, s.manifest)),
-    el("h2", {}, "Its name"), el("div", { class: "data-actions" }, el("button", { onclick: () => renameApp(s.name) }, "Rename…"))];
+    el("details", { class: "small" }, el("summary", { class: "muted" }, "Manifest"), el("pre", { class: "job-output manifest" }, s.manifest)),
+    el("h2", {}, "Name"), el("div", { class: "data-actions" }, el("button", { onclick: () => renameApp(s.name) }, "Rename…"))];
 }
 
 function sectionSettings(s) {
-  const scopes = { all: "Stage and production", production: "production's own", stage: "Stage's own", dev: "the dev box's own" };
+  const scopes = { all: "stage and production", production: "production only", stage: "stage only", dev: "dev box only" };
   const list = el("ul", { class: "list" });
   for (const e of s.env) {
     list.append(el("li", {}, el("span", { class: "what" }, el("code", {}, e.name), " ", el("span", { class: "muted small" }, scopes[e.scope] + (e.file ? ", a file" : "") + (e.from ? ", from " + e.from : ""))),
       el("span", { class: "actions" }, e.file || e.from ? "" : el("button", { class: "small", onclick: () => setEnv(e.name, e.scope) }, "New value"),
-        el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove " + e.name + "?", text: "It leaves the app's boxes' settings files within a minute, and their environment at their next start.", ok: "Remove" })) change("env", { name: e.name, scope: e.scope, remove: true }); } }, "Remove"))));
+        el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove " + e.name + "?", text: "hi removes it from the settings files of the app boxes within one minute. It leaves the environment of a box when the box starts again.", ok: "Remove" })) change("env", { name: e.name, scope: e.scope, remove: true }); } }, "Remove"))));
   }
   if (!s.env.length) list.append(el("li", { class: "plain muted small" }, "None yet."));
   const helper = (slot, label) => {
@@ -3290,45 +3318,50 @@ function sectionSettings(s) {
   const freeze = el("input", { type: "checkbox" });
   freeze.checked = s.auto_freeze;
   freeze.addEventListener("change", () => change("watch", { on: freeze.checked }));
-  const beat = el("input", { placeholder: s.heartbeat ? "Set; a new URL replaces it" : "https://hc-ping.com/…", "aria-label": "The heartbeat URL" });
+  const beat = el("input", { placeholder: s.heartbeat ? "Set. A new URL replaces it." : "https://hc-ping.com/…", "aria-label": "Heartbeat URL" });
   const every = el("input", { value: s.every || "", placeholder: "1m", class: "small-input", "aria-label": "Every" });
   const parts = [
-    el("h2", {}, "Settings, by name"), el("p", { class: "muted small" }, "Environment variables in the app's boxes. Their values stay on the machine: the page never shows one. Files (certificates) are set on the machine: hi app env " + s.name + " --file KEY=<path>."),
-    list, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => setEnv("", "all") }, "+ A setting"),
+    el("h2", {}, "Env variables"), el("p", { class: "muted small" }, "Env variables in the boxes of the app."),
+    list, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => setEnv("", "all") }, "+ Env variable"),
       (s.shared || []).length ? el("button", { class: "small", onclick: () => setEnvFrom(s) }, "+ From a shared key") : ""),
-    el("p", { class: "muted small" }, "Kept encrypted in the server's vault (hi/app/" + s.name + "/…, the Vault tab has each one's versions). A shared key an admin shared to the app gives a setting its value by reference: a new value there reaches it too."),
-    el("h2", {}, "The helper"), el("p", { class: "muted small" }, "Help and feedback on the app's pages, from the next page load."), el("div", { class: "radios" }, helper("preview", "On Stage"), helper("production", "On production")),
-    el("h2", {}, "The watcher"), el("label", { class: "check" }, freeze, " It freezes the app on its own for an exploited advisory in the app's packages, or a burst to a watched host; off, each waits for an owner."),
-    el("h2", {}, "Heartbeat"), el("p", { class: "muted small" }, s.heartbeat ? "The app sends one" + (s.every ? " every " + s.every : " every minute") + "." : "None, so nobody would hear that the app stopped."),
+    el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+      el("li", {}, "The app reads each variable from its environment."),
+      el("li", {}, "hi keeps the values encrypted in the server vault, under hi/app/" + s.name + "/…. This page never shows a value."),
+      el("li", {}, "The Vault tab shows the versions of each value."),
+      el("li", {}, "A variable can get its value from a shared key that an admin shared with the app. When the shared key changes, the variable changes too."),
+      el("li", {}, "To set a file, for example a certificate, run hi app env " + s.name + " --file KEY=<path> on the machine."))),
+    el("h2", {}, "Helper"), el("p", { class: "muted small" }, "Help and feedback on the pages of the app. A change applies at the next page load."), el("div", { class: "radios" }, helper("preview", "On stage"), helper("production", "On production")),
+    el("h2", {}, "Watcher"), el("label", { class: "check" }, freeze, " Freeze the app automatically if an advisory for its packages is exploited, or if it sends a burst of traffic to a watched host. When this is off, an owner decides."),
+    el("h2", {}, "Heartbeat"), el("p", { class: "muted small" }, s.heartbeat ? "The app sends a heartbeat" + (s.every ? " every " + s.every : " every minute") + "." : "No heartbeat. Nobody gets an alert if the app stops."),
     el("div", { class: "data-actions" }, beat, every, el("button", { class: "small", onclick: () => change("heartbeat", { url: beat.value.trim(), every: every.value.trim() }) }, "Save"), s.heartbeat ? el("button", { class: "small", onclick: () => change("heartbeat", { remove: true }) }, "Off") : ""),
   ];
   parts.push(el("h2", {}, "Code"));
-  if (s.remote) parts.push(el("p", { class: "small" }, "It pushes every merge to ", el("code", {}, shown(s.remote)), s.forge !== "hi" ? "; its tasks are " + (s.forge === "github" ? "GitHub" : "GitLab") + " issues." : "."));
+  if (s.remote) parts.push(el("p", { class: "small" }, "The app pushes each merge to ", el("code", {}, shown(s.remote)), s.forge !== "hi" ? ". Its tasks are " + (s.forge === "github" ? "GitHub" : "GitLab") + " issues." : "."));
   else {
-    const repo = el("input", { placeholder: "owner/name, or for GitLab group/name or host/group/name", "aria-label": "The repository" });
-    parts.push(el("p", { class: "muted small" }, "It stays on this machine. Put it on GitHub or GitLab: a new private repository, or an empty one, with this machine's sign-in."),
-      el("div", { class: "data-actions" }, repo, el("button", { class: "small", onclick: () => change("github", { repo: repo.value.trim() }, "Putting it on GitHub") }, "On GitHub"), el("button", { class: "small", onclick: () => change("gitlab", { repo: repo.value.trim() }, "Putting it on GitLab") }, "On GitLab")));
+    const repo = el("input", { placeholder: "owner/name, or for GitLab group/name or host/group/name", "aria-label": "Repository" });
+    parts.push(el("p", { class: "muted small" }, "The code is only on this machine. You can put it on GitHub or GitLab, in a new private repository or an empty one. hi uses the sign-in of this machine."),
+      el("div", { class: "data-actions" }, repo, el("button", { class: "small", onclick: () => change("github", { repo: repo.value.trim() }, "Putting the code on GitHub") }, "On GitHub"), el("button", { class: "small", onclick: () => change("gitlab", { repo: repo.value.trim() }, "Putting the code on GitLab") }, "On GitLab")));
   }
-  if (s.adopted) parts.push(el("p", { class: "small" }, "Adopted from ", el("code", {}, s.adopted.from), s.adopted.local ? ", a folder here." : ", following " + (s.adopted.follow || "its default branch") + "."),
-    s.adopted.local ? "" : el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("upstream", {}, "Fetching its upstream") }, "Fetch what's new there")));
+  if (s.adopted) parts.push(el("p", { class: "small" }, "Adopted from ", el("code", {}, s.adopted.from), s.adopted.local ? ", a folder on this machine." : ". It follows " + (s.adopted.follow || "the default branch") + "."),
+    s.adopted.local ? "" : el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("upstream", {}, "Fetching the upstream") }, "Fetch upstream changes")));
   parts.push(el("h2", {}, "Remove the app"), el("div", { class: "data-actions" }, el("button", { class: "danger", onclick: () => removeApp(s.name) }, "Remove…")));
   return parts;
 }
 
 async function setEnvFrom(s) {
-  const values = await vaultForm({ title: "A setting from a shared key", ok: "Save",
-    text: "The app keeps only the reference; the value stays in the vault, and a new value there reaches the app's boxes within a minute.",
-    fields: [{ label: "NAME, such as MARKET_API_KEY" }, { label: "The shared key", options: s.shared }],
+  const values = await vaultForm({ title: "Env variable from a shared key", ok: "Save",
+    text: "The app keeps only a reference. The value stays in the vault. When the value changes, the app boxes get the new value within one minute.",
+    fields: [{ label: "NAME, for example MARKET_API_KEY" }, { label: "Shared key", options: s.shared }],
     live: (v) => {
       const bad = v[0] && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim()) ? [0] : [];
-      return { ok: /^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim()) && !!v[1], bad, hint: bad.length ? "Letters, digits, and _." : "" };
+      return { ok: /^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim()) && !!v[1], bad, hint: bad.length ? "Use letters, digits and _." : "" };
     } });
   if (!values) return;
-  change("env", { name: values[0].trim(), from: values[1], scope: "all" }, values[0].trim() + " takes " + values[1] + ".");
+  change("env", { name: values[0].trim(), from: values[1], scope: "all" }, values[0].trim() + " now gets its value from " + values[1] + ".");
 }
 
 async function setEnv(name, scope) {
-  const answer = await ask({ title: name ? "A new value for " + name : "A setting", text: (name ? "" : "Its name, then its value. ") + "The value goes to the machine once and is never shown again. The app's boxes have it in their settings files within a minute, and in their environment from their next start.", ok: "Save", field: name ? "Its value" : "NAME=value", fieldCheck: (v) => (name ? (v ? "" : "Give its value.") : /^[A-Za-z_][A-Za-z0-9_]*=/.test(v) ? "" : "NAME=value, such as STRIPE_KEY=sk_live_…"), check: name ? "" : "Production's own, which Stage mustn't use" });
+  const answer = await ask({ title: name ? "New value for " + name : "New env variable", text: (name ? "" : "Type the name, then the value. ") + "hi sends the value to the machine one time and never shows it again. The app boxes get it in their settings files within one minute. A box gets it in its environment when it starts again.", ok: "Save", field: name ? "Value" : "NAME=value", fieldCheck: (v) => (name ? (v ? "" : "Type a value.") : /^[A-Za-z_][A-Za-z0-9_]*=/.test(v) ? "" : "Use NAME=value, for example STRIPE_KEY=sk_live_…"), check: name ? "" : "Production only. Stage must not use it." });
   if (!answer) return;
   let key = name, value = answer.field;
   if (!name) { key = answer.field.slice(0, answer.field.indexOf("=")); value = answer.field.slice(answer.field.indexOf("=") + 1); scope = answer.checked ? "production" : "all"; }
@@ -3356,7 +3389,7 @@ const levelWords = { owner: "Owner", pro: "Developer", vibe: "Developer", contri
 function personTitle(person) { return person.name || person.email || person.key; }
 function personSummary(person) {
   const apps = Object.keys(person.levels).sort();
-  if (!apps.length) return "no level in any app";
+  if (!apps.length) return "no access level in any app";
   const counts = {};
   for (const app of apps) counts[person.levels[app]] = (counts[person.levels[app]] || 0) + 1;
   if (apps.length > 2) return Object.entries(counts).map(([level, n]) => levelWords[level] + " in " + n).join(" · ");
@@ -3367,7 +3400,7 @@ const peopleServer = ":server";
 function adminPersonName(admin) {
   const person = peopleApps && admin.email && peopleApps.people.find((x) => x.email && x.email.toLowerCase() === admin.email.toLowerCase());
   if (!person) return el("strong", {}, admin.name);
-  return el("button", { class: "link-button", title: "Their apps, Slack and sign-ins", onclick: () => openPerson(person.key) }, el("strong", {}, admin.name));
+  return el("button", { class: "link-button", title: "Apps, Slack and sign-ins of this person", onclick: () => openPerson(person.key) }, el("strong", {}, admin.name));
 }
 function peopleAppsBlock() {
   const p = peopleApps;
@@ -3376,9 +3409,9 @@ function peopleAppsBlock() {
   const tools = el("div", { class: "people-tools" });
   const server = state && (state.admins || []).length ? el("option", { value: peopleServer, selected: peopleFilter === peopleServer }, state.org && !state.org.no_owner ? "Server" : "Admins") : null;
   if (!server && peopleFilter === peopleServer) peopleFilter = "";
-  const filter = el("select", { "aria-label": "Whose people" }, el("option", { value: "" }, "Every app"), server, ...p.apps.map((app) => el("option", { value: app, selected: app === peopleFilter }, app)));
+  const filter = el("select", { "aria-label": "Show people of" }, el("option", { value: "" }, "All apps"), server, ...p.apps.map((app) => el("option", { value: app, selected: app === peopleFilter }, app)));
   filter.addEventListener("change", () => { peopleFilter = filter.value; renderPeople(); });
-  const toggle = el("div", { class: "chips", role: "group", "aria-label": "How to show them" },
+  const toggle = el("div", { class: "chips", role: "group", "aria-label": "View" },
     el("button", { "aria-pressed": String(!peopleGrid), onclick: () => { peopleGrid = false; renderPeople(); } }, "List"),
     el("button", { "aria-pressed": String(peopleGrid), onclick: () => { peopleGrid = true; renderPeople(); } }, "Grid"));
   const onServer = peopleFilter === peopleServer;
@@ -3386,8 +3419,8 @@ function peopleAppsBlock() {
   tools.append(filter, el("span", { class: "grow" }), ...(onServer ? [] : [toggle]));
   box.append(tools);
   if (onServer) { renderAdmins(); return box; }
-  if (!p.mail) box.append(el("p", { class: "note muted small" }, "The machine sends no email, so people sign in with Slack links only. ", el("button", { class: "link-button", "data-nav": "", onclick: () => showView("keys") }, "Set up email"), "."));
-  if ((p.no_email || []).length) box.append(el("p", { class: "note muted small" }, "The Slack apps of " + p.no_email.join(", ") + " lack users:read.email, so hi can't find their people's email: someone there may show twice, and signs in by email only once you give their address. Add the scope, then Reinstall to Workspace."));
+  if (!p.mail) box.append(el("p", { class: "note muted small" }, "This machine does not send email. People can sign in only with Slack links. ", el("button", { class: "link-button", "data-nav": "", onclick: () => showView("keys") }, "Set up email"), "."));
+  if ((p.no_email || []).length) box.append(el("p", { class: "note muted small" }, "The Slack apps of " + p.no_email.join(", ") + " do not have the users:read.email scope. So hi cannot find the email of their people. A person can show two times. A person can sign in by email only after you give their address. Add the scope, then click Reinstall to Workspace."));
   const query = $("people-search").value.trim().toLowerCase();
   const people = p.people.filter((x) => (!query || [x.name, x.email, x.key, ...x.slack].join(" ").toLowerCase().includes(query)) && (!peopleFilter || x.levels[peopleFilter]));
   if (peopleGrid) box.append(peopleGridBlock(p, people));
@@ -3402,13 +3435,13 @@ function peopleAppsBlock() {
             el("span", { class: "muted small person-signed" }, person.signed_in ? ago(person.signed_in) : "")),
           el("span", { class: "muted small person-sub" }, (person.email || "no email yet") + " · " + bits.join(" · ")))));
     }
-    if (!people.length) list.append(el("li", { class: "empty" }, p.people.length ? "No one matches." : "No one yet."));
+    if (!people.length) list.append(el("li", { class: "empty" }, p.people.length ? "No one matches." : "No people yet."));
     box.append(list);
   }
   const domains = (p.domains || []).join(", ");
-  box.append(el("p", { class: "muted small" }, "The organisation's email domains: " + (domains || "any") + " ",
+  box.append(el("p", { class: "muted small" }, "Email domains of the organisation: " + (domains || "any") + " ",
     el("button", { class: "link-button", onclick: async () => {
-      const answer = await ask({ title: "The organisation's email domains", text: "People are added with an address in one of these, unless you say they're outside the organisation. Empty lets in any address.", ok: "Save", field: domains || "corp.example, corp-labs.example", fieldCheck: () => "" });
+      const answer = await ask({ title: "Email domains of the organisation", text: "A new person must have an address in one of these domains. You can allow a person from outside the organisation. If this is empty, all addresses are allowed.", ok: "Save", field: domains || "corp.example, corp-labs.example", fieldCheck: () => "" });
       if (answer === false) return;
       try { toast((await api("/api/person", { action: "domains", domains: answer.field })).text); refreshPeopleApps(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
     } }, "Change")));
@@ -3421,7 +3454,7 @@ function peopleGridBlock(p, people) {
     table.append(el("tr", {}, el("th", { scope: "row", title: person.email || person.key }, el("button", { class: "link-button", onclick: () => openPerson(person.key) }, personTitle(person))),
       ...p.apps.map((app) => {
         const level = person.levels[app] || "none";
-        return el("td", {}, el("button", { class: "level-badge level-" + level, title: personTitle(person) + " in " + app + ": " + (levelWords[level] || "no level") + ". Change it.", onclick: () => openPerson(person.key) }, level === "none" ? "·" : levelWords[level]));
+        return el("td", {}, el("button", { class: "level-badge level-" + level, title: personTitle(person) + " in " + app + ": " + (levelWords[level] || "no access level") + ". Click to change.", onclick: () => openPerson(person.key) }, level === "none" ? "·" : levelWords[level]));
       })));
   }
   return el("div", { class: "matrix-scroll" }, table);
@@ -3451,7 +3484,7 @@ async function personDo(change, said) {
 function outsideWords() {
   const domains = (peopleApps && peopleApps.domains) || [];
   if (!domains.length) return "";
-  return "Allow this address: it isn't at " + (domains.length === 1 ? domains[0] : domains.slice(0, -1).join(", ") + " or " + domains[domains.length - 1]);
+  return "Allow this address. It is not at " + (domains.length === 1 ? domains[0] : domains.slice(0, -1).join(", ") + " or " + domains[domains.length - 1]);
 }
 
 function renderPerson() {
@@ -3460,32 +3493,32 @@ function renderPerson() {
   const p = peopleApps;
   if (!p) { box.replaceChildren(el("p", { class: "muted" }, "…")); return; }
   const person = p.people.find((x) => x.key === personOpen);
-  if (!person) { box.replaceChildren(el("p", { class: "muted" }, "No one " + personOpen + " on this machine any more.")); return; }
+  if (!person) { box.replaceChildren(el("p", { class: "muted" }, "The person " + personOpen + " is not on this machine now.")); return; }
   const title = personTitle(person);
   const parts = [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, title), person.admin ? el("span", { class: "pill open" }, "admin") : null, person.outside ? el("span", { class: "pill" }, "outside the organisation") : null,
     el("span", { class: "grow" }),
-    el("button", { class: "small", disabled: !person.email || !p.mail, title: !person.email ? "Give them an email first" : !p.mail ? "The machine sends no email yet: Keys, Email" : "One email with a link to each app they have a level in", onclick: async () => {
-      if (await ask({ title: "Email " + person.email + " their way in?", text: "One email, with a sign-in link to the dev page or the app of each app they have a level in" + (person.admin ? ", and to this page" : "") + ". Each link works once, within three days.", ok: "Send it" })) personDo({ action: "invite", key: person.key });
+    el("button", { class: "small", disabled: !person.email || !p.mail, title: !person.email ? "Give an email address first" : !p.mail ? "This machine does not send email yet. Set it up in Keys, Email." : "Send one email with a link to each app of this person", onclick: async () => {
+      if (await ask({ title: "Send sign-in links to " + person.email + "?", text: "hi sends one email. It has a sign-in link to the dev page or the app, for each app where the person has an access level" + (person.admin ? ", and a link to this page" : "") + ". Each link works one time, for three days.", ok: "Send" })) personDo({ action: "invite", key: person.key });
     } }, "Email a sign-in link"))];
   // Who they are.
   const who = el("dl", { class: "person-facts" });
   const editEmail = el("button", { class: "link-button", onclick: async () => {
-    const answer = await ask({ title: person.email ? title + "'s name" : "An email for " + title, text: person.email ? "As people call them; it shows here and in the apps' links." : "Their email ties their Slack accounts together and lets them sign in by email. hi takes it from Slack when the app's Slack app has users:read.email.", ok: "Save", field: person.email ? title : "anna@corp.example", check: person.email ? "" : outsideWords() });
+    const answer = await ask({ title: person.email ? "Name of " + title : "Email for " + title, text: person.email ? "The name that people use. It shows here and in the app links." : "The email connects the Slack accounts of the person. It also lets them sign in by email. hi gets the email from Slack if the Slack app has users:read.email.", ok: "Save", field: person.email ? title : "anna@corp.example", check: person.email ? "" : outsideWords() });
     if (!answer) return;
     personDo(person.email ? { action: "update", key: person.key, name: answer.field } : { action: "update", key: person.key, email: answer.field, name: person.name, outside: answer.checked });
-  } }, person.email ? "Rename" : "Give an email");
+  } }, person.email ? "Rename" : "Add an email");
   who.append(el("dt", {}, "Email"), el("dd", {}, person.email || el("span", { class: "muted" }, "none yet"), " ", editEmail));
-  who.append(el("dt", {}, "Slack"), el("dd", {}, person.slack.length ? person.slack.join(", ") : el("span", { class: "muted" }, "not found in the apps' workspaces"),
+  who.append(el("dt", {}, "Slack"), el("dd", {}, person.slack.length ? person.slack.join(", ") : el("span", { class: "muted" }, "not found in the Slack workspaces of the apps"),
     person.email ? el("span", {}, " ", el("button", { class: "link-button", onclick: async () => {
-      const answer = await ask({ title: "Their Slack account", text: "Their member ID in a workspace where Slack has another email for them. In Slack: their profile, ⋮, Copy member ID.", ok: "Link it", field: "U07ABC123" });
+      const answer = await ask({ title: "Slack account of this person", text: "Their member ID in a workspace where Slack has a different email for them. To find it in Slack, open their profile, click ⋮, then Copy member ID.", ok: "Link", field: "U07ABC123" });
       if (answer) personDo({ action: "update", key: person.key, slack: answer.field });
-    } }, "Link one")) : null));
+    } }, "Link an account")) : null));
   who.append(el("dt", {}, "SSH key"), el("dd", {}, person.ssh_key || el("span", { class: "muted" }, "none"), " ",
     person.email ? el("button", { class: "link-button", onclick: async () => {
-      const answer = await ask({ title: title + "'s SSH key", text: "Their public key, such as the contents of ~/.ssh/id_ed25519.pub. It goes into the dev box of every app where they're an owner or a developer, now and when they become one; a key they had before stops working.", ok: "Save", field: "ssh-ed25519 AAAA…" });
+      const answer = await ask({ title: "SSH key of " + title, text: "Paste their public key, for example the contents of ~/.ssh/id_ed25519.pub. hi puts it in the dev box of each app where they are an owner or developer. This also applies to apps where they get that level later. Their old key stops working.", ok: "Save", field: "ssh-ed25519 AAAA…" });
       if (answer) personDo({ action: "key", key: person.key, ssh_key: answer.field });
     } }, person.ssh_key ? "New key" : "Set key") : null,
-    person.ssh_key && person.email ? el("button", { class: "link-button", onclick: async () => { if (await ask({ title: "Take " + title + "'s SSH key out?", text: "Out of every app's dev box: they can no longer SSH in.", ok: "Take it out" })) personDo({ action: "key", key: person.key, ssh_key: "" }); } }, "Remove") : null));
+    person.ssh_key && person.email ? el("button", { class: "link-button", onclick: async () => { if (await ask({ title: "Remove the SSH key of " + title + "?", text: "hi removes it from the dev box of each app. They cannot SSH in after this.", ok: "Remove" })) personDo({ action: "key", key: person.key, ssh_key: "" }); } }, "Remove") : null));
   who.append(el("dt", {}, "Signed in"), el("dd", {}, person.signed_in ? "by email " + ago(person.signed_in) : "never by email", person.invited ? el("span", { class: "muted" }, " · invited " + ago(person.invited)) : null));
   parts.push(who);
   // Their level in each app.
@@ -3496,17 +3529,17 @@ function renderPerson() {
     table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: () => openView(app, "people") }, app)),
       el("td", {}, levelSelect(level, title + " in " + app, async (next, select) => {
         const words = { owner: "an owner", pro: "a developer", contributor: "a contributor", none: "nobody in it" };
-        if (!(await ask({ title: "Make " + title + " " + words[next] + " of " + app + "?", text: next === "none" ? "Their level goes, and their private links and SSH key there with it. The app's channel hears it." : "The app's channel hears it." + (next === "owner" ? " An owner is an owner only: a level they had goes." : "") + (person.email || person.slack.length ? "" : ""), ok: "Change it" }))) { select.value = level; return; }
+        if (!(await ask({ title: "Make " + title + " " + words[next] + " of " + app + "?", text: next === "none" ? "They lose their access level in this app, their private links and their SSH key there. hi tells the app channel." : "hi tells the app channel." + (next === "owner" ? " An owner has only the owner level. Their old level goes." : "") + (person.email || person.slack.length ? "" : ""), ok: "Change" }))) { select.value = level; return; }
         if (!(await personDo({ action: "levels", key: person.key, levels: { [app]: next } }))) select.value = level;
       })),
       el("td", { class: "muted small" }, person.ids[app] && person.ids[app] !== person.email ? "as " + person.ids[app] : "")));
   }
   parts.push(el("div", { class: "matrix-scroll" }, table),
-    el("p", { class: "muted small" }, "Each change is the app's own, said in its channel. Someone with a Slack account in an app's workspace is added there by it, so the lead and Slack know them; anyone else by their email."));
+    el("p", { class: "muted small" }, "hi tells the app channel about each change. If the person has a Slack account in the workspace of the app, hi adds them by that account. Then the lead and Slack know them. hi adds other people by email."));
   // Leaving.
   parts.push(el("h2", {}, "Remove"), el("div", { class: "data-actions" }, el("button", { class: "danger", onclick: async () => {
     const typed = person.email || person.key;
-    if (await ask({ title: "Remove " + title + " from everything?", text: "No level in any app, so their links and sign-ins end at their next click; their SSH key out of every dev box; and off this machine's list. Each app's channel hears it. An app's only owner stays until it has another.", ok: "Remove", typed })) {
+    if (await ask({ title: "Remove " + title + " from everything?", text: "They lose their access level in all apps. Their links and sign-ins stop at their next click. hi removes their SSH key from all dev boxes and removes them from this machine. hi tells each app channel. If they are the only owner of an app, they stay owner until the app has another owner.", ok: "Remove", typed })) {
       const answer = await personDo({ action: "remove", key: person.key });
       if (answer) openView("");
     }
@@ -3523,10 +3556,10 @@ async function loadSlackPeople() {
 function addPersonView() {
   const p = peopleApps || { apps: [], mail: false };
   const email = el("input", { type: "email", required: true, maxlength: "200", placeholder: "anna@corp.example", "aria-label": "Their email", autocomplete: "off", list: "slack-people" });
-  const name = el("input", { maxlength: "80", placeholder: "Their name, as people call them", "aria-label": "Their name", autocomplete: "off" });
+  const name = el("input", { maxlength: "80", placeholder: "Their name, as people know them", "aria-label": "Their name", autocomplete: "off" });
   const options = el("datalist", { id: "slack-people" });
   loadSlackPeople().then((list) => {
-    for (const x of list) if (x.email) options.append(el("option", { value: x.email }, (x.real_name || x.name) + " · " + x.app + "'s Slack"));
+    for (const x of list) if (x.email) options.append(el("option", { value: x.email }, (x.real_name || x.name) + " · " + "Slack of " + x.app));
   });
   email.addEventListener("change", () => {
     const found = (slackPeople || []).find((x) => x.email === email.value.trim().toLowerCase());
@@ -3536,19 +3569,19 @@ function addPersonView() {
   const invite = el("input", { type: "checkbox", checked: p.mail, disabled: !p.mail });
   const levels = {};
   const table = el("table", { class: "people-matrix person-apps" });
-  for (const app of p.apps) table.append(el("tr", {}, el("th", { scope: "row" }, app), el("td", {}, levelSelect("none", "Their level in " + app, (v) => { levels[app] = v; }))));
+  for (const app of p.apps) table.append(el("tr", {}, el("th", { scope: "row" }, app), el("td", {}, levelSelect("none", "Access level in " + app, (v) => { levels[app] = v; }))));
   const error = el("p", { class: "error small" });
   const form = el("form", { class: "stack person-add", autocomplete: "off" },
-    el("label", { class: "field" }, el("span", { class: "muted small" }, "Their email: who they are, in every app and Slack workspace. Pick someone from Slack, or type any address."), email, options),
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Email. It identifies the person in all apps and Slack workspaces. Pick a person from Slack, or type an address."), email, options),
     el("label", { class: "field" }, el("span", { class: "muted small" }, "Their name"), name),
     outsideWords() ? el("label", { class: "check small" }, outside, " " + outsideWords()) : null,
-    p.apps.length ? el("div", { class: "field" }, el("span", { class: "muted small" }, "Their level in each app; each the app's own change, said in its channel"), el("div", { class: "matrix-scroll" }, table)) : null,
-    el("label", { class: "check small" }, invite, " " + (p.mail ? "Email them their way in: a sign-in link to each app" : "Email them their way in (the machine sends no email yet: Keys, Email)")),
+    p.apps.length ? el("div", { class: "field" }, el("span", { class: "muted small" }, "Access level in each app. hi tells the app channel about each change."), el("div", { class: "matrix-scroll" }, table)) : null,
+    el("label", { class: "check small" }, invite, " " + (p.mail ? "Send them an email with a sign-in link to each app" : "Send them an email with sign-in links (this machine does not send email yet. Set it up in Keys, Email)")),
     error, el("div", { class: "buttons" }, el("button", { type: "button", onclick: () => openView("") }, "Cancel"), el("button", { class: "primary", type: "submit" }, "Add")));
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     error.textContent = "";
-    if (!email.value.trim()) { error.textContent = "Their email."; email.focus(); return; }
+    if (!email.value.trim()) { error.textContent = "Type their email."; email.focus(); return; }
     const chosen = Object.fromEntries(Object.entries(levels).filter(([, v]) => v !== "none"));
     try {
       const answer = await api("/api/person", { action: "add", email: email.value.trim(), name: name.value.trim(), outside: outside.checked, levels: chosen, invite: invite.checked });
@@ -3557,8 +3590,8 @@ function addPersonView() {
       openPerson(answer.key);
     } catch (e) { if (!(e instanceof SignIn)) error.textContent = e.message; }
   });
-  return [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "Add someone")),
-    el("p", { class: "purpose" }, "Someone on this machine, by email: with Slack or without. Their Slack accounts in the apps' workspaces are found by the email."), form];
+  return [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "Add a person")),
+    el("p", { class: "purpose" }, "Add a person to this machine by email, with or without Slack. hi uses the email to find their Slack accounts in the workspaces of the apps."), form];
 }
 
 let machineKeys = null;
@@ -3575,15 +3608,15 @@ function mailBlock() {
   box.append(el("h2", {}, "Email"));
   if (!m) return box;
   box.append(el("p", { class: "small incident-head" }, el("span", { class: "dot " + (m.on ? "idle" : ""), "aria-hidden": "true" }),
-    m.on ? "From " + (m.name ? m.name + " <" + m.from + ">" : m.from) + ", through " + m.host + ":" + m.port + " (" + m.security + ")" : "Not set up: people sign in with Slack links only."));
+    m.on ? "From " + (m.name ? m.name + " <" + m.from + ">" : m.from) + ", through " + m.host + ":" + m.port + " (" + m.security + ")" : "Not set up. People can sign in only with Slack links."));
   const field = (name, placeholder, value, type) => el("input", { name, type: type || "text", placeholder, value: value || "", "aria-label": placeholder, autocomplete: "off", maxlength: "200" });
-  const host = field("host", "SMTP server, such as smtp.corp.example", m.host);
-  const port = field("port", "Port: 587, or 465 for tls", m.port ? String(m.port) : "");
-  const security = el("select", { "aria-label": "Security" }, ...[["starttls", "STARTTLS (587)"], ["tls", "TLS from the start (465)"], ["none", "None: a relay on the network"]].map(([v, t]) => el("option", { value: v, selected: (m.security || "starttls") === v }, t)));
-  const user = field("user", "User name, if it asks for one", m.username);
-  const password = field("password", m.password_set ? "Password: kept; type to change it" : "Password", "", "password");
-  const from = field("from", "From address, such as hi@corp.example", m.from);
-  const name = field("name", "From name, such as hi on " + (state ? state.machine : "this machine"), m.name);
+  const host = field("host", "SMTP server, for example smtp.corp.example", m.host);
+  const port = field("port", "Port: 587, or 465 for TLS", m.port ? String(m.port) : "");
+  const security = el("select", { "aria-label": "Security" }, ...[["starttls", "STARTTLS (587)"], ["tls", "TLS from the start (465)"], ["none", "None (a relay on the network)"]].map(([v, t]) => el("option", { value: v, selected: (m.security || "starttls") === v }, t)));
+  const user = field("user", "User name, if the server needs one", m.username);
+  const password = field("password", m.password_set ? "Password (saved. Type to change it)" : "Password", "", "password");
+  const from = field("from", "From address, for example hi@corp.example", m.from);
+  const name = field("name", "From name, for example hi on " + (state ? state.machine : "this machine"), m.name);
   const form = el("form", { class: "machine-block stack", autocomplete: "off" }, host, el("div", { class: "signin-row" }, port, security), user, password, from, name,
     el("div", { class: "buttons" }, el("button", { class: "primary", type: "submit" }, "Save")));
   form.addEventListener("submit", async (event) => {
@@ -3596,15 +3629,18 @@ function mailBlock() {
   box.append(form);
   if (m.on) box.append(el("div", { class: "data-actions" },
     el("button", { class: "small", onclick: async () => {
-      const answer = await ask({ title: "Send a test email", text: "To check the machine can send: a short email, to this address.", ok: "Send", field: "you@corp.example" });
+      const answer = await ask({ title: "Send a test email", text: "hi sends a short email to this address. This checks that the machine can send email.", ok: "Send", field: "you@corp.example" });
       if (!answer) return;
       try { toast((await api("/api/mail", { test: answer.field })).text, true); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
     } }, "Send a test"),
     el("button", { class: "small danger", onclick: async () => {
-      if (!(await ask({ title: "Stop sending email?", text: "Nobody can sign in by email until it's set up again; Slack links keep working.", ok: "Stop" }))) return;
+      if (!(await ask({ title: "Stop sending email?", text: "Nobody can sign in by email until you set it up again. Slack links continue to work.", ok: "Stop" }))) return;
       try { toast((await api("/api/mail", { off: true })).text); refreshMail(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
     } }, "Turn off")));
-  box.append(el("p", { class: "muted small" }, "hi sends sign-in links and codes, and invitations: nothing else, and nothing that tracks who opened them. Ask your IT team for an SMTP account (or a relay that lets this machine send), and SPF and DKIM records that let it send for the From domain, or its emails land in spam."));
+  box.append(el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+    el("li", {}, "hi sends only sign-in links, codes and invitations. It does not track who opens them."),
+    el("li", {}, "Ask your IT team for an SMTP account, or a relay that lets this machine send."),
+    el("li", {}, "Also ask for SPF and DKIM records for the From domain. Without them, the emails go to spam."))));
   return box;
 }
 
@@ -3648,24 +3684,24 @@ function renderVaultBanner() {
   const open = openVault;
   if (v && v.locked) {
     box.className = "vault-banner vault-locked";
-    box.replaceChildren(el("strong", {}, "The server's vault is locked"), ": the apps' settings can't be read, so an app that starts waits. ",
+    box.replaceChildren(el("strong", {}, "The server vault is locked."), " hi cannot read the env variables of the apps. An app that starts must wait. ",
       el("button", { class: "small primary", onclick: open }, "Unlock"));
     box.hidden = false;
   } else if (v && v.recovery && state.me && state.me.machine_owner) {
     box.className = "vault-banner";
-    box.replaceChildren("The vault's recovery key waits for you to save it: it opens every secret here when nothing else does. ",
+    box.replaceChildren("Save the recovery key of the vault. If nothing else can open the vault, the recovery key opens all secrets here. ",
       el("button", { class: "small", onclick: open }, "Save it"));
     box.hidden = false;
   } else box.hidden = true;
 }
 
-const vaultWays = { tpm: "this machine's TPM", file: "a key file", passphrase: "a passphrase", recovery: "the recovery key" };
+const vaultWays = { tpm: "the TPM of this machine", file: "a key file", passphrase: "a passphrase", recovery: "the recovery key" };
 
 // vaultLine is the vault in the left panel's Keys: open or locked, and
 // the way to the server's Vault in the middle.
 function vaultLine() {
   const v = vaultView;
-  const box = el("div", {}, el("h2", {}, "The server's vault"));
+  const box = el("div", {}, el("h2", {}, "Server vault"));
   if (!v || !v.exists) return box;
   box.append(el("p", { class: "small incident-head" }, el("span", { class: "dot " + (v.open ? "idle" : "blocked"), "aria-hidden": "true" }),
     v.open ? "Open; " + v.paths.length + (v.paths.length === 1 ? " secret" : " secrets") + ". " : "Locked. ",
@@ -3676,16 +3712,16 @@ function vaultLine() {
 function vaultBlock(middle) {
   const v = vaultView;
   const box = el("div", { class: middle ? "vault-view" : "" });
-  if (!middle) box.append(el("h2", {}, "The server's vault"));
+  if (!middle) box.append(el("h2", {}, "Server vault"));
   if (!v) { box.append(el("p", { class: "muted" }, "…")); return box; }
   if (!v.exists) {
-    box.append(el("p", { class: "muted small" }, "None yet: hi keeps the secrets as files. hi update makes the vault where a server or apps run."));
+    box.append(el("p", { class: "muted small" }, "No vault yet. hi keeps the secrets as files. hi update makes the vault on a machine that runs a server or apps."));
     return box;
   }
   box.append(el("p", { class: "small incident-head" }, el("span", { class: "dot " + (v.open ? "idle" : "blocked"), "aria-hidden": "true" }),
     v.open ? "Open. " : "Locked: " + (v.why || "nothing opened it") + ". ", el("span", { class: "muted" }, v.protects || "")));
   if (!v.open) {
-    const secret = el("input", { type: "password", placeholder: "The passphrase, or the recovery key's 24 words", "aria-label": "The passphrase or the recovery key", class: "wide-input", autocomplete: "off" });
+    const secret = el("input", { type: "password", placeholder: "Passphrase, or the 24 words of the recovery key", "aria-label": "Passphrase or recovery key", class: "wide-input", autocomplete: "off" });
     const form = el("form", { class: "machine-block signin-row", autocomplete: "off" }, secret, el("button", { class: "primary", type: "submit" }, "Unlock"));
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -3693,11 +3729,11 @@ function vaultBlock(middle) {
       secret.value = "";
       if (answer) refreshVault();
     });
-    box.append(form, el("p", { class: "muted small" }, "It goes to the server on this machine, which holds the vault open; the page keeps none of it."));
+    box.append(form, el("p", { class: "muted small" }, "This goes to the server on this machine. The server keeps the vault open. The page does not keep it."));
     return box;
   }
   for (const line of v.advice) box.append(el("p", { class: "warn small" }, line));
-  if (!v.heartbeat) box.append(el("p", { class: "warn small" }, "Nobody would hear that the server is locked or down: set a heartbeat (hi heartbeat <url>)."));
+  if (!v.heartbeat) box.append(el("p", { class: "warn small" }, "Nobody gets an alert if the server is locked or down. Set a heartbeat with hi heartbeat <url>."));
 
   // How it opens.
   const ways = el("ul", { class: "list" });
@@ -3712,22 +3748,22 @@ function vaultBlock(middle) {
     adds.append(el("button", { class: "small", onclick: () => vaultAddWay(kind) }, "Add " + vaultWays[kind]));
   }
   if (!v.kinds.includes("file") && !v.kinds.includes("tpm")) adds.append(el("button", { class: "small", onclick: () => vaultAddWay("file") }, "Add a key file"));
-  box.append(el("h3", {}, "It opens with"), ways, adds);
-  if (v.tpm && !v.kinds.includes("tpm")) box.append(el("p", { class: "muted small" }, "The TPM can't keep it: " + v.tpm + "."));
+  box.append(el("h3", {}, "Ways to open"), ways, adds);
+  if (v.tpm && !v.kinds.includes("tpm")) box.append(el("p", { class: "muted small" }, "The TPM cannot keep the key: " + v.tpm + "."));
   box.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
-    if (!(await ask({ title: "Lock the vault?", text: "The server forgets its key now. Running boxes keep running; an app that starts waits until someone unlocks it" + (v.kinds.some((k) => k === "tpm" || k === "file") ? ". It opens by itself again at the server's next start." : "."), ok: "Lock" }))) return;
+    if (!(await ask({ title: "Lock the vault?", text: "The server forgets its key now. Running boxes continue to run. An app that starts waits until someone unlocks the vault" + (v.kinds.some((k) => k === "tpm" || k === "file") ? ". The vault opens automatically when the server starts again." : "."), ok: "Lock" }))) return;
     vaultDo({ action: "lock" });
   } }, "Lock now")));
 
   // The recovery key.
-  box.append(el("h3", {}, "The recovery key"));
-  if (v.recovery && v.owner) box.append(el("p", { class: "small" }, "It waits for you to save it. ", el("button", { class: "small primary", onclick: vaultShowRecovery }, "Save your recovery key")));
-  else if (v.recovery) box.append(el("p", { class: "muted small" }, "It waits for the server's owner" + (v.owner_is ? ", " + v.owner_is : "") + ", to save it here or with hi server vault recovery."));
-  else box.append(el("p", { class: "muted small" }, "Saved, and hi has forgotten it. It opens the vault on any machine: after a move, a restore, or a lost key file."));
+  box.append(el("h3", {}, "Recovery key"));
+  if (v.recovery && v.owner) box.append(el("p", { class: "small" }, "You did not save it yet. ", el("button", { class: "small primary", onclick: vaultShowRecovery }, "Save your recovery key")));
+  else if (v.recovery) box.append(el("p", { class: "muted small" }, "The server owner" + (v.owner_is ? ", " + v.owner_is + "," : "") + " must save it, here or with hi server vault recovery."));
+  else box.append(el("p", { class: "muted small" }, "Saved. hi does not keep a copy. It opens the vault on any machine, for example after a move, a restore or a lost key file."));
   if (v.owner) box.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
-    if (!(await ask({ title: "Make a new recovery key?", text: "The old words stop working on this machine at once. Backups of hi's state taken before still open with them, so if a key may have leaked, change the secrets that matter at their source too.", ok: "Make a new one" }))) return;
+    if (!(await ask({ title: "Make a new recovery key?", text: "The old words stop working on this machine immediately. Older backups of the hi state still open with the old words. If a key can have leaked, also change the important secrets at their source.", ok: "Make a new key" }))) return;
     if (await vaultDo({ action: "recovery-new" })) vaultShowRecovery();
-  } }, "A new recovery key")));
+  } }, "New recovery key")));
 
   // Each path's versions.
   const table = el("table", { class: "people-matrix vault-paths" });
@@ -3736,7 +3772,7 @@ function vaultBlock(middle) {
     table.append(el("tr", { class: p.removed ? "muted" : "" },
       el("th", { scope: "row" }, el("button", { class: "link-button", onclick: () => vaultOpenHistory(p.path) }, p.path)),
       el("td", {}, "v" + p.version), el("td", { class: "small" }, ago(p.time) + (p.by ? " · " + p.by : "")),
-      el("td", { class: "small" }, p.names.length ? p.names.join(" ") : "empty", p.removed ? el("span", { class: "muted" }, " (a removed app's)") : "")));
+      el("td", { class: "small" }, p.names.length ? p.names.join(" ") : "empty", p.removed ? el("span", { class: "muted" }, " (removed app)") : "")));
   }
   box.append(el("h3", {}, "Secrets"), v.paths.length ? el("div", { class: "matrix-scroll" }, table) : el("p", { class: "muted small" }, "None yet."));
   if (vaultHistory) box.append(vaultHistoryBlock());
@@ -3745,15 +3781,18 @@ function vaultBlock(middle) {
   box.append(vaultStoresBlock(v));
 
   if (v.removed.length) {
-    box.append(el("h3", {}, "Removed apps"), el("p", { class: "muted small" }, "Their settings stay, read by nothing, as their snapshots do: hi app up with the kept folder gets them back."));
+    box.append(el("h3", {}, "Removed apps"), el("p", { class: "muted small" }, "Their env variables and snapshots stay, but nothing reads them. To get them back, run hi app up with the kept folder."));
     const list = el("ul", { class: "list" });
     for (const name of v.removed) list.append(el("li", { class: "row" }, el("span", {}, name), el("span", { class: "grow" }), el("button", { class: "small danger", onclick: async () => {
-      if (!(await ask({ title: "Delete " + name + "'s settings and snapshots?", text: "This deletes " + name + "'s settings, its snapshot key, and its local snapshots. They can't be brought back. An offsite copy stays.", ok: "Delete", typed: name }))) return;
+      if (!(await ask({ title: "Delete the env variables and snapshots of " + name + "?", text: "This deletes the env variables, the snapshot key and the local snapshots of " + name + ". You cannot get them back. An offsite copy stays.", ok: "Delete", typed: name }))) return;
       vaultDo({ action: "purge", app: name });
     } }, "Purge")));
     box.append(list);
   }
-  box.append(el("p", { class: "muted small" }, "Encrypted on disk; the server holds the key while it's open. Root, or anyone logged in as " + ((state && state.user) || "hi") + ", can read the secrets of a running machine; the vault protects every copy of the disk and of hi's state."));
+  box.append(el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+    el("li", {}, "The vault is encrypted on disk. The server holds the key while the vault is open."),
+    el("li", {}, "On a running machine, root and the user " + ((state && state.user) || "hi") + " can read the secrets."),
+    el("li", {}, "The vault protects all copies of the disk and of the hi state."))));
   return box;
 }
 
@@ -3770,12 +3809,12 @@ function vaultForm({ title, text, fields, ok, live }) {
     const secret = inputs.filter((input) => input.type === "password");
     const rows = inputs.map((input, i) => {
       if (input.type !== "password" || input !== secret[0]) return el("div", { class: "vault-field" }, input);
-      const eye = el("button", { type: "button", class: "vault-eye", title: "Show it", "aria-label": "Show it", "aria-pressed": "false" }, vaultEyeIcon(false));
+      const eye = el("button", { type: "button", class: "vault-eye", title: "Show", "aria-label": "Show", "aria-pressed": "false" }, vaultEyeIcon(false));
       eye.addEventListener("click", () => {
         const shown = eye.getAttribute("aria-pressed") !== "true";
         for (const field of secret) field.type = shown ? "text" : "password";
         eye.setAttribute("aria-pressed", String(shown));
-        eye.title = shown ? "Hide it" : "Show it";
+        eye.title = shown ? "Hide" : "Show";
         eye.setAttribute("aria-label", eye.title);
         eye.replaceChildren(vaultEyeIcon(shown));
         input.focus();
@@ -3842,8 +3881,8 @@ function vaultEyeIcon(shown) {
 function vaultPassphraseCheck([a, b]) {
   const bad = b && b !== a ? [1] : [];
   let hint = "";
-  if (a && a.length < 12) hint = "At least 12 characters: " + a.length + " so far.";
-  else if (bad.length) hint = "The two aren't the same.";
+  if (a && a.length < 12) hint = "Use at least 12 characters. You typed " + a.length + ".";
+  else if (bad.length) hint = "The two passphrases are not the same.";
   return { ok: a.length >= 12 && a === b, bad, hint };
 }
 
@@ -3852,23 +3891,23 @@ function vaultPassphraseCheck([a, b]) {
 function vaultSharedBlock(v) {
   const box = el("div", {});
   box.append(el("h3", { class: "with-action" }, "Shared keys", el("span", { class: "grow" }),
-    el("button", { class: "small", onclick: () => vaultSetShared("") }, "New Share")));
-  box.append(el("p", { class: "muted small" }, "A key several apps use, such as one market-data API key: an app it's shared to uses it by reference (hi app env <app> NAME --from shared/<name>), and a change reaches them all within a minute."));
+    el("button", { class: "small", onclick: () => vaultSetShared("") }, "New shared key")));
+  box.append(el("p", { class: "muted small" }, "One key that many apps use, for example a market-data API key. An app uses it by reference (hi app env <app> NAME --from shared/<name>). A change reaches all apps within one minute."));
   const list = el("ul", { class: "list" });
   for (const s of v.shared) {
-    let note = s.using.length ? "used by " + s.using.join(", ") : s.given.length ? "not used yet" : "shared to no app";
+    let note = s.using.length ? "used by " + s.using.join(", ") : s.given.length ? "not used yet" : "shared with no app";
     const spent = Object.entries(s.spent || {});
     if (spent.length) note += " · " + dollars(spent.reduce((n, [, usd]) => n + usd, 0)) + " this month";
-    if (s.outside) note += " · ⚠ " + dollars(s.outside.usd) + " spent outside hi's apps " + ago(s.outside.at) + ": change it, and revoke the old one at OpenRouter";
+    if (s.outside) note += " · ⚠ " + dollars(s.outside.usd) + " spent outside hi apps " + ago(s.outside.at) + ". Change the key, and revoke the old key at OpenRouter";
     list.append(el("li", { class: "vault-key-row" },
       el("strong", {}, "shared/" + s.name),
       el("span", { class: "muted small" }, "v" + s.version + (s.changed ? " · " + ago(s.changed) : "") + " · " + note),
       el("span", { class: "grow" }),
-      el("button", { class: "small", title: s.given.length ? "Shared to " + s.given.join(", ") : "Shared to no app yet", onclick: () => vaultGiveApps(s, v.apps) },
-        "Shared to" + (s.given.length ? " (" + s.given.length + ")" : "")),
+      el("button", { class: "small", title: s.given.length ? "Shared with " + s.given.join(", ") : "Not shared with an app yet", onclick: () => vaultGiveApps(s, v.apps) },
+        "Shared with" + (s.given.length ? " (" + s.given.length + ")" : "")),
       el("button", { class: "small", onclick: () => vaultSetShared(s.name) }, "Change value"),
       el("button", { class: "small danger", disabled: s.using.length > 0, title: s.using.length ? "Used by " + s.using.join(", ") : "", onclick: async () => {
-        if (!(await ask({ title: "Remove shared/" + s.name + "?", text: "Its value and its versions go; the history of who changed it stays.", ok: "Remove" }))) return;
+        if (!(await ask({ title: "Remove shared/" + s.name + "?", text: "hi deletes its value and versions. The history of who changed it stays.", ok: "Remove" }))) return;
         vaultDo({ action: "shared-rm", name: s.name });
       } }, "Remove")));
   }
@@ -3882,27 +3921,27 @@ function vaultSharedBlock(v) {
 // hi's own paths are when they moved.
 function vaultStoresBlock(v) {
   const box = el("div", {});
-  box.append(el("h3", {}, "Team stores"), el("p", { class: "muted small" }, "A team's OpenBao or Vault: hi reads a prefix there, and an app takes a path's names as its settings (hi app env <app> --from corp/payments/prod). A new version there reaches the app within a minute; while the store is away, the app keeps the last values hi read."));
+  box.append(el("h3", {}, "Team stores"), el("p", { class: "muted small" }, "The OpenBao or Vault of a team. hi reads a prefix there. An app can use the names in a path as env variables (hi app env <app> --from corp/payments/prod). A new version reaches the app within one minute. If the store is not available, the app keeps the last values that hi read."));
   if (v.moved) box.append(el("p", { class: "small" }, v.moved));
   const list = el("ul", { class: "list" });
   for (const s of v.stores) {
-    const handoff = el("details", { class: "small" }, el("summary", {}, "For the store's owners"),
+    const handoff = el("details", { class: "small" }, el("summary", {}, "For the store owners"),
       el("pre", { class: "job-output short" }, s.handoff),
       el("button", { class: "small", onclick: () => { navigator.clipboard.writeText(s.handoff); toast("Copied."); } }, "Copy"));
     const actions = el("span", { class: "inline-actions" },
-      el("button", { class: "small", onclick: async () => { const a = await vaultDo({ action: "store-login", store: { prefix: s.prefix } }); if (a) vaultShowText("Logging in to " + s.prefix + "/", a.text); } }, "Check the login"));
+      el("button", { class: "small", onclick: async () => { const a = await vaultDo({ action: "store-login", store: { prefix: s.prefix } }); if (a) vaultShowText("Logging in to " + s.prefix + "/", a.text); } }, "Check login"));
     if (s.login === "jwt") actions.append(el("button", { class: "small", onclick: async () => {
-      if (!(await ask({ title: "A new key pair for " + s.prefix + "/?", text: "hi makes a new key; the old one still logs in until the store's owners swap in the new public key.", ok: "Make it" }))) return;
+      if (!(await ask({ title: "New key pair for " + s.prefix + "/?", text: "hi makes a new key. The old key still logs in until the store owners put in the new public key.", ok: "Make key" }))) return;
       const a = await vaultDo({ action: "store-new-key", store: { prefix: s.prefix } });
-      if (a) vaultShowText("The new public key, for the store's owners", a.text);
+      if (a) vaultShowText("New public key for the store owners", a.text);
     } }, "New key"));
     actions.append(el("button", { class: "small danger", onclick: async () => {
-      if (!(await ask({ title: "Disconnect " + s.prefix + "/?", text: "hi stops reading it and forgets its login. Refused while an app takes settings from it.", ok: "Disconnect" }))) return;
+      if (!(await ask({ title: "Disconnect " + s.prefix + "/?", text: "hi stops reading the store and deletes its login. This is not possible while an app gets env variables from it.", ok: "Disconnect" }))) return;
       vaultDo({ action: "store-disconnect", store: { prefix: s.prefix } });
     } }, "Disconnect"));
     list.append(el("li", { class: "stack" },
       el("div", { class: "row" }, el("strong", {}, s.prefix + "/"), el("span", { class: "muted small" }, " " + s.where + " in " + s.address + " · " + s.login + " as " + s.role), el("span", { class: "grow" }), actions),
-      s.ends ? el("p", { class: "warn small" }, "Its secret ID ends " + s.ends + ": ask its owners for a new one.") : null,
+      s.ends ? el("p", { class: "warn small" }, "The secret ID ends " + s.ends + ". Ask the store owners for a new one.") : null,
       handoff));
   }
   box.append(list);
@@ -3924,8 +3963,8 @@ function vaultStoresBlock(v) {
 
 async function vaultConnectStore() {
   const values = await vaultForm({ title: "Connect a team store", ok: "Connect",
-    text: "hi reads everything under the prefix there, read only. With jwt, hi makes a key pair and gives you its public key for the store's owners: no secret is handed over. An AppRole needs its role ID and secret ID.",
-    fields: [{ label: "Prefix, such as corp" }, { label: "Address, such as https://bao.corp.example:8200" }, { label: "Where, such as vault://kv/corp" },
+    text: "hi reads all data under the prefix. It cannot write. With jwt, hi makes a key pair and gives you the public key for the store owners. No secret goes between you. An AppRole needs its role ID and secret ID.",
+    fields: [{ label: "Prefix, for example corp" }, { label: "Address, for example https://bao.corp.example:8200" }, { label: "Where, for example vault://kv/corp" },
       { label: "Login: jwt or approle" }, { label: "Namespace (if the store uses one)" }, { label: "AppRole role ID", type: "password" }, { label: "AppRole secret ID", type: "password" }],
     live: (v) => {
       const bad = [];
@@ -3935,7 +3974,7 @@ async function vaultConnectStore() {
       const login = (v[3].trim() || "jwt").toLowerCase();
       if (login !== "jwt" && login !== "approle") bad.push(3);
       const filled = v[0].trim() && v[1].trim() && v[2].trim() && (login !== "approle" || (v[5] && v[6]));
-      return { ok: !!filled && bad.length === 0, bad, hint: bad.includes(1) ? "The address is https://, or http:// to this machine only." : bad.includes(2) ? "vault://<mount>[/<path>]" : "" };
+      return { ok: !!filled && bad.length === 0, bad, hint: bad.includes(1) ? "Use https://, or http:// only for this machine." : bad.includes(2) ? "vault://<mount>[/<path>]" : "" };
     } });
   if (!values) return;
   const a = await vaultDo({ action: "store-connect", store: { prefix: values[0].trim().replace(/\/$/, ""), address: values[1].trim(), where: values[2].trim(), login: (values[3].trim() || "jwt").toLowerCase(), namespace: values[4].trim(), role_id: values[5], secret_id: values[6] } });
@@ -3961,7 +4000,7 @@ function vaultGiveApps(s, apps) {
     input.checked = s.given.includes(app);
     const using = s.using.includes(app);
     if (using) input.disabled = true;
-    return { app, input, row: el("label", { class: "check vault-app" }, input, " " + app, using ? el("span", { class: "muted small" }, " · uses it") : "") };
+    return { app, input, row: el("label", { class: "check vault-app" }, input, " " + app, using ? el("span", { class: "muted small" }, " · uses the key") : "") };
   });
   const all = el("input", { type: "checkbox" });
   const sync = () => { all.checked = boxes.length > 0 && boxes.every((b) => b.input.checked); all.indeterminate = !all.checked && boxes.some((b) => b.input.checked); };
@@ -3971,8 +4010,8 @@ function vaultGiveApps(s, apps) {
   const dialog = el("dialog", { class: "vault-dialog" });
   const save = el("button", { class: "primary", type: "submit" }, "Save");
   const form = el("form", { class: "stack" },
-    el("h2", {}, "shared/" + s.name + " is shared to"),
-    el("p", { class: "small" }, "An app ticked may use it; each then names the setting that gets it (hi app env <app> NAME --from shared/" + s.name + "). An app that uses it stays ticked until it stops."),
+    el("h2", {}, "Apps that can use shared/" + s.name),
+    el("p", { class: "small" }, "A ticked app can use the key. The app then names the env variable that gets it (hi app env <app> NAME --from shared/" + s.name + "). An app that uses the key stays ticked until it stops using it."),
     el("label", { class: "check vault-app vault-all" }, all, " All apps"),
     el("div", { class: "vault-apps" }, ...boxes.map((b) => b.row)),
     el("div", { class: "buttons" }, el("button", { type: "button", onclick: () => dialog.close() }, "Cancel"), save));
@@ -3992,8 +4031,8 @@ function vaultGiveApps(s, apps) {
 // the list it shows, and a new key joins it. what says what the key is
 // for, as the new key's dialog asks for it.
 function sharedKeyPicker(names, current, what, onchange) {
-  const pick = el("select", { "aria-label": "The shared key" });
-  const none = el("span", { class: "muted small" }, "None in the vault yet.");
+  const pick = el("select", { "aria-label": "Shared key" });
+  const none = el("span", { class: "muted small" }, "No shared keys in the vault yet.");
   const draw = (chosen) => {
     pick.replaceChildren(...names.map((n) => el("option", { value: n, selected: "shared/" + n === chosen || n === chosen }, "shared/" + n)));
     pick.hidden = !names.length;
@@ -4002,8 +4041,8 @@ function sharedKeyPicker(names, current, what, onchange) {
   pick.addEventListener("change", () => onchange && onchange());
   const make = el("button", { type: "button", class: "small", onclick: async () => {
     const values = await vaultForm({ title: "New shared key", ok: "Save",
-      text: "Kept in the server's vault. " + what + " Any app it's picked for may use it; a new value later reaches them all within a minute.",
-      fields: [{ label: "Its name, such as " + (what.includes("Claude") ? "claude" : "openrouter") }, { label: "Its value", type: "password" }],
+      text: "hi keeps it in the server vault. " + what + " Each app that you pick it for can use it. A new value reaches all these apps within one minute.",
+      fields: [{ label: "Name, for example " + (what.includes("Claude") ? "claude" : "openrouter") }, { label: "Value", type: "password" }],
       live: sharedNameCheck });
     if (!values) return;
     const name = values[0].trim();
@@ -4027,7 +4066,7 @@ function useSharedRow(s, current, what, use) {
     const from = pick.value();
     if (!from) { toast("Make a shared key first.", true); return; }
     use(from);
-  } }, "Use it"));
+  } }, "Use"));
   row.hidden = true;
   const button = el("button", { class: "small", onclick: () => { row.hidden = !row.hidden; } }, current ? "Another shared key" : "Use a shared key");
   return { button, row };
@@ -4037,14 +4076,14 @@ function useSharedRow(s, current, what, use) {
 function sharedNameCheck(v) {
   const badName = v[0].trim() !== "" && !/^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim());
   return { ok: /^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim()) && v[1] !== "", bad: badName ? [0] : [],
-    hint: badName ? "A name of lowercase letters, digits, and dashes." : "" };
+    hint: badName ? "Use lowercase letters, digits and dashes." : "" };
 }
 
 async function vaultSetShared(name) {
-  const fields = name ? [] : [{ label: "Its name, such as openrouter" }];
-  fields.push({ label: "Its value", type: "password" });
-  const values = await vaultForm({ title: name ? "A new value for shared/" + name : "New Share", ok: "Save", fields,
-    text: name ? "Every app that uses it gets the new value within a minute." : "Then give it to the apps that may use it.",
+  const fields = name ? [] : [{ label: "Name, for example openrouter" }];
+  fields.push({ label: "Value", type: "password" });
+  const values = await vaultForm({ title: name ? "New value for shared/" + name : "New shared key", ok: "Save", fields,
+    text: name ? "All apps that use it get the new value within one minute." : "After this, share it with the apps that can use it.",
     live: name ? (v) => ({ ok: v[0] !== "", bad: [], hint: "" }) : sharedNameCheck });
   if (!values) return;
   vaultDo({ action: "shared-set", name: name || values[0].trim(), secret: values[values.length - 1] });
@@ -4052,9 +4091,9 @@ async function vaultSetShared(name) {
 
 async function vaultAddWay(kind) {
   if (kind === "passphrase") {
-    const values = await vaultForm({ title: "A passphrase for the vault", ok: "Add",
-      text: "An admin types it to unlock the vault after a reboot, here or with hi server vault unlock. At least 12 characters; a few words are easiest. It isn't kept anywhere: if it's lost, the recovery key still opens the vault.",
-      fields: [{ label: "The passphrase", type: "password" }, { label: "Again", type: "password" }],
+    const values = await vaultForm({ title: "Passphrase for the vault", ok: "Add",
+      text: "After a reboot, an admin types it to unlock the vault, here or with hi server vault unlock. Use at least 12 characters. A few words are easiest. hi does not keep it. If you lose it, the recovery key still opens the vault.",
+      fields: [{ label: "Passphrase", type: "password" }, { label: "Type it again", type: "password" }],
       live: vaultPassphraseCheck });
     if (values) vaultDo({ action: "add", kind, secret: values[0] });
     return;
@@ -4065,7 +4104,7 @@ async function vaultAddWay(kind) {
 async function vaultRemoveWay(kind, v) {
   const left = v.kinds.filter((k) => k !== kind && k !== "recovery");
   const byItself = left.some((k) => k === "tpm" || k === "file");
-  let text = "The vault no longer opens with " + vaultWays[kind] + ".";
+  let text = "The vault cannot open with " + vaultWays[kind] + " after this.";
   if (!byItself && kind !== "passphrase") text = v.warning;
   if (!(await ask({ title: "Remove " + vaultWays[kind] + "?", text, ok: "Remove" }))) return;
   vaultDo({ action: "remove", kind, yes: true });
@@ -4083,50 +4122,50 @@ function vaultHistoryBlock() {
     let what = version.changed.length ? "changed " + version.changed.join(" ") : "no change";
     if (version.rollback) what = "put version " + version.rollback + " back (" + what + ")";
     const row = el("li", { class: "row small" }, el("strong", {}, "v" + version.version), " " + ago(version.time) + " · " + (version.by || "hi") + " · " + what, el("span", { class: "grow" }));
-    if (version.forgotten) row.append(el("span", { class: "muted" }, "value forgotten"));
+    if (version.forgotten) row.append(el("span", { class: "muted" }, "value deleted"));
     else if (i > 0) {
       row.append(el("button", { class: "small", onclick: async () => {
-        if (!(await ask({ title: "Put version " + version.version + " back?", text: "Its values become a new version of " + h.path + ". A box gets them within a minute.", ok: "Put it back" }))) return;
+        if (!(await ask({ title: "Go back to version " + version.version + "?", text: "Its values become a new version of " + h.path + ". The boxes get them within one minute.", ok: "Roll back" }))) return;
         await vaultDo({ action: "rollback", path: h.path, version: version.version });
         vaultOpenHistory(h.path);
       } }, "Roll back"),
-      el("button", { class: "small danger", title: "Leaked? Forget this value", onclick: async () => {
-        if (!(await ask({ title: "Forget version " + version.version + "'s value?", text: "Leaked? hi destroys this version's value; its entry stays in the history. Backups of hi's state taken before still hold it, so change the secret at its source too.", ok: "Forget it" }))) return;
+      el("button", { class: "small danger", title: "Delete this value, for example after a leak", onclick: async () => {
+        if (!(await ask({ title: "Delete the value of version " + version.version + "?", text: "hi destroys the value of this version. The entry stays in the history. Older backups of the hi state still have the value, so also change the secret at its source.", ok: "Delete" }))) return;
         await vaultDo({ action: "forget", path: h.path, version: version.version });
         vaultOpenHistory(h.path);
-      } }, "Forget"));
+      } }, "Delete value"));
     }
     list.append(row);
   });
   const names = el("ul", { class: "list" });
   for (const n of h.names || []) {
-    const row = el("li", { class: "row small" }, el("code", {}, n.name), n.file ? el("span", { class: "muted" }, " a file") : "", el("span", { class: "grow" }));
+    const row = el("li", { class: "row small" }, el("code", {}, n.name), n.file ? el("span", { class: "muted" }, " (file)") : "", el("span", { class: "grow" }));
     if (h.editable && !n.file) row.append(el("button", { class: "small", onclick: () => vaultSetName(h.path, n.name) }, "Change"));
     if (h.editable) row.append(el("button", { class: "small danger", onclick: async () => {
-      if (!(await ask({ title: "Remove " + n.name + "?", text: "It leaves the app's boxes' settings files within a minute, and their environment at their next start. Its versions stay here.", ok: "Remove" }))) return;
+      if (!(await ask({ title: "Remove " + n.name + "?", text: "hi removes it from the settings files of the app boxes within one minute. It leaves the environment of a box when the box starts again. Its versions stay here.", ok: "Remove" }))) return;
       await vaultDo({ action: "path-remove", path: h.path, kind: n.name });
       vaultOpenHistory(h.path);
     } }, "Remove"));
     names.append(row);
   }
   const how = h.editable
-    ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => vaultSetName(h.path, "") }, "+ A name"), el("span", { class: "muted small" }, "A file setting: hi app env <app> --file NAME=<path>, or the dev page."))
-    : el("p", { class: "muted small" }, "Changed through " + h.how + ".");
+    ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => vaultSetName(h.path, "") }, "+ Env variable"), el("span", { class: "muted small" }, "To set a file, run hi app env <app> --file NAME=<path>, or use the dev page."))
+    : el("p", { class: "muted small" }, "Change it with " + h.how + ".");
   const close = () => { vaultHistory = null; if (orgOpen() && orgSection === "vault") renderOrgSection(); else renderKeys(); };
   return el("div", { class: "card-box vault-history" }, el("div", { class: "row" }, el("strong", {}, h.path), el("span", { class: "grow" }), el("button", { class: "small", onclick: close }, "Close")),
-    el("h3", {}, "Names now"), names, how, el("h3", {}, "Versions"), list);
+    el("h3", {}, "Current names"), names, how, el("h3", {}, "Versions"), list);
 }
 
 // vaultSetName sets one name in an app's settings path, through hi app
 // env, so it's checked and reaches the boxes as any change.
 async function vaultSetName(path, name) {
-  const fields = name ? [] : [{ label: "NAME, such as STRIPE_KEY" }];
-  fields.push({ label: "Its value", type: "password" });
-  const values = await vaultForm({ title: name ? "A new value for " + name : "A name in " + path, ok: "Save", fields,
-    text: "The value goes to the vault once and is never shown again; the app's boxes have it within a minute.",
+  const fields = name ? [] : [{ label: "NAME, for example STRIPE_KEY" }];
+  fields.push({ label: "Value", type: "password" });
+  const values = await vaultForm({ title: name ? "New value for " + name : "New env variable in " + path, ok: "Save", fields,
+    text: "hi sends the value to the vault one time and never shows it again. The app boxes get it within one minute.",
     live: (v) => {
       const bad = !name && v[0] && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim()) ? [0] : [];
-      return { ok: (name || /^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim())) && v[v.length - 1] !== "", bad, hint: bad.length ? "Letters, digits, and _." : "" };
+      return { ok: (name || /^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim())) && v[v.length - 1] !== "", bad, hint: bad.length ? "Use letters, digits and _." : "" };
     } });
   if (!values) return;
   await vaultDo({ action: "path-set", path, kind: name || values[0].trim(), secret: values[values.length - 1] });
@@ -4141,24 +4180,24 @@ async function vaultShowRecovery() {
   const grid = el("ol", { class: "recovery-words" }, ...answer.words.map((w) => el("li", {}, w)));
   const dialog = el("dialog", { class: "recovery-dialog" },
     el("h2", {}, "Your recovery key"),
-    el("p", { class: "small" }, "Write it down, or keep it in a password manager, away from this machine. It opens every secret here, and is shown only now. Never send it by Slack or mail."),
+    el("p", { class: "small" }, "Write it down, or keep it in a password manager, not on this machine. It opens all secrets here. hi shows it only now. Never send it by Slack or email."),
     grid,
     el("div", { class: "buttons" },
-      el("button", { title: "The 24 words on one line, each with its number, for a password manager", onclick: async (event) => {
+      el("button", { title: "Copy the 24 words on one line, with numbers, for a password manager", onclick: async (event) => {
         const button = event.currentTarget;
-        button.textContent = (await copyText(answer.words.map((w, i) => (i + 1) + ". " + w).join(" "))) ? "Copied" : "Not copied: write them down";
+        button.textContent = (await copyText(answer.words.map((w, i) => (i + 1) + ". " + w).join(" "))) ? "Copied" : "Not copied. Write them down.";
         setTimeout(() => { button.textContent = "Copy"; }, 2000);
       } }, "Copy"),
-      el("button", { class: "primary", onclick: () => dialog.close("saved") }, "I've saved it")));
+      el("button", { class: "primary", onclick: () => dialog.close("saved") }, "I saved it")));
   document.body.append(dialog);
   dialog.showModal();
   await new Promise((resolve) => dialog.addEventListener("close", resolve, { once: true }));
   grid.replaceChildren();
   dialog.remove();
   const [a, b] = answer.ask;
-  const values = await vaultForm({ title: "Two of its words", ok: "Done", text: "To check you have it: words " + a + " and " + b + " of the 24.",
+  const values = await vaultForm({ title: "Check two words", ok: "Done", text: "Type words " + a + " and " + b + " of the 24. This checks that you saved the key.",
     fields: [{ label: "Word " + a }, { label: "Word " + b }] });
-  if (!values) { toast("The recovery key still waits: show it again when you're ready.", true); return; }
+  if (!values) { toast("You did not save the recovery key yet. Show it again when you are ready.", true); return; }
   vaultDo({ action: "recovery-saved", words: values.map((w) => w.trim()) });
 }
 
@@ -4172,18 +4211,18 @@ function machineKeysBlock() {
   if (!k) return box;
   const line = (label, ok, how) => el("p", { class: "small key-status" }, el("span", { class: "dot " + (ok ? "idle" : ""), "aria-hidden": "true" }),
     el("span", {}, el("strong", {}, label), ": " + (ok ? "set" : "not set"), ok ? "" : el("span", { class: "muted" }, " · " + how)));
-  box.append(el("h2", {}, "This machine's"), el("div", { class: "machine-block" },
-    line("OpenRouter, Hermes'", k.openrouter, "hermes setup, on the machine"),
-    line("Claude Code's sign-in", k.claude, "claude, then /login, on the machine"),
-    line("Codex's ChatGPT sign-in", k.chatgpt, k.codex_key ? "Codex is on an API key" : "codex login, on the machine")),
-    el("p", { class: "muted small" }, "Apps without their own use these. An app's own are in its Agents section."));
+  box.append(el("h2", {}, "Machine keys"), el("div", { class: "machine-block" },
+    line("OpenRouter (Hermes)", k.openrouter, "run hermes setup on the machine"),
+    line("Claude Code sign-in", k.claude, "run claude, then /login, on the machine"),
+    line("Codex ChatGPT sign-in", k.chatgpt, k.codex_key ? "Codex uses an API key" : "run codex login on the machine")),
+    el("p", { class: "muted small" }, "Apps without their own keys use these. The keys of an app are in its Agents section."));
   if (k.apps.length) {
     const table = el("table", { class: "people-matrix" });
     table.append(el("tr", {}, el("th", {}, ""), el("th", {}, "OpenRouter"), el("th", {}, "Claude"), el("th", {}, "ChatGPT"), el("th", {}, "agy")));
     for (const a of k.apps) {
       const states = a.states || {};
       const cell = (v, kind) => {
-        const words = v === "own" ? "its own" : v === "machine" ? "the machine's" : String(v).startsWith("shared/") ? v : "—";
+        const words = v === "own" ? "own" : v === "machine" ? "machine" : String(v).startsWith("shared/") ? v : "—";
         const st = kind && v ? states[kind] : "";
         return el("td", { class: (v === "own" || String(v).startsWith("shared/") ? "" : "muted") + " nowrap", title: st ? signinWords[st] || st : "" },
           st ? el("span", { class: "dot " + signinClass(st), "aria-hidden": "true" }) : "", st ? " " : "", words);
@@ -4191,7 +4230,7 @@ function machineKeysBlock() {
       table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: async () => { await openView(a.app); showSection("agents"); } }, a.app)),
         cell(a.openrouter, ""), cell(a.claude, "claude"), cell(a.chatgpt, "chatgpt"), cell(a.agy, "agy")));
     }
-    box.append(el("h2", {}, "The apps'"), el("div", { class: "matrix-scroll" }, table));
+    box.append(el("h2", {}, "App keys"), el("div", { class: "matrix-scroll" }, table));
   }
   return box;
 }
@@ -4200,63 +4239,69 @@ function machineKeysBlock() {
 // An app's Network and Data, the machine's Network, and Advisories.
 
 function sectionNetwork(s) {
-  const parts = [el("p", { class: "purpose" }, "Where the app is reached, and who may: its NetBird peer, how its addresses are named, the addresses let in, and the sign-in on top.")];
+  const parts = [el("p", { class: "purpose" }, "How people reach the app: the NetBird peer, the address names, the allowed addresses and the sign-in.")];
   // NetBird.
-  const nb = el("input", { type: "password", placeholder: "A NetBird setup key", "aria-label": "NetBird setup key", class: "wide-input" });
-  parts.push(el("h2", {}, "NetBird"), el("p", { class: "small incident-head" }, el("span", { class: "dot " + (s.joined ? "idle" : "blocked"), "aria-hidden": "true" }), s.joined ? (s.peer ? "Its peer " + s.peer + " is on NetBird." : "Its dev box is on NetBird.") : "Its dev box hasn't joined NetBird."),
+  const nb = el("input", { type: "password", placeholder: "NetBird setup key", "aria-label": "NetBird setup key", class: "wide-input" });
+  parts.push(el("h2", {}, "NetBird"), el("p", { class: "small incident-head" }, el("span", { class: "dot " + (s.joined ? "idle" : "blocked"), "aria-hidden": "true" }), s.joined ? (s.peer ? "The peer " + s.peer + " is on NetBird." : "The dev box is on NetBird.") : "The dev box did not join NetBird."),
     el("pre", { class: "job-output short" }, s.dev),
-    el("div", { class: "data-actions" }, nb, el("button", { class: "small", onclick: () => change("netbird", { key: nb.value.trim() }, "The dev box joins NetBird in a minute.") }, s.joined ? "Join again" : "Join")),
-    el("p", { class: "muted small" }, "In NetBird's dashboard: Add Peer → Server, a one-off key with the auto-group hi-" + s.name + ". It's used once and deleted."));
+    el("div", { class: "data-actions" }, nb, el("button", { class: "small", onclick: () => change("netbird", { key: nb.value.trim() }, "The dev box joins NetBird within one minute.") }, s.joined ? "Join again" : "Join")),
+    el("p", { class: "muted small" }, "In the NetBird dashboard, click Add Peer → Server. Make a one-off key with the auto-group hi-" + s.name + ". hi uses it one time, then deletes it."));
   // Addresses.
   let mode = s.mode;
   const host = el("input", { value: s.host || "", placeholder: "demo.corp.example", class: "wide-input", "aria-label": "Host name" });
-  const production = el("input", { value: s.names ? s.names.production || "" : "", placeholder: "demo.example.com", class: "wide-input", "aria-label": "Production's name" });
+  const production = el("input", { value: s.names ? s.names.production || "" : "", placeholder: "demo.example.com", class: "wide-input", "aria-label": "Production name" });
   const https = el("input", { type: "checkbox" }); https.checked = s.names ? !!s.names.https : true;
   const extra = el("div", { class: "stack" });
   const draw = () => {
     extra.replaceChildren();
-    if (mode === "host") extra.append(field("The name your IT team keeps, an A record to its NetBird address", host));
-    if (mode === "names") extra.append(field("Production's name; Stage and the dev page go under it", production), el("label", { class: "check small" }, https, " Their proxy ends TLS: the links say https"));
+    if (mode === "host") extra.append(field("Name that your IT team keeps. It is an A record to the NetBird address of the app.", host));
+    if (mode === "names") extra.append(field("Production name. Stage and the dev page use names under it.", production), el("label", { class: "check small" }, https, " A proxy of your IT team handles TLS, so the links use https"));
   };
   const options = [];
-  if (s.domain) options.push(["domain", "This machine's domain, on https"]);
-  options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", s.peer ? "The NetBird name, " + s.peer + ", on plain http" : "The name NetBird gives its dev box, on plain http"]);
+  if (s.domain) options.push(["domain", "The domain of this machine, on https"]);
+  options.push(["names", "A name for each address, kept by your IT team"], ["host", "One name kept by your IT team, with ports"], ["netbird", s.peer ? "The NetBird name, " + s.peer + ", on plain http" : "The NetBird name of the dev box, on plain http"]);
   parts.push(el("h2", {}, "Addresses"), el("p", { class: "small" }, "Now: " + s.addresses + "."),
-    el("ul", { class: "list" }, ...s.urls.map((u) => el("li", {}, el("span", { class: "what" }, el("strong", {}, u.what), " ", el("span", { class: "muted small" }, u.waits ? "once its dev box is on NetBird" : shown(u.url)))))),
+    el("ul", { class: "list" }, ...s.urls.map((u) => el("li", {}, el("span", { class: "what" }, el("strong", {}, u.what), " ", el("span", { class: "muted small" }, u.waits ? "after the dev box joins NetBird" : shown(u.url)))))),
     radios("n-addr", options, mode, (v) => { mode = v; draw(); }), extra,
     el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
-      if (!(await ask({ title: "Move " + s.name + "'s addresses?", text: "The app restarts to move them, and the owners get the dev page's new link in Slack. Links people have to the old addresses stop working.", ok: "Move them" }))) return;
-      change("addresses", { mode, host: host.value.trim(), production: production.value.trim(), https: https.checked }, "Moving the addresses");
-    } }, "Move them")));
+      if (!(await ask({ title: "Change the addresses of " + s.name + "?", text: "The app restarts. The owners get the new dev page link in Slack. Links to the old addresses stop working.", ok: "Change" }))) return;
+      change("addresses", { mode, host: host.value.trim(), production: production.value.trim(), https: https.checked }, "Changing the addresses");
+    } }, "Change addresses")));
   draw();
   if (s.domain) {
     const on = el("input", { type: "checkbox" }); on.checked = s.domain_on;
     on.addEventListener("change", () => change("domain", { on: on.checked }));
-    parts.push(el("label", { class: "check small" }, on, " Production at " + s.name + "." + s.domain + " and Stage at " + s.name + "-preview." + s.domain + ", names that stay"));
+    parts.push(el("label", { class: "check small" }, on, " Fixed names: production at " + s.name + "." + s.domain + " and stage at " + s.name + "-preview." + s.domain));
   }
   // Who gets in.
-  const ips = el("input", { value: s.allow_ips.join(","), placeholder: "any address with its link", class: "wide-input", "aria-label": "Addresses let in" });
-  parts.push(el("h2", {}, "Addresses let in"), el("p", { class: "muted small" }, "The only addresses Stage and production let in, as IPs or ranges (NetBird's Access Control, with the domain's token). Empty: any address that has its link."),
+  const ips = el("input", { value: s.allow_ips.join(","), placeholder: "any address with the link", class: "wide-input", "aria-label": "Allowed addresses" });
+  parts.push(el("h2", {}, "Allowed addresses"), el("p", { class: "muted small" }, "Stage and production let in only these IPs or ranges. hi sets this in NetBird Access Control, with the domain token. If this is empty, any address with the link can get in."),
     el("div", { class: "data-actions" }, ips, el("button", { class: "small", onclick: () => change("allowip", { ips: ips.value.trim() }) }, "Save")));
   // Sign-in.
   const provider = el("select", { "aria-label": "Sign-in provider" });
-  provider.append(el("option", { value: "" }, "None: the link is enough"), ...s.providers.map((p) => el("option", { value: p }, p)));
+  provider.append(el("option", { value: "" }, "None. The link is enough"), ...s.providers.map((p) => el("option", { value: p }, p)));
   const domains = el("input", { placeholder: "example.com (optional)", class: "wide-input", "aria-label": "Email domains" });
   const groups = el("input", { placeholder: "a group (optional)", class: "wide-input", "aria-label": "Groups" });
   const anyone = el("input", { type: "checkbox" });
   parts.push(el("h2", {}, "Sign-in"), el("pre", { class: "job-output short" }, s.sso),
-    s.providers.length ? el("div", { class: "stack" }, field("Provider", provider), field("Only these email domains", domains), field("Only these groups", groups), el("label", { class: "check small" }, anyone, " Anyone who signs in with it"),
-      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("sso", { sso: provider.value, domains: domains.value.trim(), groups: groups.value.trim(), anyone: anyone.checked }) }, "Save"))) : el("p", { class: "muted small" }, "No sign-in provider on this machine yet: Network, on the left."));
+    s.providers.length ? el("div", { class: "stack" }, field("Provider", provider), field("Only these email domains", domains), field("Only these groups", groups), el("label", { class: "check small" }, anyone, " Anyone who signs in with this provider"),
+      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("sso", { sso: provider.value, domains: domains.value.trim(), groups: groups.value.trim(), anyone: anyone.checked }) }, "Save"))) : el("p", { class: "muted small" }, "This machine has no sign-in provider yet. Add one in Network, on the left."));
   // hi's check of the sites the dev box asks for.
   const checkOn = s.sites_check !== "off";
-  parts.push(el("h2", {}, "The dev box's sites"),
+  parts.push(el("h2", {}, "Dev box sites"),
     el("p", { class: "small" }, checkOn
-      ? "hi's check allows a site the dev box asks for by itself, for 7 days, when it's among the 100,000 most used, over a year old, on no threat list, and nobody but its owner can make names or put files there. The ops channel hears of each once a day, with Keep and Undo; anything else goes to the owners."
-      : "hi's check is off: every site the dev box asks for goes to the owners."),
-    s.sites_check === "watch" ? el("p", { class: "muted small" }, "Gemini Decision 1 watches too: it judges each ask the rules send to the owners for its rank or age, and hi records what it would have done, allowing nothing. hi app dev " + s.name + " sites check says how often it agreed with the owners.") : "",
+      ? "The hi site check is on."
+      : "The hi site check is off. The owners decide on each site that the dev box asks for."),
     s.sites_paused ? el("p", { class: "small" }, "Paused: " + s.sites_paused + ".") : "",
-    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("sites-check", { on: !checkOn || !!s.sites_paused }, checkOn && !s.sites_paused ? "Every site goes to the owners now." : "hi's check is on.") },
-      checkOn && !s.sites_paused ? "Turn off" : (s.sites_paused ? "Turn on again" : "Turn on"))));
+    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("sites-check", { on: !checkOn || !!s.sites_paused }, checkOn && !s.sites_paused ? "The owners now decide on all sites." : "The hi site check is on.") },
+      checkOn && !s.sites_paused ? "Turn off" : (s.sites_paused ? "Turn on again" : "Turn on"))),
+    checkOn ? el("div", { class: "how muted small" }, el("h3", {}, "How it works"), el("ul", {},
+      el("li", {}, "When the dev box asks for a site, hi can allow it automatically for 7 days."),
+      el("li", {}, "hi allows a site only if it is in the 100,000 most used sites, is more than one year old, and is on no threat list."),
+      el("li", {}, "Also, only the site owner can make names or put files on it."),
+      el("li", {}, "hi tells the ops channel about these sites once a day, with Keep and Undo."),
+      el("li", {}, "The owners decide on all other sites."),
+      s.sites_check === "watch" ? el("li", {}, "Gemini Decision 1 also watches. It judges each request that the rules send to the owners because of rank or age. hi records what it would do, but allows nothing. To see how often it agreed with the owners, run hi app dev " + s.name + " sites check.") : null)) : "");
   parts.push(el("h2", {}, "What to ask your IT team"), el("pre", { class: "job-output copyable" }, s.ask),
     el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => copyText(s.ask) }, "Copy")));
   return parts;
@@ -4280,7 +4325,7 @@ async function copyText(text) {
 }
 
 function sectionData(s) {
-  const parts = [el("p", { class: "purpose" }, "The app's snapshots and releases, Stage's data, and its backups. What can't be undone needs the app's name typed, and says what it does first.")];
+  const parts = [el("p", { class: "purpose" }, "Snapshots, releases, stage data and backups of the app. For an action that you cannot undo, hi first tells what it does. Then you type the app name.")];
   const snaps = el("ul", { class: "list" });
   for (const snap of s.snapshots.slice(0, 40)) {
     snaps.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, snap.id), " ", el("span", { class: "muted small" }, new Date(snap.time).toLocaleString() + " · " + (snap.label || snap.kind) + (snap.size ? " · " + size(snap.size) : "")), snap.warning ? el("span", { class: "warn small block" }, snap.warning) : ""),
@@ -4294,45 +4339,45 @@ function sectionData(s) {
       el("span", { class: "actions" }, r.version !== s.production ? el("button", { class: "small", onclick: () => rollback(s.name, r.version) }, "Roll back…") : "",
         el("a", { class: "button-like small", href: "/api/app/bom?name=" + encodeURIComponent(s.name) + "&release=v" + r.version }, "BOM"))));
   }
-  if (!s.releases.length) releases.append(el("li", { class: "plain muted small" }, "Nothing released yet."));
+  if (!s.releases.length) releases.append(el("li", { class: "plain muted small" }, "Nothing published yet."));
   parts.push(el("h2", {}, "Releases"), releases);
   // Stage's data.
   const empty = el("input", { type: "checkbox" }); empty.checked = s.stage_empty;
   empty.addEventListener("change", () => change("stagedata", { on: empty.checked }));
-  parts.push(el("h2", {}, "Stage's data"), el("pre", { class: "job-output short" }, s.data),
-    el("label", { class: "check small" }, empty, " Stage starts empty at every release, for an app whose people's data Stage shouldn't show"),
-    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("fork", {}, "Stage has a new fork of production's data.") }, "A new fork for Stage"),
+  parts.push(el("h2", {}, "Stage data"), el("pre", { class: "job-output short" }, s.data),
+    el("label", { class: "check small" }, empty, " Start stage empty at each release. Use this if stage must not show the data of real people."),
+    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("fork", {}, "Stage has a new fork of the production data.") }, "New fork for stage"),
       el("button", { class: "small danger", onclick: async () => {
-        const answer = await ask({ title: "Copy Stage's data to production?", text: "Production starts from what Stage gathered. Its own data is snapshotted first, so a restore brings it back. Type the app's name to say so.", ok: "Copy it", typed: s.name });
-        if (answer) change("copy", { confirm: s.name }, "Copying Stage's data to production");
-      } }, "Copy Stage's to production…")));
+        const answer = await ask({ title: "Copy the stage data to production?", text: "Production starts from the stage data. hi takes a snapshot of the production data first, so a restore can bring it back. Type the app name to continue.", ok: "Copy", typed: s.name });
+        if (answer) change("copy", { confirm: s.name }, "Copying the stage data to production");
+      } }, "Copy stage data to production…")));
   // Backups.
   const keep = el("input", { placeholder: "7,4,6", class: "small-input", "aria-label": "Daily, weekly, monthly" });
   parts.push(el("h2", {}, "Backups"), el("pre", { class: "job-output short" }, s.backups),
     el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "Keep daily, weekly, monthly"), keep, el("button", { class: "small", onclick: () => change("keep", { keep: keep.value.trim() }) }, "Save")),
-    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: offsite }, "Copy them offsite…"), el("button", { class: "small", onclick: () => change("offsite", { offsite: "off" }) }, "Stop copying offsite")),
-    el("p", { class: "muted small" }, "The key they're encrypted with stays on the machine: hi app backups " + s.name + " --show-key."));
+    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: offsite }, "Copy offsite…"), el("button", { class: "small", onclick: () => change("offsite", { offsite: "off" }) }, "Stop copying offsite")),
+    el("p", { class: "muted small" }, "The encryption key of the backups stays on the machine. To see it, run hi app backups " + s.name + " --show-key."));
   parts.push(el("h2", {}, "Jobs"), el("pre", { class: "job-output short" }, s.jobs),
-    el("div", { class: "data-actions" }, el("a", { class: "button-like small", href: "/api/app/bom?name=" + encodeURIComponent(s.name) }, "Production's bill of materials (CycloneDX)")));
+    el("div", { class: "data-actions" }, el("a", { class: "button-like small", href: "/api/app/bom?name=" + encodeURIComponent(s.name) }, "Production bill of materials (CycloneDX)")));
   return parts;
 }
 
 async function restore(app, snapshot) {
-  const answer = await ask({ title: "Restore " + app + " from " + snapshot + "?", text: "The lead's memory, the app's record, and its data go back to how they were then. hi takes a snapshot of how it is first. Type the app's name to say so.", ok: "Restore", typed: app, check: "The code (repo/) too" });
+  const answer = await ask({ title: "Restore " + app + " from " + snapshot + "?", text: "The memory of the lead, the record of the app and its data go back to that time. hi takes a snapshot of the current state first. Type the app name to continue.", ok: "Restore", typed: app, check: "Also restore the code (repo/)" });
   if (answer) change("restore", { snapshot, code: answer.checked, confirm: app }, "Restoring " + app);
 }
 async function rollback(app, version) {
-  const answer = await ask({ title: "Roll " + app + " back to v" + version + "?", text: "Production goes back to v" + version + ", with its data as v" + version + " left it; what was entered since is kept in a snapshot. Type the app's name to say so.", ok: "Roll back", typed: app, check: "The code only: production's data stays as it is" });
+  const answer = await ask({ title: "Roll " + app + " back to v" + version + "?", text: "Production goes back to v" + version + ", with the data from that version. hi keeps newer data in a snapshot. Type the app name to continue.", ok: "Roll back", typed: app, check: "Only the code. The production data does not change." });
   if (answer) change("rollback", { version, code: answer.checked, confirm: app }, "Rolling " + app + " back");
 }
 async function offsite() {
-  const answer = await ask({ title: "Copy the snapshots offsite", text: "An S3-compatible bucket, as s3:https://<host>/<bucket>. Its keys come next.", ok: "Next", field: "s3:https://s3.example.com/backups", fieldCheck: (v) => (v.startsWith("s3:") ? "" : "It starts with s3:") });
+  const answer = await ask({ title: "Copy the snapshots offsite", text: "Give an S3-compatible bucket, as s3:https://<host>/<bucket>. Then give its keys.", ok: "Next", field: "s3:https://s3.example.com/backups", fieldCheck: (v) => (v.startsWith("s3:") ? "" : "The address must start with s3:") });
   if (!answer) return;
-  const id = await ask({ title: "The bucket's access key ID", text: "Kept on the machine, never shown again.", ok: "Next", field: "Access key ID" });
+  const id = await ask({ title: "Access key ID of the bucket", text: "hi keeps it on the machine and never shows it again.", ok: "Next", field: "Access key ID" });
   if (!id) return;
-  const secret = await ask({ title: "Its secret access key", text: "Kept on the machine, never shown again.", ok: "Save", field: "Secret access key" });
+  const secret = await ask({ title: "Secret access key of the bucket", text: "hi keeps it on the machine and never shows it again.", ok: "Save", field: "Secret access key" });
   if (!secret) return;
-  change("offsite", { offsite: answer.field, key_id: id.field, secret: secret.field }, "The snapshots go offsite too.");
+  change("offsite", { offsite: answer.field, key_id: id.field, secret: secret.field }, "hi now also copies the snapshots offsite.");
 }
 
 // The machine's Network.
@@ -4345,28 +4390,28 @@ function renderMachineNetwork() {
   const box = $("network-view");
   const n = machineNet;
   if (!n) { box.replaceChildren(el("p", { class: "muted pad" }, "…")); return; }
-  const domain = el("input", { value: n.domain || "", placeholder: "apps.example.com", "aria-label": "The apps' domain" });
-  const token = el("input", { type: "password", placeholder: n.has_token ? "NetBird's token is kept; a new one replaces it" : "NetBird API token", "aria-label": "NetBird token" });
+  const domain = el("input", { value: n.domain || "", placeholder: "apps.example.com", "aria-label": "App domain" });
+  const token = el("input", { type: "password", placeholder: n.has_token ? "NetBird token saved. A new token replaces it." : "NetBird API token", "aria-label": "NetBird token" });
   const apps = el("ul", { class: "list" });
   for (const a of n.apps) {
     apps.append(el("li", {}, el("span", { class: "what" }, el("button", { class: "link-button", onclick: async () => { await openView(a.name); showSection("network"); } }, a.name),
       el("span", { class: "muted small block" }, (a.joined ? "" : "not on NetBird · ") + (a.peer ? a.peer + " · " : "") + a.addresses + (a.allow_ips && a.allow_ips.length ? " · only " + a.allow_ips.join(", ") : "")))));
   }
-  const pName = el("input", { placeholder: "Its name, such as google", "aria-label": "Provider's name" });
-  const pIssuer = el("input", { placeholder: "Its issuer, https://…", "aria-label": "Issuer" });
+  const pName = el("input", { placeholder: "Name, for example google", "aria-label": "Provider name" });
+  const pIssuer = el("input", { placeholder: "Issuer, https://…", "aria-label": "Issuer" });
   const pClient = el("input", { placeholder: "Client ID", "aria-label": "Client ID" });
-  const pSecret = el("input", { type: "password", placeholder: "Client secret (kept, never shown)", "aria-label": "Client secret" });
+  const pSecret = el("input", { type: "password", placeholder: "Client secret (hi never shows it)", "aria-label": "Client secret" });
   const parts = [
-    el("h2", {}, "The apps' domain"), el("p", { class: "muted small" }, n.domain ? "Apps can have names that stay under " + n.domain + "." : "The apps get addresses NetBird makes up. A domain verified in NetBird gives them names that stay."),
+    el("h2", {}, "App domain"), el("p", { class: "muted small" }, n.domain ? "Apps can have fixed names under " + n.domain + "." : "NetBird makes up the addresses of the apps. With a domain verified in NetBird, apps get fixed names."),
     el("div", { class: "stack" }, domain, token, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => { await netChange("domain", { name: domain.value.trim(), key: token.value.trim() }); } }, "Save"), n.domain ? el("button", { class: "small", onclick: () => netChange("domain", { name: "off" }) }, "Off") : "")),
-    el("h2", {}, "Each app's peer"), apps,
+    el("h2", {}, "App peers"), apps,
     el("h2", {}, "Sign-in providers"), el("pre", { class: "job-output short" }, n.sso),
-    el("details", { class: "small" }, el("summary", {}, "Add one"), el("div", { class: "stack" }, pName, pIssuer, pClient, pSecret,
+    el("details", { class: "small" }, el("summary", {}, "Add a provider"), el("div", { class: "stack" }, pName, pIssuer, pClient, pSecret,
       el("button", { class: "small", onclick: () => netChange("provider", { sso: pName.value.trim(), host: pIssuer.value.trim(), name: pClient.value.trim(), secret: pSecret.value.trim() }) }, "Check and add"))),
   ];
   parts.push(...machineSites(n.sites));
-  if (n.expose) parts.push(el("h2", {}, "The server for cloud runs"), el("p", { class: "small" }, el("code", {}, shown(n.expose))));
-  parts.push(el("h2", {}, "What to ask your IT team"), el("p", { class: "muted small" }, "As text to send: the policies and records the admin page and the apps need."),
+  if (n.expose) parts.push(el("h2", {}, "Server for cloud runs"), el("p", { class: "small" }, el("code", {}, shown(n.expose))));
+  parts.push(el("h2", {}, "What to ask your IT team"), el("p", { class: "muted small" }, "Text to send to your IT team. It lists the policies and records that the admin page and the apps need."),
     el("pre", { class: "job-output copyable" }, n.ask || "Nothing."), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => copyText(n.ask) }, "Copy")));
   box.replaceChildren(...parts);
 }
@@ -4375,8 +4420,8 @@ function renderMachineNetwork() {
 // owners allowed, to allow for all.
 function machineSites(s) {
   if (!s) return [];
-  const site = el("input", { placeholder: "docs.example.com", "aria-label": "A site for every dev box" });
-  const why = el("input", { placeholder: "What for", "aria-label": "What the site is for" });
+  const site = el("input", { placeholder: "docs.example.com", "aria-label": "Site for all dev boxes" });
+  const why = el("input", { placeholder: "Reason", "aria-label": "Why the dev boxes need the site" });
   const allowed = el("ul", { class: "list" });
   for (const a of s.allowed) {
     allowed.append(el("li", {}, el("span", { class: "what" }, el("code", {}, a.host),
@@ -4385,22 +4430,22 @@ function machineSites(s) {
   }
   if (!s.allowed.length) allowed.append(el("li", { class: "muted small" }, "None yet."));
   const parts = [
-    el("h2", {}, "The dev boxes' sites"),
-    el("p", { class: "muted small" }, "Every app's dev box reaches these, besides what development needs, its own Stage and dev page, and what its owners allowed."),
+    el("h2", {}, "Dev box sites"),
+    el("p", { class: "muted small" }, "All dev boxes can reach these sites. They can also reach the sites that development needs, their own stage and dev page, and the sites that their owners allowed."),
     allowed,
-    el("div", { class: "stack" }, site, why, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { if (site.value.trim()) netChange("site", { name: site.value.trim(), key: why.value.trim() }); } }, "Allow for every app"))),
+    el("div", { class: "stack" }, site, why, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { if (site.value.trim()) netChange("site", { name: site.value.trim(), key: why.value.trim() }); } }, "Allow for all apps"))),
   ];
   if (s.org.length) {
-    parts.push(el("p", { class: "small" }, s.org_on ? "The organisation's domains, " + s.org.join(", ") + ", are on every dev box's list, but not an app's own production." : "The organisation's domains, " + s.org.join(", ") + ", aren't on the dev boxes' lists.",
+    parts.push(el("p", { class: "small" }, s.org_on ? "All dev boxes can reach the organisation domains, " + s.org.join(", ") + ". This does not include the production of an app." : "The dev boxes cannot reach the organisation domains, " + s.org.join(", ") + ".",
       " ", el("button", { class: "small", onclick: () => netChange("sites-org", { remove: s.org_on }) }, s.org_on ? "Off" : "On")));
   } else {
-    parts.push(el("p", { class: "muted small" }, "Once the organisation's domains are set (People), the dev boxes reach them too."));
+    parts.push(el("p", { class: "muted small" }, "After you set the organisation domains (in People), the dev boxes can also reach them."));
   }
   if (s.shared.length) {
     const shared = el("ul", { class: "list" });
     for (const x of s.shared) {
       shared.append(el("li", {}, el("span", { class: "what" }, el("code", {}, x.host), el("span", { class: "muted small block" }, "Allowed in " + x.apps.join(", "))),
-        el("button", { class: "small", onclick: () => netChange("site", { name: x.host }) }, "Allow for every app")));
+        el("button", { class: "small", onclick: () => netChange("site", { name: x.host }) }, "Allow for all apps")));
     }
     parts.push(el("h3", {}, "Allowed in several apps"), shared);
   }
@@ -4426,11 +4471,11 @@ function advisoriesChecked() {
     const c = checks[openApp];
     if (!c) return "";
     if (c.error) return "The check failed: " + c.error + ".";
-    if (c.started && !c.error) return "Checking production " + c.bom + "'s packages, since " + ago(c.started) + "…";
-    if (c.asked) return "Asked " + ago(c.asked) + ": the app starts the check within a minute.";
-    if (!c.bom) return "Nothing released, so nothing to check.";
-    if (!c.matched) return "Production " + c.bom + " isn't checked yet.";
-    return "Production " + c.bom + " checked " + ago(c.matched) + "; again every day.";
+    if (c.started && !c.error) return "Checking the packages of production " + c.bom + ", since " + ago(c.started) + "…";
+    if (c.asked) return "Asked " + ago(c.asked) + ". The app starts the check within one minute.";
+    if (!c.bom) return "Nothing published, so there is nothing to check.";
+    if (!c.matched) return "Production " + c.bom + " is not checked yet.";
+    return "Production " + c.bom + " checked " + ago(c.matched) + ". hi checks again each day.";
   }
   const all = Object.values(checks);
   const pending = all.filter(checkPending).length;
@@ -4448,7 +4493,7 @@ async function checkAdvisories() {
   try {
     const answer = await api("/api/advisories/check", { app: openApp || "" });
     const skipped = Object.entries(answer.skipped || {}).map(([app, why]) => app + ": " + why);
-    toast((answer.asked.length ? "Checking " + answer.asked.join(", ") + ": a few minutes." : "Nothing to check.") + (skipped.length ? " Not " + skipped.join("; ") + "." : ""), skipped.length > 0);
+    toast((answer.asked.length ? "Checking " + answer.asked.join(", ") + ". This takes a few minutes." : "Nothing to check.") + (skipped.length ? " Not " + skipped.join("; ") + "." : ""), skipped.length > 0);
   } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
   refreshAdvisories();
 }
@@ -4465,35 +4510,35 @@ function renderAdvisories() {
   const button = $("advisories-check");
   button.textContent = pending ? "Checking…" : "Check now";
   button.disabled = pending || (openApp ? !c || !c.bom || !c.up : !Object.values(checks).some((x) => x.bom && x.up));
-  button.title = openApp && c && !c.up ? openApp + " isn't running: its watcher checks once it starts" : (openApp ? "Match " + openApp : "Match every app") + "'s production packages against the advisories now, not at the day's check";
+  button.title = openApp && c && !c.up ? openApp + " does not run. Its watcher checks when it starts." : "Check the production packages of " + (openApp || "all apps") + " against advisories now. hi also checks once a day.";
   button.onclick = checkAdvisories;
   clearTimeout(advisoriesPoll);
   if (pending) advisoriesPoll = setTimeout(() => { if (viewShown("advisories")) refreshAdvisories(); }, 5000);
   list.replaceChildren();
-  if (!openApp) list.append(el("li", { class: "empty" }, "Every app's. Open an app for its own."));
-  if (!all.length) list.append(el("li", { class: "empty" }, "No advisories for what production runs." + Object.entries(advisories.notes || {}).filter(([app]) => !openApp || app === openApp).map(([app, note]) => " " + app + ": " + note + ".").join("")));
-  const words = { kev: "exploited", incident: "act on it", report: "for the weekly report", "": "ignored" };
+  if (!openApp) list.append(el("li", { class: "empty" }, "Advisories of all apps. Open an app to see only its advisories."));
+  if (!all.length) list.append(el("li", { class: "empty" }, "No advisories for the production packages." + Object.entries(advisories.notes || {}).filter(([app]) => !openApp || app === openApp).map(([app, note]) => " " + app + ": " + note + ".").join("")));
+  const words = { kev: "exploited", incident: "act now", report: "for the weekly report", "": "ignored" };
   for (const a of all) {
     const cls = a.tier === "kev" ? "bad" : a.tier === "incident" ? "blocked" : a.tier === "" ? "done" : "";
     list.append(el("li", { class: "incident" },
       el("div", { class: "incident-head" }, el("span", { class: "dot " + cls, "aria-hidden": "true" }), openApp ? null : el("button", { class: "link-button", onclick: () => openView(a.app) }, a.app), el("strong", {}, a.id), el("span", { class: "muted small" }, words[a.tier])),
-      el("div", { class: "small" }, a.package + " " + a.version + " (" + (a.part === "machine" ? "the machine's Linux kernel" + (a.kernel ? ", " + a.kernel : "") : a.part) + ")" + ((a.fixed || []).length ? ", fixed in " + a.fixed.join(", ") : "") + (a.epss >= 0.01 ? ", EPSS " + a.epss.toFixed(2) : "")),
+      el("div", { class: "small" }, a.package + " " + a.version + " (" + (a.part === "machine" ? "Linux kernel of the machine" + (a.kernel ? ", " + a.kernel : "") : a.part) + ")" + ((a.fixed || []).length ? ", fixed in " + a.fixed.join(", ") : "") + (a.epss >= 0.01 ? ", EPSS " + a.epss.toFixed(2) : "")),
       a.summary ? el("div", { class: "muted small clamp2", title: a.summary }, a.summary) : null,
-      a.action ? el("div", { class: "small advisory-action" }, el("strong", {}, a.part === "machine" ? "The machine needs an update. " : "What fixes it: "), a.action) : null,
+      a.action ? el("div", { class: "small advisory-action" }, el("strong", {}, a.part === "machine" ? "The machine needs an update. " : "Fix: "), a.action) : null,
       a.ignored ? el("div", { class: "muted small" }, "Ignored: " + a.ignored) : null,
-      el("div", { class: "data-actions" }, a.tier === "" ? el("button", { class: "small", onclick: () => advisoryChange(a, true) }, "Raise it again") : el("button", { class: "small", onclick: () => advisoryChange(a, false) }, "Ignore…"))));
+      el("div", { class: "data-actions" }, a.tier === "" ? el("button", { class: "small", onclick: () => advisoryChange(a, true) }, "Show again") : el("button", { class: "small", onclick: () => advisoryChange(a, false) }, "Ignore…"))));
   }
 }
 async function advisoryChange(a, unignore) {
   let because = "";
   if (!unignore) {
-    const answer = await ask({ title: "Ignore " + a.id + " in " + a.app + "?", text: "Your word that it doesn't apply, until the advisory changes. The app's people see why.", ok: "Ignore it", why: "Why it doesn't apply" });
+    const answer = await ask({ title: "Ignore " + a.id + " in " + a.app + "?", text: "You say that it does not apply. This stays until the advisory changes. The people of the app see your reason.", ok: "Ignore", why: "Why it does not apply" });
     if (!answer) return;
     because = typeof answer === "string" ? answer : "";
   }
   try {
     await api("/api/app/settings", { app: a.app, what: "advisory", id: a.id, package: a.package, because, remove: unignore });
-    toast(unignore ? a.id + " is raised again if it matches." : a.id + " is ignored.");
+    toast(unignore ? "hi shows " + a.id + " again if it matches." : a.id + " is ignored.");
     refreshAdvisories();
   } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
@@ -4568,7 +4613,7 @@ async function boot() {
     state = await api("/api/state");
   } catch (e) {
     if (e instanceof SignIn) return;
-    document.body.replaceChildren(el("p", { class: "locked" }, "The admin page didn't answer: " + e.message));
+    document.body.replaceChildren(el("p", { class: "locked" }, "The admin page does not answer: " + e.message));
     return;
   }
   $("signin").hidden = true;

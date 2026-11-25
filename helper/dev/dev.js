@@ -53,7 +53,7 @@
       credentials: "same-origin",
     }).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (data) {
-        if (response.status === 401) lock(data.error || "This page is for the app's owners.");
+        if (response.status === 401) lock(data.error || "Only the owners of the app can open this page.");
         if (!response.ok) {
           var error = new Error(data.error || response.statusText);
           error.data = data; // the rest of the answer, as a conflict's files
@@ -84,7 +84,7 @@
   $("email-form").addEventListener("submit", function (event) {
     event.preventDefault();
     var address = $("email-address").value.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) { $("email-said").textContent = "Give your email address."; $("email-address").focus(); return; }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) { $("email-said").textContent = "Enter your email address."; $("email-address").focus(); return; }
     var via = event.submitter && event.submitter.value === "slack" ? "slack" : "email";
     var buttons = $("email-form").querySelectorAll("button");
     buttons.forEach(function (b) { b.disabled = true; });
@@ -100,7 +100,7 @@
   $("code-form").addEventListener("submit", function (event) {
     event.preventDefault();
     var code = $("email-code").value.replace(/\s/g, "");
-    if (!/^[0-9]{6}$/.test(code)) { $("email-said").textContent = "The code is the six digits in the " + (emailVia === "slack" ? "Slack DM." : "email."); $("email-code").focus(); return; }
+    if (!/^[0-9]{6}$/.test(code)) { $("email-said").textContent = "Enter the six digits from the " + (emailVia === "slack" ? "Slack DM." : "email."); $("email-code").focus(); return; }
     emailPost("email/code", { request: emailRequest, code: code }).then(function (answer) {
       location.href = answer.go;
     }).catch(function (e) { $("email-said").textContent = e.message; });
@@ -226,7 +226,7 @@
     };
     socket.onclose = function (event) {
       if (opened !== socket) return;
-      $("term-why").textContent = (event.reason ? "The terminal closed: " + event.reason + "." : "The terminal closed.") + " Connecting again…";
+      $("term-why").textContent = (event.reason ? "The terminal closed: " + event.reason + "." : "The terminal closed.") + " hi connects again…";
       $("term-ended").hidden = false;
       if ($("locked").hidden) termRetry = setTimeout(connect, 1000);
     };
@@ -270,13 +270,13 @@
     if (key === "keyboard") { term.focus(); return; }
     if (key === "ctrl") { setCtrl(!ctrl); term.focus(); return; }
     if (key === "paste") {
-      if (!navigator.clipboard || !navigator.clipboard.readText) { toast("This browser doesn't let the page read the clipboard: paste with a long press in the terminal."); return; }
+      if (!navigator.clipboard || !navigator.clipboard.readText) { toast("This browser does not let the page read the clipboard. Do a long press in the terminal to paste."); return; }
       navigator.clipboard.readText().then(function (text) {
         if (!text) return;
         // As a paste, so the app takes it as one, not as typing.
         sendText(term.modes && term.modes.bracketedPasteMode ? "\x1b[200~" + text + "\x1b[201~" : text);
         term.focus();
-      }).catch(function () { toast("The browser didn't allow reading the clipboard."); });
+      }).catch(function () { toast("The browser did not let the page read the clipboard."); });
       return;
     }
     var data = typeof keys[key] === "function" ? keys[key]() : keys[key];
@@ -357,7 +357,7 @@
       return new Promise(function (resolve, reject) {
         var reader = new FileReader();
         reader.onload = function () { resolve({ name: "pasted-" + Math.random().toString(16).slice(2, 8) + "." + (file.type.split("/")[1] || "png").replace("jpeg", "jpg"), data: String(reader.result).replace(/^[^,]*,/, "") }); };
-        reader.onerror = function () { reject(new Error("couldn't read the picture")); };
+        reader.onerror = function () { reject(new Error("cannot read the picture")); };
         reader.readAsDataURL(file);
       });
     })).then(function (files) {
@@ -398,7 +398,7 @@
   function noteLine(space, tag) {
     if (!space.note) return null;
     var when = space.note_at ? ago(space.note_at) : "";
-    return el(tag || "div", { class: "small space-note", title: "The agent's note (hi dev note)" + (when ? ", " + when : ""), text: "“" + space.note + "”" + (when ? " · " + when : "") });
+    return el(tag || "div", { class: "small space-note", title: "Note from the agent (hi dev note)" + (when ? ", " + when : ""), text: "“" + space.note + "”" + (when ? " · " + when : "") });
   }
   function hookLine(agent) {
     var what = agent.status === "blocked" && agent.waiting ? "Waits for " + agent.waiting
@@ -442,7 +442,7 @@
     try { localStorage.setItem("hi-dev-agent", agent || "shell"); } catch (e) { /* private window */ }
     var ticket = starting;
     $("start-go").disabled = true;
-    $("start-go").textContent = "Creating the worktree…";
+    $("start-go").textContent = "Making the worktree…";
     api("POST", "start", { ticket: ticket.number, agent: agent }).then(function (answer) {
       $("start-dialog").close();
       toast((answer.warning ? answer.warning + " " : "") + "Started " + answer.branch + (agent ? " with " + agent : "") + ".");
@@ -464,7 +464,7 @@
     var name = "#" + ticket.number;
     if (space && space.path && space.checked && !space.ahead && !space.dirty && !space.out && !space.shipped) {
       // Nothing of its own in its workspace: it goes with the task.
-      ask("Close " + name + "? Its workspace has no work in it, so the workspace and its agent go too. A note for the task, if you like:", "why it's done (optional)").then(function (note) {
+      ask("Close " + name + "? Its workspace has no work, so hi also removes the workspace and its agent. You can add a note to the task:", "why it is done (optional)").then(function (note) {
         if (note === null) return;
         working("finish:" + space.id, api("POST", "finish", { workspace: space.id, discard: false })).then(function () {
           refresh();
@@ -475,7 +475,7 @@
     }
     if (space && space.path && space.checked && space.shipped && !space.ahead && !space.dirty) {
       // Its work is in dev: Finish, which closes the task too.
-      ask("Done with " + name + "? Its work is on the preview: its worktree, workspace, agent, and branch go, and the task closes.").then(function (answer) {
+      ask("Done with " + name + "? Its work is on the preview. hi removes its worktree, workspace, agent, and branch, and closes the task.").then(function (answer) {
         if (answer === null) return;
         working("finish:" + space.id, api("POST", "finish", { workspace: space.id, discard: false })).then(function (r) { toast(r.text); refresh(); refreshTickets(true); }).catch(function (error) { toast(error.message); });
       });
@@ -485,9 +485,9 @@
     if (space && space.ahead) left.push("work not on the preview yet");
     if (space && space.dirty) left.push("unsaved changes");
     var question = left.length
-      ? "Close " + name + "? Its workspace still has " + left.join(" and ") + "; they stay there, for Add to Preview or Discard in Workspaces. A note for the task, if you like:"
-      : "Close " + name + "? A note for the task, if you like:";
-    ask(question, "why it's done (optional)").then(function (note) {
+      ? "Close " + name + "? Its workspace still has " + left.join(" and ") + ". They stay in the workspace. Use Add to Preview or Discard in Workspaces. You can add a note to the task:"
+      : "Close " + name + "? You can add a note to the task:";
+    ask(question, "why it is done (optional)").then(function (note) {
       if (note === null) return;
       setTaskState(ticket, true, note);
     });
@@ -532,7 +532,7 @@
     button.addEventListener("click", function () {
       showing = button.dataset.show;
       document.querySelectorAll("#stask-show button").forEach(function (other) { other.setAttribute("aria-pressed", other === button ? "true" : "false"); });
-      $("stask-search").placeholder = showing === "closed" ? "Search the closed tasks" : "Search: words, #number, who filed it";
+      $("stask-search").placeholder = showing === "closed" ? "Search the closed tasks" : "Search by words, #number, or who made it";
       renderSideTasks();
       refreshTickets(false);
     });
@@ -544,7 +544,7 @@
     var list = $("workspaces");
     list.textContent = "";
     badge("spaces-count", workSpaces().length, " workspaces");
-    if (!workSpaces().length) list.appendChild(el("li", { class: "muted small", text: "No work yet. Start a task in Tasks, or + New in the chat." }));
+    if (!workSpaces().length) list.appendChild(el("li", { class: "muted small", text: "No work yet. Start a task in Tasks, or use + New in the chat." }));
     $("box").textContent = state.box === "running" ? "" : state.box;
     workSpaces().forEach(function (space) {
       // A piece of work, by its task's title: where it is on the way to
@@ -563,7 +563,7 @@
       if (stage.add) actions.push(addButton(space));
       if (stage.done) actions.push(finishButton(space, false));
       var more = [];
-      if (stage.add && space.ahead > 0) more.push({ text: "Preview only this change", pro: true, title: "Show only this change on the preview, without the rest of the next version; nothing is added", run: function () { previewOnly(space); } });
+      if (stage.add && space.ahead > 0) more.push({ text: "Preview only this change", pro: true, title: "Show only this change on the preview, without the rest of the next version. This adds nothing.", run: function () { previewOnly(space); } });
       if (space.path && space.checked && !stage.done) more.push({ text: "Discard…", danger: true, run: function () { finishButton(space, true).click(); } });
       if (more.length) actions.push(moreMenu(more));
       actions.push(editorSplit(space));
@@ -573,7 +573,7 @@
     // above is it: before any work, too.
     if (state.ssh && !workSpaces().some(function (space) { return !space.path; })) {
       list.appendChild(el("li", { class: "ticket" }, [statusDot("", null),
-        el("div", { class: "what" }, [el("div", { text: "The project's own clone" }), el("div", { class: "muted small", text: state.ssh.project })]),
+        el("div", { class: "what" }, [el("div", { text: "The main clone of the project" }), el("div", { class: "muted small", text: state.ssh.project })]),
         el("div", { class: "actions" }, [editorSplit(null)])]));
     }
     renderInbox();
@@ -638,13 +638,13 @@
     count.hidden = !items.length;
     count.textContent = items.length;
     count.classList.toggle("waits", waiting > 0);
-    $("inbox-btn").title = items.length ? (waiting ? waiting + " waiting for someone" : "") + (waiting && items.length > waiting ? ", " : "") + (items.length > waiting ? items.length - waiting + " done since you looked" : "") : "Needs you: agents that wait for someone, and work done since you looked";
+    $("inbox-btn").title = items.length ? (waiting ? waiting + " waiting for a person" : "") + (waiting && items.length > waiting ? ", " : "") + (items.length > waiting ? items.length - waiting + " finished since you last looked" : "") : "Needs you: agents that wait for a person, and work that finished since you last looked";
     if (navigator.setAppBadge) {
       try { (waiting ? navigator.setAppBadge(waiting) : navigator.clearAppBadge()).catch(function () {}); } catch (e) { /* not installed */ }
     }
     var list = $("inbox-list");
     list.textContent = "";
-    if (!items.length) list.appendChild(el("li", { class: "muted small inbox-empty", text: "Nothing waits for you. Agents that ask a question, for a permission or for a site, and work that's done, show here." }));
+    if (!items.length) list.appendChild(el("li", { class: "muted small inbox-empty", text: "Nothing waits for you. This list shows agents that ask a question, a permission, or a site. It also shows work that is done." }));
     items.forEach(function (item) {
       if (item.site) {
         list.appendChild(inboxSite(item));
@@ -672,7 +672,7 @@
         el("span", { class: "dot blocked" }),
         el("span", { class: "inbox-what" }, [el("strong", { text: ask.host }),
           el("span", { class: "small warn", text: "Asked" + (ask.work ? " for " + ask.work : "") + (ask.why ? ": " + ask.why : "") }),
-          el("span", { class: "muted small", text: "The dev box can't reach it until an owner allows it" })]),
+          el("span", { class: "muted small", text: "The dev box cannot reach it until an owner allows it" })]),
       ]),
       el("div", { class: "actions inbox-actions" }, [
         el("button", { class: "primary small", text: "Allow", onclick: function () { siteAct(ask.host, true); } }),
@@ -714,7 +714,7 @@
     button.hidden = !window.Notification;
     if (button.hidden) return;
     var permission = Notification.permission;
-    button.textContent = permission === "granted" ? "Notifications on" : permission === "denied" ? "Notifications blocked: how to allow" : "Notify me";
+    button.textContent = permission === "granted" ? "Notifications on" : permission === "denied" ? "Notifications blocked: how to allow them" : "Notify me";
   }
   // The browser asks once; after a Block, or in a private window, or where
   // it never lets sites ask, only its own settings allow them again.
@@ -732,11 +732,11 @@
     var help = $("inbox-help");
     var permission = window.Notification ? Notification.permission : "";
     if (permission === "granted") {
-      help.textContent = "This browser shows them while the page is open, also behind another window. To turn them off: the site's settings, by the address bar.";
+      help.textContent = "This browser shows notifications while the page is open, also behind another window. To stop them, open the site settings next to the address bar.";
     } else if (permission === "denied") {
-      help.textContent = "This browser blocks this site's notifications: it does in a private or incognito window, after a Block, and where it never lets sites ask. " +
-        "To allow them: in Chrome or Edge, the icon left of the address, then Notifications, Allow; in Firefox, the same icon, then the notifications' permission; " +
-        "in Safari, Settings, Websites, Notifications (and \"Allow websites to ask\"). Then reload the page.";
+      help.textContent = "This browser blocks notifications from this site. This occurs in a private window, after you click Block, or if the browser never lets sites ask. " +
+        "To allow them in Chrome or Edge, click the icon left of the address, then Notifications, Allow. In Firefox, click the same icon, then the notifications permission. " +
+        "In Safari, open Settings, Websites, Notifications (and \"Allow websites to ask\"). Then reload the page.";
     } else return;
     if (open) help.hidden = false;
   }
@@ -772,8 +772,8 @@
   // An owner's and a Pro Dev's: a Vibe Dev has no SSH, and no state.ssh.
   var editors = [
     { id: "vscode", name: "VS Code", scheme: "vscode", note: "with Microsoft's Remote - SSH extension" },
-    { id: "cursor", name: "Cursor", scheme: "cursor", note: "its Remote - SSH is built in" },
-    { id: "zed", name: "Zed", note: "remote projects are built in" },
+    { id: "cursor", name: "Cursor", scheme: "cursor", note: "has Remote - SSH built in" },
+    { id: "zed", name: "Zed", note: "has remote projects built in" },
     { id: "orca", name: "Orca", note: "agents and worktrees, with its own editor" },
   ];
   var editor = { space: null, leaving: 0 };
@@ -788,8 +788,8 @@
   }
   // editorBlocked says why no editor reaches the box yet, or "".
   function editorBlocked() {
-    if (!state.ssh.host) return "The dev box isn't on the app's NetBird network yet, so no editor reaches it. An admin of the machine puts it there: hi app dev " + state.team + " netbird";
-    if (!state.ssh_key) return "Your SSH key isn't in the dev box yet: add it once, below, and your editor signs in with it.";
+    if (!state.ssh.host) return "The dev box is not on the app's NetBird network yet, so no editor can reach it. An admin of the machine must run: hi app dev " + state.team + " netbird";
+    if (!state.ssh_key) return "Your SSH key is not in the dev box yet. Add it once, below. Then your editor signs in with it.";
     return "";
   }
   function keptEditor() {
@@ -800,7 +800,7 @@
   function keepEditor(e) {
     try { localStorage.setItem("hi-dev-editor", e.id); } catch (err) { /* private window */ }
   }
-  function spaceName(space) { return space && space.path ? space.branch || space.label : "the project's own clone"; }
+  function spaceName(space) { return space && space.path ? space.branch || space.label : "the main clone of the project"; }
   // editorAnchor is a link that opens the folder in e: the browser asks
   // the computer's editor to, and the page stays.
   function editorAnchor(e, space, text, cls) {
@@ -809,7 +809,7 @@
         editor.leaving = Date.now();
         keepEditor(e);
         if ($("editor-dialog").open) $("editor-dialog").close();
-        toast("Opening " + spaceName(space) + " in " + e.name + ". The browser may ask first; the first time, " + e.name + " asks whether to trust the dev box.");
+        toast("Opening " + spaceName(space) + " in " + e.name + ". The browser can ask you first. The first time, " + e.name + " asks if you trust the dev box.");
         renderEditorBar();
         renderWorkspaces();
       } });
@@ -822,7 +822,7 @@
     var direct = kept && !editorBlocked() && editorLink(kept, "/") ? kept : null;
     var more = el("button", { type: "button", class: direct ? "editor-more" : "", text: direct ? "▾" : "Editor ↗",
       "aria-label": direct ? "Open " + spaceName(space) + " in another editor" : null,
-      title: direct ? "Your other editors, and how to set one up" : "Open " + spaceName(space) + " in your own editor, over SSH",
+      title: direct ? "Other editors, and how to set one up" : "Open " + spaceName(space) + " in your own editor, over SSH",
       onclick: function () { editorDialog(space); } });
     return el("span", { class: "editor-split" }, [direct ? editorAnchor(direct, space, direct.name + " ↗", "button") : null, more]);
   }
@@ -838,7 +838,7 @@
   function editorDialog(space) {
     editor.space = space || null;
     var ssh = state.ssh, path = editorPath(space);
-    $("editor-where").textContent = (space && space.path ? space.branch || space.label : "The project's own clone") + ", in the dev box: " + path;
+    $("editor-where").textContent = (space && space.path ? space.branch || space.label : "The main clone of the project") + ", in the dev box: " + path;
     var blocked = editorBlocked();
     var ready = $("editor-ready");
     ready.hidden = !blocked;
@@ -861,7 +861,7 @@
       if (editorLink(e, path)) {
         body = blocked ? null : editorAnchor(e, space, "Open in " + e.name + " ↗", "button" + (kept && kept.id === e.id ? " primary" : ""));
       } else if (e.id === "orca") {
-        body = editorSteps("In Orca's Settings, SSH, Add Target: pick " + ssh.alias + " from your SSH config (Set up once, below), or type it in. Then add the project " + ssh.project + " on it. Each workspace here is one of its worktrees; Orca hides those it didn't make until you show them (Non-Orca worktrees, Show).", [["Host", host], ["User", ssh.user], ["Project", ssh.project]]);
+        body = editorSteps("In Orca, open Settings, SSH, Add Target. Pick " + ssh.alias + " from your SSH config (see Set up once, below), or type it. Then add the project " + ssh.project + " on it. Each workspace here is a worktree of the project. Orca hides worktrees that it did not make. To see them, click Non-Orca worktrees, Show.", [["Host", host], ["User", ssh.user], ["Project", ssh.project]]);
       }
       list.appendChild(el("li", {}, [head, body]));
     });
@@ -869,12 +869,12 @@
     generic.textContent = "";
     generic.appendChild(editorSteps("", editorSSHRows(path)));
     $("editor-host").textContent = host;
-    $("editor-key").textContent = state.ssh_key ? "Your SSH key is in the dev box: " + state.ssh_key + "." : "Your SSH key: paste your public key in Keys, SSH key (the .pub file, such as ~/.ssh/id_ed25519.pub).";
+    $("editor-key").textContent = state.ssh_key ? "Your SSH key is in the dev box: " + state.ssh_key + "." : "Your SSH key: paste your public key in Keys, SSH key. It is the .pub file, for example ~/.ssh/id_ed25519.pub.";
     $("editor-config").textContent = editorConfig();
     $("editor-config-copy").disabled = !ssh.host;
     var hostkey = $("editor-hostkey");
     hostkey.hidden = !ssh.host_key;
-    hostkey.textContent = ssh.host_key ? "The first time, your editor asks whether to trust the dev box: its key's fingerprint is " + ssh.host_key + " (ED25519). Say yes only to that one." : "";
+    hostkey.textContent = ssh.host_key ? "The first time, your editor asks if you trust the dev box. The fingerprint of its key is " + ssh.host_key + " (ED25519). Say yes only to this fingerprint." : "";
     $("editor-setup").open = !!blocked;
     if (!$("editor-dialog").open) $("editor-dialog").showModal();
   }
@@ -902,7 +902,7 @@
     return "Host " + ssh.alias + " " + host + "\n" +
       "  HostName " + host + "\n" +
       "  User " + ssh.user + "\n" +
-      "  # IdentityFile ~/.ssh/id_ed25519   your key, if ssh doesn't find it by itself\n";
+      "  # IdentityFile ~/.ssh/id_ed25519   your key, if ssh does not find it by itself\n";
   }
   function shellWord(text) { return /^[A-Za-z0-9_\/.,:@%+=-]+$/.test(text) ? text : "'" + text.replace(/'/g, "'\\''") + "'"; }
   $("editor-close").addEventListener("click", function () { $("editor-dialog").close(); });
@@ -920,7 +920,7 @@
     var what = s.preview_branch ? s.preview_branch : s.preview.replace(/^dev, /, "dev: ");
     var nodes = [link(what, s.preview_url)];
     if (s.preview_branch || s.preview_old) {
-      nodes.push(el("div", { class: "muted small", text: s.preview_branch ? "only this branch, not the next version" : "the next version as it was, before what was added since" }));
+      nodes.push(el("div", { class: "muted small", text: s.preview_branch ? "only this branch, not the next version" : "an earlier state of the next version, without the newest changes" }));
       nodes.push(showNext());
     }
     return el("div", { class: "preview-what" }, nodes);
@@ -1012,13 +1012,13 @@
   // workStage says where a workspace's work is, and its next step.
   function workStage(space) {
     if (!space.path || !space.checked) return { text: "" };
-    var unsaved = space.dirty ? "Unsaved changes: ask the agent to commit them" : "";
+    var unsaved = space.dirty ? "Changes not committed. Ask the agent to commit them." : "";
     if (space.out && !space.ahead) {
       // Taken out of the preview: its workspace keeps it, to add again.
       return { text: "Taken out of the preview" + (unsaved ? ". " + unsaved : ""), tone: "warn", add: true };
     }
     if (space.ahead > 0) {
-      var text = space.branch && space.branch === (state.status || {}).preview_branch ? "On the preview alone, not added yet" : "Not on the preview yet";
+      var text = space.branch && space.branch === (state.status || {}).preview_branch ? "Only this work is on the preview. It is not added yet." : "Not on the preview yet";
       return { text: text + (unsaved ? ". " + unsaved : ""), tone: "warn", add: true };
     }
     if (space.dirty) return { text: unsaved, tone: "warn" };
@@ -1034,7 +1034,7 @@
     // Taken out of the preview, it's no longer the next step: a plain Add
     // again, so it isn't pressed by mistake right after the swap.
     var again = space.out && !space.ahead;
-    return el("button", { class: again ? "" : "primary", text: again ? "Add again" : "Add to Preview", busy: "ship:" + space.id, title: again ? "Put it back on the preview, in the next version" : "Add it to the next version, on the preview, with what's there; Publish puts that in production", onclick: function () {
+    return el("button", { class: again ? "" : "primary", text: again ? "Add again" : "Add to Preview", busy: "ship:" + space.id, title: again ? "Put it back on the preview, in the next version" : "Add it to the next version on the preview, with the other changes. Publish sends the next version to production.", onclick: function () {
       addToPreview(space, "");
     } });
   }
@@ -1061,7 +1061,7 @@
       refresh();
       if (combine && data.conflict && space.agent) {
         return askToCombine(space, data).then(function () {
-          toast("“" + name + "” clashes with what's on the preview: " + agentName(space.agent) + " is combining them, and adds it when it's done.");
+          toast("“" + name + "” conflicts with the preview. " + agentName(space.agent) + " combines the changes, then adds them.");
           return "asked";
         }).catch(function () {
           stuck(space, error.message, data);
@@ -1093,9 +1093,9 @@
     var name = "“" + workName(space) + "”";
     var conflict = data.conflict;
     var withTitles = (data.with || []).map(function (c) { return "“" + c.title + "”"; });
-    $("stuck-title").textContent = name + " can't go on the preview yet";
+    $("stuck-title").textContent = name + " cannot go on the preview yet";
     var what = conflict
-      ? "It changes the same lines as " + (withTitles.length ? withTitles.join(" and ") + ", which " + (withTitles.length === 1 ? "is" : "are") + " on the preview already" : "what's on the preview already") + ", in " + conflict.files.join(", ") + "."
+      ? "It changes the same lines as " + (withTitles.length ? withTitles.join(" and ") + ", which " + (withTitles.length === 1 ? "is" : "are") + " on the preview already" : "work that is on the preview already") + ". The files: " + conflict.files.join(", ") + "."
       : message;
     $("stuck-what").textContent = what;
     stuckNow.what = "Adding " + name + " to the preview: " + what;
@@ -1105,12 +1105,12 @@
     var agent = conflict && space.agent ? agentName(space.agent) : "";
     $("stuck-agent").hidden = !agent;
     $("stuck-agent-title").textContent = "Ask " + agent + " to combine them";
-    $("stuck-agent-text").textContent = agent + " brings in what's on the preview, makes both changes work together (asking you when they can't), and adds it again.";
+    $("stuck-agent-text").textContent = agent + " gets the changes from the preview and makes both changes work together. If it cannot, it asks you. Then it adds the work again.";
     var last = conflict && data.last;
     $("stuck-replace").hidden = !last;
     if (last) {
       $("stuck-replace-title").textContent = "Take out “" + last.title + "” and add this one instead";
-      $("stuck-replace-text").textContent = "“" + last.title + "” leaves the preview; its workspace keeps it, to add again later.";
+      $("stuck-replace-text").textContent = "“" + last.title + "” leaves the preview. Its workspace keeps it, so you can add it again later.";
     }
     document.querySelectorAll("#stuck-options button").forEach(function (button) { button.disabled = false; });
     if (!$("stuck-dialog").open) $("stuck-dialog").showModal();
@@ -1133,7 +1133,7 @@
       $("stuck-dialog").close();
       if (chat.view !== "chat") setCodeView("chat");
       if (chat.space !== now.space.id) chooseChatSpace(now.space.id);
-      toast("Asked " + agentName(now.space.agent) + " to combine them: it says here when it's done.");
+      toast("Asked " + agentName(now.space.agent) + " to combine the changes. It tells you here when it is done.");
       setTimeout(pollChat, 800);
     }).catch(function (error) {
       stuckBusy(false);
@@ -1152,7 +1152,7 @@
     stuckSay("Asking in the app's channel…");
     api("POST", "help", { workspace: now.space.id, what: now.what, error: now.message }).then(function () {
       $("stuck-dialog").close();
-      toast("Asked the app's developers in its channel, with the details.");
+      toast("Asked the developers in the app's channel. hi sent the details.");
     }).catch(function (error) {
       stuckBusy(false);
       stuckSay(error.message, true);
@@ -1169,14 +1169,14 @@
       class: discard ? "danger" : "",
       text: discard ? "Discard…" : "Done ✓",
       busy: "finish:" + space.id,
-      title: discard ? "Remove it, without adding what isn't on the preview" : "Remove its worktree, workspace, and branch, and close its task",
+      title: discard ? "Remove the work. Work that is not on the preview is lost." : "Remove its worktree, workspace, and branch, and close its task",
       onclick: function () {
         var left = [];
-        if (space.ahead > 0 || space.out) left.push("what isn't on the preview");
-        if (space.dirty) left.push("its unsaved changes");
+        if (space.ahead > 0 || space.out) left.push("the work that is not on the preview");
+        if (space.dirty) left.push("its changes that are not committed");
         var question = discard
-          ? "Discard " + workName(space) + "? " + (left.length ? left.join(" and ") + " will be lost, and " : "") + "its worktree, workspace, agent, and branch go."
-          : "Done with " + workName(space) + "? Its work is on the preview. Its worktree, workspace, agent, and branch go, and its task closes.";
+          ? "Discard " + workName(space) + "? " + (left.length ? "You lose " + left.join(" and ") + ". " : "") + "hi removes its worktree, workspace, agent, and branch."
+          : "Done with " + workName(space) + "? Its work is on the preview. hi removes its worktree, workspace, agent, and branch, and closes its task.";
         act(question, "finish", { workspace: space.id, discard: discard }, function (r) { return r.text; }, "finish:" + space.id);
       },
     });
@@ -1243,7 +1243,7 @@
         return el("li", {}, [
           el("span", { class: "flow-name" }, [el("span", { text: workName(space) }), ticketOf(space) ? el("span", { class: "muted", text: " #" + ticketOf(space) }) : null,
             space.out && !space.ahead ? el("span", { class: "small muted flow-sub", text: "Taken out of the preview" }) : null,
-            space.dirty ? el("span", { class: "small warn flow-sub", text: "Unsaved changes: ask the agent to commit them" }) : null]),
+            space.dirty ? el("span", { class: "small warn flow-sub", text: "Changes not committed. Ask the agent to commit them." }) : null]),
           stage.add ? addButton(space) : null,
         ]);
       })), merge]);
@@ -1255,25 +1255,25 @@
       var alone = workSpaces().filter(function (space) { return space.branch === s.preview_branch; })[0];
       preview.push(el("div", { class: "flow-what" }, [document.createTextNode("Shows only "), el("strong", { text: alone ? workName(alone) : s.preview_branch }), document.createTextNode(", not the next version. "), showNext()]));
     } else if (s.preview_old) {
-      preview.push(el("div", { class: "flow-what" }, [document.createTextNode("Shows the next version as it was, before what was added since. "), showNext()]));
+      preview.push(el("div", { class: "flow-what" }, [document.createTextNode("Shows an earlier state of the next version, without the newest changes. "), showNext()]));
     } else if (!s.preview) {
       preview.push(el("div", { class: "muted small", text: "Nothing on it yet." }));
     }
     if (!s.preview_branch && !s.preview_old && s.preview) {
-      preview.push(el("div", { class: "flow-what", text: changes.length ? "The next version: v" + (s.production || 0) + " + " + plural(changes.length, "change", "changes") : s.production ? "The same as production (v" + s.production + "): nothing new" : "The first version" }));
+      preview.push(el("div", { class: "flow-what", text: changes.length ? "The next version: v" + (s.production || 0) + " + " + plural(changes.length, "change", "changes") : s.production ? "The same as production (v" + s.production + "). Nothing is new." : "The first version" }));
     }
     if (changes.length) preview.push(el("ul", { class: "flow-changes" }, changes.map(function (c) { return el("li", { text: c.title }); })));
     var next = (s.production || 0) + 1;
     if (releasing) {
       preview.push(el("div", { class: "flow-act" }, [
         el("button", { class: "primary busy", disabled: "", text: "Publishing v" + releasing + "…" }),
-        el("span", { class: "muted small", text: "A snapshot of production first, then v" + releasing + " in a new box: a minute or two." }),
+        el("span", { class: "muted small", text: "hi makes a snapshot of production. Then it starts v" + releasing + " in a new box. This takes 1 or 2 minutes." }),
       ]));
     } else if (changes.length || !s.production) {
-      var acts = [el("button", { class: "primary", text: "Publish v" + next, title: "The next version goes to production, with a snapshot first. Your click is the yes, logged with your name.", onclick: openRelease })];
+      var acts = [el("button", { class: "primary", text: "Publish v" + next, title: "Send the next version to production. hi makes a snapshot first. hi records your name as the person who approved it.", onclick: openRelease })];
       if (changes.length && s.production) {
         acts.push(el("button", { class: "link danger small owners-only", text: "Clear the preview (back to v" + s.production + ")", busy: "dev-reset", onclick: function () {
-          act("Clear the preview back to v" + s.production + "? What was added since leaves the next version (it stays in its history), and the preview shows production's code.", "dev/reset", {}, "The preview is back to production.", "dev-reset");
+          act("Clear the preview back to v" + s.production + "? The changes added since then leave the next version. Their history stays. The preview shows the code of production.", "dev/reset", {}, "The preview is back to production.", "dev-reset");
         } }));
       }
       preview.push(el("div", { class: "flow-act" }, acts));
@@ -1282,7 +1282,7 @@
 
     // 3. Production.
     step("flow-production", "Production", s.production_url || addr.production, [el("div", { class: "flow-what" }, [
-      el("span", { class: "tag live", text: s.production ? "v" + s.production : "nothing published yet" }), document.createTextNode(s.production ? " what everyone uses" : ""),
+      el("span", { class: "tag live", text: s.production ? "v" + s.production : "nothing published yet" }), document.createTextNode(s.production ? " the version that people use" : ""),
     ])]);
   }
   function waitingWork() {
@@ -1303,12 +1303,12 @@
     box.dataset.sig = sig;
     box.textContent = "";
     if (kind === "merge") {
-      box.appendChild(el("button", { class: "primary small flow-merge", busy: "merge-all", title: "Add " + (mergeable.length === 1 ? "it" : "each of them, one after another,") + " to the preview, then show the preview", onclick: function () {
+      box.appendChild(el("button", { class: "primary small flow-merge", busy: "merge-all", title: "Add " + (mergeable.length === 1 ? "this change" : "each change, one after another,") + " to the preview. Then show the preview.", onclick: function () {
         showPreviewSlot("preview");
         mergeAll(mergeable);
       } }, [mergeIcon(), el("span", { text: "Merge " + mergeable.length + (mergeable.length === 1 ? " change" : " changes") + " into preview" })]));
     } else if (kind === "publish") {
-      box.appendChild(el("button", { class: "primary small", text: "Publish v" + next, title: "The next version goes to production, with a snapshot first; then this shows production. Your click is the yes, logged with your name.", onclick: openRelease }));
+      box.appendChild(el("button", { class: "primary small", text: "Publish v" + next, title: "Send the next version to production. hi makes a snapshot first. Then this shows production. hi records your name as the person who approved it.", onclick: openRelease }));
     } else if (kind === "publishing") {
       box.appendChild(el("button", { class: "primary small busy", disabled: "", text: "Publishing v" + releasing + "…" }));
     }
@@ -1337,7 +1337,7 @@
       setTimeout(pollChat, 800);
       toast((added ? added + (added === 1 ? " change is" : " changes are") + " on the preview. " : "") +
         combining.map(function (space) { return agentName(space.agent) + " is combining “" + workName(space) + "”"; }).join("; ") +
-        " with what's there, and adds it when it's done.");
+        " with the preview. Then it adds the work.");
     }));
   }
   // mergeIcon is git's merge: two lines joining, an arrow down, to the
@@ -1353,7 +1353,7 @@
   }
   // showNext puts the next version back on the preview.
   function showNext() {
-    return el("button", { class: "small", text: "Show the next version", busy: "preview-dev", title: "Put the next version on the preview again; nothing is added or taken out", onclick: function () {
+    return el("button", { class: "small", text: "Show the next version", busy: "preview-dev", title: "Put the next version on the preview again. This adds or removes nothing.", onclick: function () {
       toast("Putting the next version on the preview…", true);
       act("", "preview-dev", {}, function (r) { return r.text; }, "preview-dev");
     } });
@@ -1374,10 +1374,10 @@
       ]);
       incidents.appendChild(el("li", { class: "ticket" }, [el("span", { class: "dot blocked" }), what, el("div", { class: "actions owners-only" }, [
         el("button", { text: preview ? "Restart the preview" : "Restart production", busy: "incident:" + incident.id, onclick: function () {
-          act("Give " + (preview ? "the preview" : "production") + "'s app a new box?", "incident", { id: incident.id, action: "restart", preview: preview }, "Restarted.", "incident:" + incident.id);
+          act("Start " + (preview ? "the preview" : "production") + " again in a new box?", "incident", { id: incident.id, action: "restart", preview: preview }, "Restarted.", "incident:" + incident.id);
         } }),
         el("button", { text: "Close", busy: "incident:" + incident.id, onclick: function () {
-          ask("Close " + incident.id + "? What resolved it?", "what resolved it").then(function (because) {
+          ask("Close " + incident.id + "? What fixed it?", "what fixed it").then(function (because) {
             if (because === null) return;
             act("", "incident", { id: incident.id, action: "close", because: because }, incident.id + " is closed.", "incident:" + incident.id);
           });
@@ -1395,11 +1395,11 @@
         actions.push(el("span", { class: "muted small", text: "in production" }));
       } else {
         actions.push(el("button", { class: "owners-only", text: "Roll back to v" + release.version, busy: "rollback:" + release.version, onclick: function () {
-          act("Put production back on v" + release.version + "'s code? Its data stays as it is; hi snapshots it first.", "rollback", { version: release.version }, function (r) { return "Production runs v" + r.release.version + " now."; }, "rollback:" + release.version);
+          act("Put production back to the code of v" + release.version + "? The data does not change. hi makes a snapshot first.", "rollback", { version: release.version }, function (r) { return "Production runs v" + r.release.version + " now."; }, "rollback:" + release.version);
         } }));
         if (release.data) {
           actions.push(el("button", { class: "danger owners-only", text: "…and its data", busy: "rollback:" + release.version, onclick: function () {
-            act("Put production back on v" + release.version + ", code and data? What was entered since v" + release.version + " left is lost from production (hi snapshots it first).", "rollback", { version: release.version, data: true }, function (r) { return "Production runs v" + r.release.version + ", with its data, now."; }, "rollback:" + release.version);
+            act("Put production back to v" + release.version + ", code and data? Production loses all data that people added after v" + release.version + ". hi makes a snapshot first.", "rollback", { version: release.version, data: true }, function (r) { return "Production runs v" + r.release.version + ", with its data, now."; }, "rollback:" + release.version);
           } }));
         }
       }
@@ -1423,13 +1423,13 @@
     var names = { production: "Production", preview: "Preview", dev: "This page" };
     (state.addresses || []).forEach(function (a) {
       var lines = [el("div", { class: "where-head" }, [el("strong", { text: names[a.address] }), link(a.internal.replace(/^http:\/\//, "").replace(/\/$/, ""), a.internal)])];
-      if (!a.joined) lines.push(el("div", { class: "small warn", text: "The app's NetBird peer hasn't joined: hi app dev " + state.team + " netbird <a setup key>, on the machine" }));
+      if (!a.joined) lines.push(el("div", { class: "small warn", text: "The NetBird peer of the app is not connected. An admin runs on the machine: hi app dev " + state.team + " netbird <a setup key>" }));
       if (a.public) {
-        var parts = [document.createTextNode(a.link ? "Public too: " : "Public too, but it has no public address right now")];
+        var parts = [document.createTextNode(a.link ? "Public too: " : "Public too, but it has no public address now")];
         if (a.link) parts.push(link(a.link.replace(/^https:\/\//, "").split("/")[0], a.link));
         var notes = [];
         if (a.domain) notes.push("name " + a.domain);
-        notes.push(a.allow_ips ? "only from " + a.allow_ips : "from anywhere, with the link's key");
+        notes.push(a.allow_ips ? "only from " + a.allow_ips : "from anywhere, with the key in the link");
         lines.push(el("div", { class: "small warn" }, parts));
         lines.push(el("div", { class: "muted small", text: notes.join(" · ") + " (hi app domain, hi app allow-ip on the machine)" }));
       } else {
@@ -1437,10 +1437,10 @@
       }
       var button = a.public
         ? el("button", { class: "small owners-only", text: "Internal only", busy: "public:" + a.address, onclick: function () {
-            act("Make " + names[a.address].toLowerCase() + " internal only? Its public address ends: people reach it on the app's NetBird network, at " + a.internal, "public", { address: a.address, on: false }, names[a.address] + " is internal only.", "public:" + a.address);
+            act("Make " + names[a.address].toLowerCase() + " internal only? Its public address stops. People reach it on the app's NetBird network, at " + a.internal, "public", { address: a.address, on: false }, names[a.address] + " is internal only.", "public:" + a.address);
           } })
         : el("button", { class: "small danger owners-only", text: "Make public", busy: "public:" + a.address, onclick: function () {
-            act("Make " + names[a.address].toLowerCase() + " public too? It gets an address on the internet through NetBird, which anyone with its link can open" + (a.address === "dev" ? ", and this page builds and publishes the app." : "."), "public", { address: a.address, on: true }, names[a.address] + " is public too.", "public:" + a.address);
+            act("Make " + names[a.address].toLowerCase() + " public too? It gets an address on the internet through NetBird. Anyone with its link can open it." + (a.address === "dev" ? " This page can build and publish the app." : ""), "public", { address: a.address, on: true }, names[a.address] + " is public too.", "public:" + a.address);
           } });
       addresses.appendChild(el("li", { class: "where-row " + a.address }, [el("div", { class: "what" }, lines), el("div", { class: "actions" }, [button])]));
     });
@@ -1468,7 +1468,7 @@
   // of the work that asked; in Keys, Sites, what the owners allowed and what
   // the box was refused lately.
   function siteAct(host, allow) {
-    act("", "site", { host: host, allow: allow }, allow ? "The dev box reaches " + host + " now." : "Said no to " + host + ".");
+    act("", "site", { host: host, allow: allow }, allow ? "The dev box reaches " + host + " now." : "You said no to " + host + ".");
   }
   function renderSites() {
     var access = state.access || {};
@@ -1492,10 +1492,10 @@
         // hi's check allowed it, for seven days unless an owner keeps it.
         var left = Math.max(0, Math.ceil((new Date(site.check.until) - Date.now()) / 86400000));
         list.appendChild(el("li", {}, [
-          el("div", { class: "what" }, [el("code", { text: site.host }), el("div", { class: "muted small", text: "Allowed by hi's check, " + left + (left === 1 ? " day" : " days") + " left: " + site.check.found + (site.why ? " · " + site.why : "") })]),
+          el("div", { class: "what" }, [el("code", { text: site.host }), el("div", { class: "muted small", text: "The check of hi allowed it. " + left + (left === 1 ? " day" : " days") + " left. Found: " + site.check.found + (site.why ? " · " + site.why : "") })]),
           el("div", { class: "actions owners-only" }, [
             el("button", { text: "Keep", onclick: function () { act("", "site", { host: site.host, keep: true }, "The dev box keeps " + site.host + "."); } }),
-            el("button", { text: "Undo", onclick: function () { act("Take " + site.host + " off, and say no to it?", "site", { host: site.host, undo: true }, "The dev box doesn't reach " + site.host + " any more."); } }),
+            el("button", { text: "Undo", onclick: function () { act("Remove " + site.host + " and say no to it?", "site", { host: site.host, undo: true }, "The dev box cannot reach " + site.host + " now."); } }),
           ]),
         ]));
         return;
@@ -1503,13 +1503,13 @@
       list.appendChild(el("li", {}, [
         el("div", { class: "what" }, [el("code", { text: site.host }), el("div", { class: "muted small", text: ["Allowed", site.by ? "by " + site.by : "", site.why ? "· " + site.why : ""].filter(Boolean).join(" ") })]),
         el("div", { class: "actions owners-only" }, [el("button", { text: "Remove", onclick: function () {
-          act("Stop the dev box reaching " + site.host + "?", "site", { host: site.host, remove: true }, "The dev box doesn't reach " + site.host + " any more.");
+          act("Stop the dev box from reaching " + site.host + "?", "site", { host: site.host, remove: true }, "The dev box cannot reach " + site.host + " now.");
         } })]),
       ]));
     });
     (access.refused || []).forEach(function (refused) {
       list.appendChild(el("li", {}, [
-        el("div", { class: "what" }, [el("code", { text: refused.host }), el("div", { class: "muted small", text: "Refused " + refused.times + (refused.times === 1 ? " time" : " times") + ", last " + when(refused.last) + "; nobody asked for it" })]),
+        el("div", { class: "what" }, [el("code", { text: refused.host }), el("div", { class: "muted small", text: "Refused " + refused.times + (refused.times === 1 ? " time" : " times") + ", last " + when(refused.last) + ". Nobody asked for it." })]),
         el("div", { class: "actions owners-only" }, [
           el("button", { text: "Allow", onclick: function () { act("Let the dev box reach " + refused.host + "? No agent asked for it.", "site", { host: refused.host, allow: true }, "The dev box reaches " + refused.host + " now."); } }),
           el("button", { text: "Dismiss", onclick: function () { siteAct(refused.host, false); } }),
@@ -1545,9 +1545,9 @@
         el("button", { type: "button", class: "primary", text: "Allow", onclick: function () { decide(true); } }),
         el("button", { type: "button", text: "Say no", onclick: function () { decide(false); } }),
         el("span", { class: "grow" }),
-        el("span", { class: "muted small", text: "The site and its subdomains, from now on; Keys, Sites, lists them." }),
+        el("span", { class: "muted small", text: "Allows the site and its subdomains from now on. Keys, Sites shows the list." }),
       ]));
-      card.appendChild(el("p", { class: "developers-only muted small", text: "An owner allows sites for the dev box; they see this ask in Keys, Sites, and the channel hears of it." }));
+      card.appendChild(el("p", { class: "developers-only muted small", text: "An owner allows sites for the dev box. Owners see this request in Keys, Sites. The channel also gets a message." }));
       box.appendChild(card);
     });
     if (fresh) $("chat-log").scrollTop = $("chat-log").scrollHeight;
@@ -1606,12 +1606,12 @@
         facts.appendChild(el("dd", { text: value }));
       }
       if (folder.slot === "preview" && folder.fork) {
-        fact("A copy of", "production's" + (folder.fork.version ? " v" + folder.fork.version : "") + ", " + stamp(folder.fork.at) + " (" + dataSize(folder.fork.bytes) + ")");
-        fact("Written since", folder.files ? dataSize(folder.bytes) + " in " + folder.files + " file" + (folder.files === 1 ? "" : "s") : "nothing");
+        fact("A copy of", "production" + (folder.fork.version ? " v" + folder.fork.version : "") + ", " + stamp(folder.fork.at) + " (" + dataSize(folder.fork.bytes) + ")");
+        fact("Added since", folder.files ? dataSize(folder.bytes) + " in " + folder.files + " file" + (folder.files === 1 ? "" : "s") : "nothing");
       } else {
         fact("Holds", folder.files ? dataSize(folder.bytes) + " in " + folder.files + " file" + (folder.files === 1 ? "" : "s") : "nothing yet");
       }
-      if (folder.changed) fact("Last written", ago(folder.changed) || stamp(folder.changed));
+      if (folder.changed) fact("Last change", ago(folder.changed) || stamp(folder.changed));
       fact("The app", folder.running ? "running" : "not running");
       if (folder.slot === "preview") $("data-empty").checked = !!folder.empty;
     });
@@ -1630,28 +1630,28 @@
   function dataAct(question, path, body, done) {
     (question ? ask(question) : Promise.resolve("")).then(function (answer) {
       if (answer === null) return;
-      toast("Working on it…");
+      toast("Working…");
       api("POST", path, body).then(function () { toast(done); refresh(); refreshData(); })
         .catch(function (error) { toast(error.message); refreshData(); });
     });
   }
   $("data-fork").addEventListener("click", function () {
-    dataAct("Give the preview a fresh copy of production's data? What the preview wrote itself is kept once, apart; production pauses for a moment, and the preview restarts on the copy.", "data/copy", { to: "preview" }, "The preview has a fresh copy of production's data.");
+    dataAct("Give the preview a new copy of the data in production? hi keeps one copy of the data the preview made. Production stops for a moment. The preview starts again on the new copy.", "data/copy", { to: "preview" }, "The preview has a new copy of the data in production.");
   });
   $("data-copy").addEventListener("click", function () {
     // A preview on a fork has production's data from then, not data of its
     // own: say so, or the copy looks like it brings what Stage gathered.
     var fork = previewFolder && previewFolder.fork;
     var question = fork
-      ? "The preview runs on a copy of production's data" + (fork.version ? " (v" + fork.version + ")" : "") + " from " + stamp(fork.at) + ", not on data of its own: copying it gives production that copy back, with what was tried on the preview since (" + (previewFolder.files ? dataSize(previewFolder.bytes) : "nothing") + "). Replace production's data with it? hi snapshots production's data first, and production restarts on the copy."
-      : "Replace production's data with a copy of the preview's? hi snapshots production's data first, and production restarts on the copy.";
-    dataAct(question, "data/copy", {}, "Production has Stage's data now.");
+      ? "The preview uses a copy of the data in production" + (fork.version ? " (v" + fork.version + ")" : "") + " from " + stamp(fork.at) + ". It has no data of its own. If you copy it, production gets that copy back, plus the changes made in the preview since then (" + (previewFolder.files ? dataSize(previewFolder.bytes) : "nothing") + "). Replace the data in production with it? hi makes a snapshot of production first. Then production starts again on the copy."
+      : "Replace the data in production with a copy of the preview data? hi makes a snapshot of production first. Then production starts again on the copy.";
+    dataAct(question, "data/copy", {}, "Production has the preview data now.");
   });
   $("data-snapshot").addEventListener("click", function () {
-    dataAct("", "data/snapshot", {}, "The snapshot is taken.");
+    dataAct("", "data/snapshot", {}, "hi made the snapshot.");
   });
   $("data-empty").addEventListener("change", function (event) {
-    dataAct("", "data/preview", { empty: event.target.checked }, event.target.checked ? "The preview starts empty at each publish." : "The preview starts on a copy of production's data at each publish.");
+    dataAct("", "data/preview", { empty: event.target.checked }, event.target.checked ? "The preview starts empty at each publish." : "The preview starts on a copy of the data in production at each publish.");
   });
   ["preview", "production"].forEach(function (slot) {
     $("helper-" + slot).addEventListener("change", function (event) {
@@ -1661,7 +1661,7 @@
   });
   $("rule-form").addEventListener("submit", function (event) {
     event.preventDefault();
-    act("", "rule", { job: $("rule-job").value.trim(), rule: $("rule-text").value.trim() }, "The lead follows it from now on.");
+    act("", "rule", { job: $("rule-job").value.trim(), rule: $("rule-text").value.trim() }, "The lead uses this rule from now on.");
     $("rule-text").value = "";
   });
 
@@ -1702,11 +1702,11 @@
   function settingFile() {
     var file = $("setting-file").files[0];
     if (!file) return Promise.resolve("");
-    if (file.size > 32 << 10) return Promise.reject(new Error(file.name + " is larger than 32 KB; a file setting is for a certificate or a key"));
+    if (file.size > 32 << 10) return Promise.reject(new Error(file.name + " is larger than 32 KB. Use a file only for a certificate or a key."));
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
       reader.onload = function () { resolve(String(reader.result).replace(/^[^,]*,/, "")); };
-      reader.onerror = function () { reject(new Error("couldn't read " + file.name)); };
+      reader.onerror = function () { reject(new Error("cannot read " + file.name)); };
       reader.readAsDataURL(file);
     });
   }
@@ -1724,7 +1724,7 @@
         $("setting-file").value = "";
         $("setting-from").value = "";
         settingInputs();
-        toast(shared ? key + " uses the shared key " + shared + "." : file ? key + " is saved. The app finds the file at $" + key + "." : key + " is saved.");
+        toast(shared ? key + " uses the shared key " + shared + "." : file ? key + " is saved. The path to the file is in $" + key + "." : key + " is saved.");
         refresh();
       });
     }).catch(function (error) { toast(error.message); });
@@ -1735,7 +1735,7 @@
   // person's own: Vibe mode or Pro mode (viewMode, below).
   function developer() { return !!state && state.level === "developer"; }
   function renderSSHKey() {
-    $("sshkey-now").textContent = state.ssh_key ? "Now: " + state.ssh_key + ". A new one replaces it." : "You have no key in the dev box yet.";
+    $("sshkey-now").textContent = state.ssh_key ? "Your key now: " + state.ssh_key + ". A new key replaces it." : "You have no key in the dev box yet.";
     var connect = $("sshkey-connect");
     connect.hidden = !state.ssh;
     if (!state.ssh) return;
@@ -1743,7 +1743,7 @@
     var line = state.ssh.host ? "ssh " + editorTarget() : "";
     connect.appendChild(line ? el("div", { class: "editor-facts" }, [el("code", { text: line }),
       el("button", { type: "button", class: "small link", text: "Copy", "aria-label": "Copy the ssh command", onclick: function () { copyText(line); } })])
-      : el("span", { class: "muted", text: "The dev box isn't on the app's NetBird network yet: an admin of the machine runs hi app dev " + state.team + " netbird" }));
+      : el("span", { class: "muted", text: "The dev box is not on the app's NetBird network yet. An admin of the machine must run hi app dev " + state.team + " netbird" }));
   }
   $("sshkey-form").addEventListener("submit", function (event) {
     event.preventDefault();
@@ -1762,12 +1762,12 @@
   var people = null;
   function setLevel(person, level, row) {
     var question = "";
-    var data = $("people-warn").hidden ? "" : " The preview runs on a copy of production's data, which they can read through the preview.";
+    var data = $("people-warn").hidden ? "" : " The preview uses a copy of the data in production. They can read that data in the preview.";
     var words = { owner: "an owner", developer: "a developer", contributor: "a contributor" };
-    if (level === "developer") question = "Make " + person.name + " a developer? They work in the dev box as you do, with Chat, terminal, and SSH, and publish, except rollbacks, production's data and settings, keys, sites, addresses, and who is who. Their dev page starts in Vibe mode; Pro mode is a click away." + data;
-    else if (level === "none") question = "Take away " + person.name + "'s level? They can't report, the lead won't take their requests, and their links end.";
-    else if (person.level === "developer") question = "Make " + person.name + " " + words[level] + "? Their dev page link and SSH key end, and an open terminal closes.";
-    (question ? ask(question + " The channel hears it.") : Promise.resolve("")).then(function (answer) {
+    if (level === "developer") question = "Make " + person.name + " a developer? They can use Chat, the terminal, and SSH in the dev box, and publish. They cannot roll back. They cannot change the data or Env variables of production, the keys, the sites, the addresses, or the users. Their dev page starts in Vibe mode. Pro mode is one click away." + data;
+    else if (level === "none") question = "Remove the level of " + person.name + "? They cannot report bugs. The lead does not take their requests. Their links stop working.";
+    else if (person.level === "developer") question = "Make " + person.name + " " + words[level] + "? Their dev page link and SSH key stop working. An open terminal closes.";
+    (question ? ask(question + " The channel gets a message.") : Promise.resolve("")).then(function (answer) {
       if (answer === null) { renderPeople(people); return; }
       row.classList.add("busy");
       api("POST", "people", { user: person.id, level: level }).then(function (result) {
@@ -1821,7 +1821,7 @@
     var done = publishedWork();
     $("release-clean-box").hidden = !done.length;
     $("release-clean").checked = true;
-    $("release-clean-text").textContent = "Then close " + done.map(function (space) { return workName(space); }).join(", ") + ": " + (done.length === 1 ? "its task, and remove its workspace" : "their tasks, and remove their workspaces");
+    $("release-clean-text").textContent = "Then close the " + (done.length === 1 ? "task" : "tasks") + " of " + done.map(function (space) { return workName(space); }).join(", ") + ", and remove " + (done.length === 1 ? "its workspace" : "their workspaces");
     $("release-dialog").showModal();
   }
   function publishedWork() {
@@ -1843,14 +1843,14 @@
     releasing = ((state.status || {}).production || 0) + 1;
     $("release-dialog").close();
     $("release-error").textContent = "";
-    toast("Publishing v" + releasing + ": a snapshot of production first, then the new box…", true);
+    toast("Publishing v" + releasing + ". hi makes a snapshot of production, then starts the new box…", true);
     if (state.status) renderOwnerActions();
     renderPreviewAct();
     var clean = !$("release-clean-box").hidden && $("release-clean").checked ? publishedWork() : [];
     api("POST", "release", { notes: $("release-notes").value, preview_data: $("release-data").checked }).then(function (result) {
       releasing = 0;
       showPreviewSlot("production");
-      toast("Production runs v" + result.release.version + " now." + (result.warning ? " " + result.warning : "") + (clean.length ? " Closing " + clean.length + (clean.length === 1 ? " finished piece of work…" : " finished pieces of work…") : ""));
+      toast("Production runs v" + result.release.version + " now." + (result.warning ? " " + result.warning : "") + (clean.length ? " Closing " + clean.length + (clean.length === 1 ? " finished workspace…" : " finished workspaces…") : ""));
       if (clean.length) cleanUp(clean); else refresh();
     }).catch(function (error) {
       // Back in the dialog, with the notes as they were.
@@ -1929,8 +1929,8 @@
     var query = [fresh ? "fresh=1" : "", showing !== "open" ? "closed=1" : ""].filter(Boolean).join("&");
     return api("GET", "tickets" + (query ? "?" + query : "")).then(function (data) {
       tickets = data;
-      $("tickets-where").textContent = tickets.forge === "hi" ? "hi's own tasks" : "Issues in " + (tickets.where || tickets.forge);
-      $("tickets-where").title = tickets.forge === "hi" ? "hi's own tasks, in the app's folder" : "";
+      $("tickets-where").textContent = tickets.forge === "hi" ? "Tasks in hi" : "Issues in " + (tickets.where || tickets.forge);
+      $("tickets-where").title = tickets.forge === "hi" ? "hi keeps these tasks in the folder of the app" : "";
       if (viewShown("tasks")) renderSideTasks(); else renderTaskBadge();
       if (state) { renderWorkspaces(); spaceLabel(); if (state.status) renderFlow(); } // the work's names are its tasks' titles
     }).catch(function (error) { $("tickets-where").textContent = error.message; });
@@ -1987,8 +1987,8 @@
     });
     var button = $("mode-btn");
     button.innerHTML = MODE_ICONS.vibe;
-    button.title = (viewMode.mode === "vibe" ? "Vibe mode: the chat, your work, the preview, publishing." : "Pro mode: everything.") + " Change it here.";
-    button.setAttribute("aria-label", viewMode.mode === "vibe" ? "Vibe mode; change it" : "Pro mode; change it");
+    button.title = (viewMode.mode === "vibe" ? "Vibe mode: the chat, your work, the preview, and publish." : "Pro mode: all of the page.") + " Click to change it.";
+    button.setAttribute("aria-label", viewMode.mode === "vibe" ? "Vibe mode. Click to change it." : "Pro mode. Click to change it.");
     if (modeHides("terminal") && chat.view === "terminal") setCodeView("chat");
     renderSide();
     sideShown();
@@ -2009,8 +2009,8 @@
   function drawModeMenu() {
     var menu = $("mode-menu");
     menu.textContent = "";
-    menu.appendChild(el("div", { class: "theme-head", text: "How much shows" }));
-    [["vibe", "Vibe", "The chat, your work, the preview, publishing"], ["pro", "Pro", "Everything: files, source control, logs, checks…"]].forEach(function (m) {
+    menu.appendChild(el("div", { class: "theme-head", text: "How much of the page you see" }));
+    [["vibe", "Vibe", "The chat, your work, the preview, and publish"], ["pro", "Pro", "All of the page: files, source control, logs, checks…"]].forEach(function (m) {
       var on = viewMode.mode === m[0];
       var icon = el("span", { class: "mode-icon", "aria-hidden": "true" });
       icon.innerHTML = MODE_ICONS[m[0]];
@@ -2071,7 +2071,7 @@
       });
       box.appendChild(el("fieldset", { class: "mode-group" }, [el("legend", { text: part.group }), list]));
     });
-    box.appendChild(el("p", { class: "muted small", text: "Chat is always there." }));
+    box.appendChild(el("p", { class: "muted small", text: "The chat always shows." }));
     if (!$("mode-dialog").open) $("mode-dialog").showModal();
   }
   $("mode-done").addEventListener("click", function () { $("mode-dialog").close(); });
@@ -2115,7 +2115,7 @@
       });
     });
     document.body.classList.toggle("layout-one", !!one);
-    var everything = "The panel: tasks, workspaces, rewind, preview, publish, and the rest";
+    var everything = "The panel: tasks, workspaces, rewind, preview, publish, and all other views";
     $("side-toggle").title = one === "right" ? everything : "Rewind, source control, logs, preview, publish, data, and system";
     $("left-toggle").title = one === "left" ? everything : "Tasks, workspaces, files, search, checks, decisions, users, and keys";
   }
@@ -2152,9 +2152,9 @@
     var menu = $("layout-menu");
     menu.textContent = "";
     menu.appendChild(el("div", { class: "theme-head", text: "Panels" }));
-    [["three", "Three panels", "Tasks and workspaces on the left, the chat, the rest on the right"],
-     ["two", "Chat left, panel right", "The chat on the left, one panel with every view on the right"],
-     ["two-left", "Panel left, chat right", "One panel with every view on the left, the chat on the right"]].forEach(function (l) {
+    [["three", "Three panels", "Tasks and workspaces on the left, the chat in the middle, other views on the right"],
+     ["two", "Chat left, panel right", "The chat on the left, one panel with all views on the right"],
+     ["two-left", "Panel left, chat right", "One panel with all views on the left, the chat on the right"]].forEach(function (l) {
       var on = layout === l[0];
       var icon = el("span", { class: "mode-icon", "aria-hidden": "true" });
       icon.innerHTML = LAYOUT_ICONS[l[0]];
@@ -2440,7 +2440,7 @@
           return new Promise(function (resolve, reject) {
             var reader = new FileReader();
             reader.onload = function () { resolve({ name: file.name, data: String(reader.result).split(",")[1] || "" }); };
-            reader.onerror = function () { reject(new Error("couldn't read " + file.name)); };
+            reader.onerror = function () { reject(new Error("cannot read " + file.name)); };
             reader.readAsDataURL(file);
           });
         }));
@@ -2482,16 +2482,16 @@
     if ($("adhoc-go").disabled) return;
     var agent = $("adhoc-agent").value || "claude";
     var text = adhoc.value();
-    if (!text) { $("adhoc-error").textContent = "Say what to do."; $("adhoc-text").focus(); return; }
+    if (!text) { $("adhoc-error").textContent = "Write what to do."; $("adhoc-text").focus(); return; }
     $("adhoc-go").disabled = true;
-    $("adhoc-status").textContent = "Creating the worktree…";
+    $("adhoc-status").textContent = "Making the worktree…";
     $("adhoc-error").textContent = "";
     adhoc.read().then(function (files) {
       return api("POST", "start-new", { text: text, agent: agent, files: files });
     }).then(function (answer) {
       chat.composing = false;
       adhoc.clear();
-      toast((answer.warning ? answer.warning + " " : "") + "Filed task #" + answer.ticket + " and started " + answer.branch + " with " + agent + ".");
+      toast((answer.warning ? answer.warning + " " : "") + "Made task #" + answer.ticket + " and started " + answer.branch + " with " + agent + ".");
       refreshTickets(true);
       return refresh().then(function () {
         if (answer.workspace) chooseChatSpace(answer.workspace);
@@ -2641,7 +2641,7 @@
     $("chat-stopped").hidden = !stopped && !view.note;
     chat.sessionAgent = view.session_agent || "claude";
     var said = agentName(agent.running ? agent.agent : chat.sessionAgent);
-    $("chat-stopped-why").textContent = view.note || said + " isn't running in this workspace.";
+    $("chat-stopped-why").textContent = view.note || said + " is not running in this workspace.";
     $("chat-input").placeholder = "Message " + (agent.running ? agentName(agent.agent) : said) + "… Paste or drop pictures and files";
     $("chat-resume").hidden = !(stopped && view.id && !view.note);
     $("chat-input").disabled = stopped || !!view.note;
@@ -2669,7 +2669,7 @@
   }
   function fillPick(select, options, current, empty, label, busy) {
     select.disabled = busy;
-    select.title = busy ? "Claude is busy: pick it when it's done" : select.getAttribute("aria-label") === "The model" ? "The model Claude answers with, from the next message" : "How hard Claude thinks, from the next message";
+    select.title = busy ? "Claude is busy. Change this when Claude is done." : select.getAttribute("aria-label") === "The model" ? "The model that Claude uses, from the next message" : "How much Claude thinks, from the next message";
     if (document.activeElement === select) return;
     var key = current + "|" + options.map(function (o) { return label ? label(o[0], o[1]) : o[1]; }).join(",");
     if (select.dataset.key === key) return;
@@ -2730,7 +2730,7 @@
       node.remove();
     } });
     node.appendChild(el("div", { class: "lost-note" }, [
-      document.createTextNode(agentName(agent.agent) + " didn't take this message. Terminal shows what it's on. "),
+      document.createTextNode(agentName(agent.agent) + " did not get this message. The terminal shows what it does now. "),
       sent.text ? put : null,
     ]));
   }
@@ -2787,9 +2787,9 @@
     var usable = agent.running && agent.agent === "claude";
     list.textContent = "";
     empty.hidden = usable && rewind.points.length > 0;
-    empty.textContent = agent.running && agent.agent !== "claude" ? "Rewind is Claude Code's: " + agent.agent + " keeps no checkpoints of the code."
-      : !usable ? "Rewind works while Claude Code runs in this workspace: each message you send is a point to go back to."
-      : "Nothing to go back to yet: each message you send is a point here.";
+    empty.textContent = agent.running && agent.agent !== "claude" ? "Rewind works only with Claude Code. " + agent.agent + " keeps no checkpoints of the code."
+      : !usable ? "Rewind works while Claude Code runs in this workspace. You can go back to before each message you send."
+      : "Nothing to go back to yet. Each message you send adds a point here.";
     if (!empty.hidden) return;
     var busy = agent.status === "working" || agent.status === "blocked";
     rewind.points.forEach(function (point) { list.appendChild(pointItem(point, busy)); });
@@ -2802,7 +2802,7 @@
     meta.push(el("span", { class: "rp-sep", text: " · " }));
     meta = meta.concat(changes.length ? changeLine(changes) : [el("span", { text: "No code changes" })]);
     var card = el("button", { type: "button", class: "rp-card", "aria-expanded": String(open),
-      title: changes.length ? "After it: " + changeWords(changes) : "No code changes after it",
+      title: changes.length ? "Changes after this message: " + changeWords(changes) : "No code changes after this message",
       onclick: function () {
         rewind.open = open ? "" : point.uuid;
         renderPoints();
@@ -2817,9 +2817,9 @@
       actions.appendChild(el("button", attrs));
     });
     item.appendChild(actions);
-    item.appendChild(el("p", { class: "rp-note", text: busy ? "Claude is at work: Stop it first, then rewind."
-      : !point.code ? "Claude Code has no checkpoint of the code here, so only the chat goes back."
-      : "Back to before this message: the chat, the code Claude edited, or both." }));
+    item.appendChild(el("p", { class: "rp-note", text: busy ? "Claude is working. Stop it first, then rewind."
+      : !point.code ? "Claude Code has no checkpoint of the code here. Only the chat goes back."
+      : "Go back to before this message. Pick the chat, the code that Claude changed, or both." }));
     return item;
   }
   // showMessage scrolls the chat to a message the timeline names.
@@ -2833,10 +2833,10 @@
   function rewindTo(point, mode) {
     var restore = point.restore || [];
     var words = "Rewind to before “" + (point.text.length > 90 ? point.text.slice(0, 90) + "…" : point.text) + "”?";
-    if (mode !== "code") words += " This message and everything after it leave the conversation; the message comes back in the box, to change and send again.";
+    if (mode !== "code") words += " This message and all messages after it leave the chat. The message goes back in the box. You can change it and send it again.";
     if (mode !== "conversation") {
-      words += restore.length ? " The code goes back: " + changeWords(restore) + "." : " The code Claude edited is as it was then already.";
-      words += " Restored files go back whole, losing later changes by anyone; what shell commands changed stays.";
+      words += restore.length ? " The code goes back: " + changeWords(restore) + "." : " The code that Claude changed is already as it was then.";
+      words += " hi puts back each file in full. Later changes to these files are lost, also changes by other people. Changes made by shell commands stay.";
     }
     ask(words).then(function (answer) {
       if (answer === null) return;
@@ -2849,7 +2849,7 @@
           input.dispatchEvent(new Event("input"));
           input.focus();
         }
-        toast(mode === "code" ? "The code is back to before that message." : "Rewound. The message is in the box, to change and send again.");
+        toast(mode === "code" ? "The code is back to before that message." : "Rewound. The message is in the box. You can change it and send it again.");
         chat.offset = 0;
         chat.session = "";
         chat.turns = "";
@@ -2877,13 +2877,13 @@
       if (view.reset) {
         clearChat();
         atBottom = true;
-        if (view.hidden) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.hidden + " earlier steps aren't shown here; the terminal has the whole session." }));
+        if (view.hidden) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.hidden + " earlier steps do not show here. The terminal has the full session." }));
       }
       chat.session = view.session || "";
       chat.offset = view.offset || 0;
       chat.turns = view.turns || "";
       (view.entries || []).forEach(chatEntry);
-      if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No session in this workspace yet. Start one from a task, or in the terminal." }));
+      if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No session in this workspace yet. Start one from a task or in the terminal." }));
       chatState(view);
       // The timeline again when its messages, or what Claude is doing, change.
       var agent = view.agent || {};
@@ -2945,8 +2945,8 @@
   $("preview-frame").addEventListener("load", function () { tellFrame({ hi: "hello" }); });
   $("preview-pick").addEventListener("click", function () {
     if (!picks.ready) {
-      toast("The page in the Preview doesn't answer yet: it may still be loading, or be a sign-in in front of the app." +
-        (location.protocol === "http:" ? " On a plain-HTTP address the page answers only while the helper is on in the preview (Settings)." : "") + " ↻ loads it again.");
+      toast("The page in the Preview does not answer yet. It can still be loading, or it can be a sign-in page in front of the app." +
+        (location.protocol === "http:" ? " On a plain-HTTP address, the page answers only when the helper is on for the preview (System)." : "") + " Click ↻ to load it again.");
       return;
     }
     picks.on = !picks.on;
@@ -3016,9 +3016,9 @@
     return clues;
   }
   function addPick(data) {
-    if (!chat.space) { toast("Open a workspace's chat first: what you point at goes in its message."); return; }
+    if (!chat.space) { toast("Open the chat of a workspace first. The part you point at goes in its message."); return; }
     var input = $("chat-input");
-    if (usedPicks(input.value).length >= 10) { toast("Ten parts at most in one message."); return; }
+    if (usedPicks(input.value).length >= 10) { toast("You can add at most ten parts to one message."); return; }
     var n = picks.refs.reduce(function (most, r) { return Math.max(most, r.n); }, 0) + 1;
     var slot = previewSlots().filter(function (o) { return o.id === preview.slot; })[0];
     var item = { n: n, name: pickName(data.ref), ref: data.ref, url: String(data.url || ""), title: String(data.title || ""),
@@ -3032,7 +3032,7 @@
     input.value = before + put + after;
     input.selectionStart = input.selectionEnd = before.length + put.length;
     input.dispatchEvent(new Event("input"));
-    if (chat.view !== "chat") toast("In the chat's message: " + pickToken(item));
+    if (chat.view !== "chat") toast("Added to the chat message: " + pickToken(item));
     api("POST", "pick/locate", { workspace: item.space, clues: pickClues(item.ref) }).then(function (result) {
       item.where = result.hits || [];
       saveDraft();
@@ -3165,7 +3165,7 @@
     [].forEach.call(box.querySelectorAll(".text"), function (part) { part.style.display = "inline"; });
     if (notes) {
       var count = (notes.match(/\n\[@\d+ /g) || []).length;
-      box.appendChild(el("details", { class: "pick-notes" }, [el("summary", { text: "What it says about the " + (count === 1 ? "part" : count + " parts") + " you pointed at" }), el("pre", { text: notes })]));
+      box.appendChild(el("details", { class: "pick-notes" }, [el("summary", { text: "Details about the " + (count === 1 ? "part" : count + " parts") + " you pointed at" }), el("pre", { text: notes })]));
     }
     return box;
   }
@@ -3404,8 +3404,8 @@
     space = space || chat.space;
     var command = resumeCommand(agent);
     var question = running
-      ? "Stop " + agentName(running) + " in this workspace and resume this session? hi presses Ctrl+C in its terminal, then types " + command + ", so " + agentName(agent) + " carries on where it stopped."
-      : "Resume this session? hi types " + command + " in the workspace's terminal, so " + agentName(agent) + " carries on where it stopped.";
+      ? "Stop " + agentName(running) + " in this workspace and resume this session? hi presses Ctrl+C in its terminal, then types " + command + ". Then " + agentName(agent) + " continues from where it stopped."
+      : "Resume this session? hi types " + command + " in the terminal of the workspace. Then " + agentName(agent) + " continues from where it stopped.";
     ask(question).then(function (answer) {
       if (answer === null) return;
       if (space !== chat.space) chooseChatSpace(space);
@@ -3427,7 +3427,7 @@
     var space = workSpaces().filter(function (s) { return s.id === chat.space; })[0];
     var text = chat.composing || !space ? "Start something new" : workName(space) + (space.agent ? " · " + agentName(space.agent) : "");
     $("space-label").textContent = text;
-    $("space-btn").title = text + ": the workspaces and their sessions, and + New";
+    $("space-btn").title = text + ". Workspaces and sessions. Use + New to start new work.";
   }
   function closeSpaceMenu() {
     $("space-menu").hidden = true;
@@ -3483,7 +3483,7 @@
     });
     menu.appendChild(el("div", { class: "space-sep" }));
     menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item space-new", id: "chat-new", "data-key": "new",
-      title: "Start something new, without a task", onclick: function () { closeSpaceMenu(); startNew(); } }, [
+      title: "Start new work without a task", onclick: function () { closeSpaceMenu(); startNew(); } }, [
       el("span", { class: "space-plus", text: "+" }), el("span", { class: "theme-name", text: "New" }),
     ]));
     if (focused) { var again = menu.querySelector('[data-key="' + focused + '"]'); if (again) again.focus(); }
@@ -3633,7 +3633,7 @@
   function target() {
     var label = (files.roots.filter(function (root) { return root.id === files.root; })[0] || { label: files.root }).label;
     $("files-drop-where").textContent = label + "/" + files.dir;
-    $("files-upload-label").title = "Upload files into /" + files.dir + "; or drop them here";
+    $("files-upload-label").title = "Upload files into /" + files.dir + ". You can also drop them here.";
   }
   function listOf(dir) {
     var root = files.root;
@@ -3695,7 +3695,7 @@
     var list = $("files-list"), top = list.scrollTop, marks = gitMarks();
     list.textContent = "";
     if (!files.lists[""]) { list.appendChild(el("p", { class: "muted tree-note", text: "Loading…" })); return; }
-    if (!files.lists[""].length) list.appendChild(el("p", { class: "muted empty-preview", text: "An empty folder. Upload files into it, or drop them here." }));
+    if (!files.lists[""].length) list.appendChild(el("p", { class: "muted empty-preview", text: "This folder is empty. Upload files into it, or drop them here." }));
     (function rows(dir, depth) {
       (files.lists[dir] || []).forEach(function (entry) {
         var path = joinPath(dir, entry.name), open = entry.dir && files.open[path];
@@ -3715,7 +3715,7 @@
             mark.added ? el("span", { class: "plus", text: "+" + mark.added }) : null,
             mark.removed ? el("span", { class: "minus", text: "−" + mark.removed }) : null,
           ]) : null,
-          colour ? el("span", { class: "file-git " + colour, title: mark ? gitWords[mark.status] || "" : "Changes in it", text: mark ? gitLetter(mark.status) : "•" }) : null,
+          colour ? el("span", { class: "file-git " + colour, title: mark ? gitWords[mark.status] || "" : "Has changes", text: mark ? gitLetter(mark.status) : "•" }) : null,
         ]));
         if (open) {
           if (files.lists[path]) rows(path, depth + 1);
@@ -3952,10 +3952,10 @@
   function count(n, one, many) { return n + " " + (n === 1 ? one : many); }
   function gitLetter(status) { return status === "?" ? "U" : status; }
   function gitClass(status) { return status === "?" ? "git-new" : status === "!" ? "git-conflict" : "git-" + status; }
-  var gitWords = { M: "Changed", A: "Added", D: "Deleted", R: "Renamed", C: "Copied", T: "Changed its kind", "?": "New: git doesn't know it yet", "!": "A conflict, to resolve" };
+  var gitWords = { M: "Changed", A: "Added", D: "Deleted", R: "Renamed", C: "Copied", T: "Changed its type", "?": "New. Git does not track it yet.", "!": "Conflict. Resolve it." };
   function gitBusyWords() {
     var agent = chat.agent || {};
-    return agent.status === "working" ? " Claude is at work here: it may be changing these files right now." : "";
+    return agent.status === "working" ? " Claude is working here. It can change these files at this moment." : "";
   }
   function renderGit() {
     renderNotesBar();
@@ -3980,15 +3980,15 @@
     }
     $("git-branch").textContent = view.branch || "(no branch)";
     var where = [];
-    if (!space.path) where.push("The project's own clone");
-    where.push(view.ahead ? count(view.ahead, "commit", "commits") + " dev hasn't" : view.branch === view.base ? "dev itself" : "Nothing committed that dev hasn't");
-    if (view.behind) where.push("dev has " + count(view.behind, "commit", "commits") + " it hasn't");
+    if (!space.path) where.push("The main clone of the project");
+    where.push(view.ahead ? count(view.ahead, "commit", "commits") + " not in dev" : view.branch === view.base ? "dev itself" : "No commits that are not in dev");
+    if (view.behind) where.push("dev has " + count(view.behind, "commit", "commits") + " that this branch does not have");
     $("git-base").textContent = where.join(" · ");
     var ship = $("git-ship");
     ship.textContent = "";
     if (space.path && space.branch && view.ahead > 0) {
       var shipping = Object.assign({}, space, { ahead: view.ahead, dirty: all > 0 });
-      ship.appendChild(el("button", { text: "Preview only this", busy: "ship:" + space.id, title: "Only this branch on the preview, without the rest of the next version", onclick: function () { previewOnly(shipping); } }));
+      ship.appendChild(el("button", { text: "Preview only this", busy: "ship:" + space.id, title: "Show only this branch on the preview, without the rest of the next version", onclick: function () { previewOnly(shipping); } }));
       ship.appendChild(addButton(shipping));
     }
     var commit = $("git-commit");
@@ -3998,7 +3998,7 @@
     if (view.conflicts && view.conflicts.length) lists.appendChild(gitSection("Conflicts", view.conflicts, "conflict"));
     if (view.staged.length) lists.appendChild(gitSection("Staged", view.staged, "staged"));
     if (view.changes.length || !view.staged.length) lists.appendChild(gitSection("Changes", view.changes, "changes"));
-    if (!all) lists.appendChild(el("p", { class: "muted small", text: "Nothing to commit: every change is in a commit." }));
+    if (!all) lists.appendChild(el("p", { class: "muted small", text: "Nothing to commit. All changes are in a commit." }));
     var commits = $("git-commits");
     commits.textContent = "";
     $("git-commits-box").querySelector("summary").textContent = "Commits" + (view.ahead ? " · " + view.ahead + " new" : "");
@@ -4018,7 +4018,7 @@
     if (kind === "staged") acts.push(el("button", { class: "side-icon", text: "−", title: "Unstage them all", "aria-label": "Unstage them all", onclick: function () { gitDo("unstage", []); } }));
     if (kind === "changes" && list.length) {
       acts.push(el("button", { class: "side-icon", text: "↶", title: "Discard them all", "aria-label": "Discard them all", onclick: function () {
-        gitDo("discard", paths, "Discard every change not staged, " + count(list.length, "file", "files") + "? Each goes back as the last commit has it, staged changes to it too; a new file is deleted. There's no undo." + gitBusyWords());
+        gitDo("discard", paths, "Discard all changes that are not staged, " + count(list.length, "file", "files") + "? Each file goes back to the last commit. This also removes its staged changes. hi deletes new files. You cannot undo this." + gitBusyWords());
       } }));
       acts.push(el("button", { class: "side-icon", text: "+", title: "Stage them all", "aria-label": "Stage them all", onclick: function () { gitDo("stage", []); } }));
     }
@@ -4057,8 +4057,8 @@
     return row;
   }
   function discardFile(file) {
-    var words = file.status === "?" ? "Delete " + file.path + "? It's new, and git hasn't it, so it's gone for good."
-      : "Discard the changes to " + file.path + "? It goes back as the last commit has it, staged changes too. There's no undo.";
+    var words = file.status === "?" ? "Delete " + file.path + "? It is a new file that git does not have. You cannot get it back."
+      : "Discard the changes to " + file.path + "? The file goes back to the last commit. This also removes its staged changes. You cannot undo this.";
     gitDo("discard", [file.path], words + gitBusyWords());
   }
   function gitDo(action, paths, question) {
@@ -4093,9 +4093,9 @@
   $("git-form").addEventListener("submit", function (event) {
     event.preventDefault();
     var message = $("git-message").value.trim();
-    if (!message) { $("git-error").textContent = "Say what the commit does, in its message."; $("git-message").focus(); return; }
+    if (!message) { $("git-error").textContent = "Write a message that says what the commit does."; $("git-message").focus(); return; }
     var busy = gitBusyWords();
-    gitDo("commit", [], busy ? "Commit what's there now?" + busy : "");
+    gitDo("commit", [], busy ? "Commit the changes as they are now?" + busy : "");
   });
   $("git-message").addEventListener("keydown", function (event) {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); $("git-form").requestSubmit(); }
@@ -4177,7 +4177,7 @@
     row.dataset.line = where.line;
     row.dataset.gone = where.gone ? "1" : "";
     row.insertBefore(el("button", { type: "button", class: "note-add", text: "+", tabindex: "-1",
-      title: "A note on this line, for the agent", "aria-label": "Add a note on line " + where.line + (where.gone ? ", taken out" : ""),
+      title: "Add a note for the agent on this line", "aria-label": "Add a note on line " + where.line + (where.gone ? ", taken out" : ""),
       onclick: function (event) { event.stopPropagation(); editNote(row, { path: path, line: where.line, gone: where.gone, code: text.slice(1).trim(), text: "" }, true); } }), row.firstChild);
     return row;
   }
@@ -4268,14 +4268,14 @@
     var notes = loadNotes();
     if (!notes.length) return;
     var input = $("chat-input");
-    if (input.disabled) { toast("The agent isn't running in this workspace: start it, then send the notes."); return; }
+    if (input.disabled) { toast("The agent is not running in this workspace. Start it, then send the notes."); return; }
     input.value = (input.value.trim() ? input.value.replace(/\s+$/, "") + "\n\n" : "") + notesMessage(notes);
     input.dispatchEvent(new Event("input"));
     saveNotes([]);
     if (git.diff) openDiff(git.diff.file, git.diff.kind, git.diff.list);
     setCodeView("chat");
     input.focus();
-    toast("The notes are in the chat's box: add to them, then send.");
+    toast("The notes are in the chat box. Add to them, then send.");
   });
   $("git-notes-clear").addEventListener("click", function () {
     var notes = loadNotes();
@@ -4424,7 +4424,7 @@
       openTab(root, path);
     }).catch(function (error) {
       if (/folder/.test(error.message)) revealPath(path);
-      else toast(path + " isn't there.");
+      else toast(path + " is not there.");
     });
   }
   function revealPath(path) {
@@ -4436,7 +4436,7 @@
       keepFiles();
       loadTree().then(function () {
         var entry = (files.lists[dir] || []).filter(function (e) { return e.name === name; })[0];
-        if (!entry) { toast(path + " isn't there."); return; }
+        if (!entry) { toast(path + " is not there."); return; }
         files.dir = entry.dir ? path : dir;
         if (entry.dir) { if (!files.open[path]) toggleDir(path); } else openTab(files.root, path);
         target();
@@ -4494,7 +4494,7 @@
   function closeTab(key) {
     var tab = tabOf(key);
     if (!tab) return;
-    (tab.dirty ? ask(tab.name + " has changes not saved. Close it, and lose them?") : Promise.resolve("")).then(function (ok) {
+    (tab.dirty ? ask(tab.name + " has changes that are not saved. Close it and lose the changes?") : Promise.resolve("")).then(function (ok) {
       if (ok === null) return;
       var at = opened.tabs.indexOf(tab);
       opened.tabs.splice(at, 1);
@@ -4618,7 +4618,7 @@
       if (error.gone && !tab.dirty) {
         // Its workspace is gone (done, or discarded): the tab goes too, and
         // with no other tab, so does Files.
-        toast(tab.name + " was in a workspace that's gone now; its tab is closed.");
+        toast(tab.name + " was in a workspace that is removed now. hi closed its tab.");
         closeTab(tab.key);
         return;
       }
@@ -4733,13 +4733,13 @@
     tab.bar.textContent = "";
     tab.bar.hidden = false;
     tab.bar.appendChild(el("span", { text: saving
-      ? "Not saved: " + tab.name + " changed since you opened it, by Claude or someone else."
-      : tab.name + " changed on disk, by Claude or someone else, and you have changes here." }));
+      ? "Not saved. Claude or another person changed " + tab.name + " after you opened it."
+      : "Claude or another person changed " + tab.name + " on disk. You also have changes here." }));
     tab.bar.appendChild(el("span", { class: "grow" }));
-    tab.bar.appendChild(el("button", { class: "small", text: "Take theirs", title: "Show the file as it is now; your changes here go", onclick: function () {
+    tab.bar.appendChild(el("button", { class: "small", text: "Take theirs", title: "Show the file as it is now. Your changes here are lost.", onclick: function () {
       ask("Take the file as it is now? Your changes here are lost.").then(function (ok) { if (ok !== null) { tab.bar.hidden = true; loadTab(tab, true); } });
     } }));
-    tab.bar.appendChild(el("button", { class: "small danger", text: "Save mine over it", title: "Write your version, replacing the change", onclick: function () { saveTab(tab, true); } }));
+    tab.bar.appendChild(el("button", { class: "small danger", text: "Save mine over it", title: "Save your version over the other change", onclick: function () { saveTab(tab, true); } }));
   }
   function checkTab(tab) {
     if (tab.kind !== "text" || tab.busy || !tab.loaded) return;
@@ -4763,7 +4763,7 @@
   // toChat puts text in the chat's box, for you to add to and send: what
   // Logs and Checks hand Claude.
   function toChat(text) {
-    if (!chat.space) { toast("Open a workspace's chat first."); return; }
+    if (!chat.space) { toast("Open the chat of a workspace first."); return; }
     setCodeView("chat");
     var input = $("chat-input");
     input.value = (input.value.trim() ? input.value.replace(/\s+$/, "") + "\n\n" : "") + text;
@@ -4813,7 +4813,7 @@
     box.textContent = "";
     var view = search.view;
     if (error) { $("search-note").textContent = error; return; }
-    if (!view) { $("search-note").textContent = chat.space ? "Searches the workspace's files, new ones too, not those git ignores." : "Open a workspace's chat first."; return; }
+    if (!view) { $("search-note").textContent = chat.space ? "Searches all files in the workspace, also new files. It skips the files that git ignores." : "Open the chat of a workspace first."; return; }
     var matches = view.matches || [];
     var byFile = [], files = {};
     matches.forEach(function (m) {
@@ -4821,7 +4821,7 @@
       files[m.path].push(m);
     });
     $("search-note").textContent = matches.length
-      ? count(matches.length, "match", "matches") + " in " + count(byFile.length, "file", "files") + (view.more ? ", the first " + matches.length + ": say more to find fewer" : "")
+      ? count(matches.length, "match", "matches") + " in " + count(byFile.length, "file", "files") + (view.more ? ". This shows the first " + matches.length + ". Type more words to find fewer." : "")
       : "Nothing found.";
     var pattern = null;
     try {
@@ -4902,10 +4902,10 @@
   function renderChecks() {
     var list = $("checks-list"), run = checks.run;
     list.textContent = "";
-    if (!chat.space) list.appendChild(el("p", { class: "muted small", text: "Open a workspace's chat first." }));
+    if (!chat.space) list.appendChild(el("p", { class: "muted small", text: "Open the chat of a workspace first." }));
     else if (checks.error) list.appendChild(el("p", { class: "error small", text: checks.error }));
     else if (!checks.list) list.appendChild(el("p", { class: "muted small", text: "Loading…" }));
-    else if (!checks.list.length) list.appendChild(el("p", { class: "muted small", text: "The project has no make check, test, or lint, nor such scripts in package.json. Ask Claude for a Makefile with them." }));
+    else if (!checks.list.length) list.appendChild(el("p", { class: "muted small", text: "The project has no make check, test, or lint. It also has no such scripts in package.json. Ask Claude to make a Makefile with them." }));
     (checks.list || []).forEach(function (check, i) {
       list.appendChild(el("div", { class: "check-row" }, [
         el("div", { class: "check-what" }, [el("code", { text: check.command }), check.about ? el("div", { class: "muted small", text: check.about }) : null]),
@@ -4934,7 +4934,7 @@
     } else {
       state.className = "git-conflict";
       state.textContent = "✗ " + run.command + (run.error ? ": " + run.error : " failed (exit " + run.exit + ")") + ", in " + seconds(run.started, run.finished);
-      acts.appendChild(el("button", { class: "small primary", text: "Fix with Claude", title: "Put the end of its output in the chat, to send", onclick: function () {
+      acts.appendChild(el("button", { class: "small primary", text: "Fix with Claude", title: "Put the end of its output in the chat box, ready to send", onclick: function () {
         var tail = plainLog(checks.out).trim().split("\n").slice(-60).join("\n");
         toChat("`" + run.command + "` failed in the dev box (exit " + run.exit + "). The end of its output:\n\n```\n" + tail + "\n```\n\nFind out why and fix it, then run it again.");
       } }));
@@ -4987,7 +4987,7 @@
       if (cut) logs.lines = logs.lines.slice(-2000);
       logs.cursor = view.cursor || "";
       logs.label = view.label || "";
-      $("logs-note").textContent = view.note || (logs.label ? logs.label + (logs.source === "output" ? ": what it prints" : ": the requests it served") : "");
+      $("logs-note").textContent = view.note || (logs.label ? logs.label + (logs.source === "output" ? ": its output" : ": the requests it got") : "");
       renderLogs(fresh || cut ? logs.lines : view.lines || [], fresh || cut);
       // Behind another view, new lines pulse a dot on Logs' icon: red
       // when one of them is an error.
@@ -5084,7 +5084,7 @@
     $("preview-open").hidden = !slot;
     frame.hidden = !slot;
     if (!slot) {
-      showPreviewNote("none", "Nothing to show yet: publish, or Preview a workspace's branch.");
+      showPreviewNote("none", "Nothing to show yet. Publish, or show the branch of a workspace on the preview.");
       return;
     }
     $("preview-open").href = slot.url;
@@ -5107,7 +5107,7 @@
   // A frame can't sign in there, but the whole tab can: Sign in and come
   // back takes it through the app's addresses (/__hi/return/ on each), and
   // the frame has the cookie after. hi dev web tells the agent.
-  var staleWords = "This address is newer than the dev page you have open: reload the page to show it here.";
+  var staleWords = "This address is newer than the dev page you have open. Reload the page to show it here.";
   var returnKey = "hi-dev-preview-return";
   function hostOf(url) { try { return new URL(url).host; } catch (e) { return url; } }
   // showPreviewNote draws the note when it changes, so a button in it
@@ -5126,11 +5126,11 @@
       // Back from signing in, and still sent on: the sign-in didn't take
       // (not finished, or the account isn't let in there), or the browser
       // doesn't give the frame the sign-in's cookie (a browser setting).
-      showPreviewNote("still " + from + to, hostOf(from) + " still sent the frame on to " + hostOf(to) + " after signing in at the top. ↗ opens it in a tab of its own: sign in there, then ↻ here. If it signs you in there but not here, this browser keeps the sign-in from the frame.");
+      showPreviewNote("still " + from + to, hostOf(from) + " still sends the frame to " + hostOf(to) + " after you signed in. Click ↗ to open it in a new tab. Sign in there, then click ↻ here. If you are signed in there but not here, this browser does not give the sign-in to the frame.");
       return;
     }
     var button = el("button", { type: "button", class: "small primary", text: "Sign in and come back", onclick: signInAtTop });
-    showPreviewNote("blocked " + from + to, hostOf(from) + " sent the frame on to " + hostOf(to) + ": a sign-in in front of the app, which can't happen inside the dev page. Sign in and come back takes this tab there and back here, and the Preview shows it after.", button);
+    showPreviewNote("blocked " + from + to, hostOf(from) + " sends the frame to " + hostOf(to) + ". This is a sign-in page in front of the app. You cannot sign in inside the dev page. Sign in and come back takes this tab there and back here. Then the Preview shows the app.", button);
   }
   // signInAtTop goes through each of the app's addresses at the top of the
   // tab, then back to this page.
@@ -5193,8 +5193,8 @@
         var written = data.written || [];
         if (response.status === 409) {
           var rest = list.filter(function (file) { return written.indexOf(file.name) < 0; });
-          return ask(data.exists + " is there already. Replace it, and any other file here with the same name?").then(function (answer) {
-            if (answer === null) { toast(written.length ? "Uploaded " + written.join(", ") + "; " + data.exists + " stays as it was." : data.exists + " stays as it was."); return; }
+          return ask(data.exists + " is already there. Replace it and all other files here with the same name?").then(function (answer) {
+            if (answer === null) { toast(written.length ? "Uploaded " + written.join(", ") + ". " + data.exists + " did not change." : data.exists + " did not change."); return; }
             return upload(rest, true);
           });
         }
@@ -5336,7 +5336,7 @@
           return new Promise(function (resolve, reject) {
             var reader = new FileReader();
             reader.onload = function () { resolve({ name: file.name, data: String(reader.result).split(",")[1] || "" }); };
-            reader.onerror = function () { reject(new Error("couldn't read " + file.name)); };
+            reader.onerror = function () { reject(new Error("cannot read " + file.name)); };
             reader.readAsDataURL(file);
           });
         }));
@@ -5385,7 +5385,7 @@
       $("ticket-dialog").close();
       $("ticket-title").value = "";
       newFiles.clear();
-      toast("Filed task #" + ticket.number + ".");
+      toast("Made task #" + ticket.number + ".");
       refreshTickets(true);
     }).catch(function (error) {
       $("ticket-error").textContent = error.message;
@@ -5413,8 +5413,8 @@
   function renderTicket(ticket) {
     $("view-title").textContent = "#" + ticket.number + " " + ticket.title;
     var meta = $("view-meta");
-    meta.textContent = [ticket.state, ticket.asked && ticket.asked !== ticket.author ? "asked by " + ticket.asked + (ticket.author ? " (filed as " + ticket.author + ")" : "") : ticket.author, when(ticket.created), ticket.edited ? "edited " + when(ticket.edited) : ""].filter(Boolean).join(" · ");
-    if (ticket.url) meta.appendChild(el("span", {}, [document.createTextNode(" · "), el("a", { href: ticket.url, target: "_blank", rel: "noopener", text: "Open where it's kept" })]));
+    meta.textContent = [ticket.state, ticket.asked && ticket.asked !== ticket.author ? "asked by " + ticket.asked + (ticket.author ? " (made as " + ticket.author + ")" : "") : ticket.author, when(ticket.created), ticket.edited ? "edited " + when(ticket.edited) : ""].filter(Boolean).join(" · ");
+    if (ticket.url) meta.appendChild(el("span", {}, [document.createTextNode(" · "), el("a", { href: ticket.url, target: "_blank", rel: "noopener", text: "Open the original" })]));
     var body = $("view-body");
     body.textContent = "";
     var text = ticket.body ? renderMarkdown(ticket.body, "", true) : el("p", { class: "muted", text: "No description." });
@@ -5443,7 +5443,7 @@
         picture ? el("a", { href: url, target: "_blank", rel: "noopener" }, [el("img", { src: url, alt: name, loading: "lazy" })]) : null,
         el("div", { class: "file-name" }, [el("a", { href: url, target: "_blank", rel: "noopener", text: name }),
         el("button", { type: "button", class: "link remove", text: "✕", title: "Remove " + name + " from the task", "aria-label": "Remove " + name, onclick: function () {
-          removeFromTicket(ticket.number, { name: name }, "Remove " + name + " from task #" + ticket.number + "? It can't be brought back.", "Removed " + name + ".");
+          removeFromTicket(ticket.number, { name: name }, "Remove " + name + " from task #" + ticket.number + "? You cannot get it back.", "Removed " + name + ".");
         } })]),
       ]));
     });
@@ -5460,7 +5460,7 @@
       }]);
       if (comment.id) items.push(["Delete", function () {
         var files = attachedNames(comment.body);
-        removeFromTicket(ticket.number, { comment: comment.id }, "Delete this comment from task #" + ticket.number + (files.length ? ", with " + files.join(", ") : "") + "? It can't be brought back.", "Deleted the comment.");
+        removeFromTicket(ticket.number, { comment: comment.id }, "Delete this comment from task #" + ticket.number + (files.length ? ", with " + files.join(", ") : "") + "? You cannot get it back.", "Deleted the comment.");
       }, "danger"]);
       comments.appendChild(el("li", {}, [
         el("div", { class: "comment-head" }, [
@@ -5548,7 +5548,7 @@
     $("note-error").textContent = "";
     $("view-title").textContent = "#" + number;
     $("view-meta").textContent = "";
-    $("view-body").textContent = "Fetching the task…";
+    $("view-body").textContent = "Loading the task…";
     $("view-files-box").hidden = true;
     $("view-comments").textContent = "";
     $("view-dialog").showModal();
@@ -5598,7 +5598,7 @@
     });
     if (!shown.length) {
       box.appendChild(el("p", { class: "muted", text: (decisions.list || []).length ? "No decision has those words." :
-        "No decisions yet. The agents write one for a technical choice someone shouldn't undo by accident, and so can you." }));
+        "No decisions yet. The agents write a decision for a technical choice that nobody must undo by accident. You can write one too." }));
     }
     shown.forEach(function (decision) {
       box.appendChild(el("button", { type: "button", class: "decision-card", onclick: function () { openDecision(decision, false); } }, [
@@ -5620,7 +5620,7 @@
     $("decision-title").textContent = decision ? decision.title : "New decision";
     $("decision-meta").textContent = decision ? [decision.file, decision.added ? "written " + day(decision.added) : "",
       day(decision.changed) !== day(decision.added) ? "changed " + day(decision.changed) : ""].filter(Boolean).join(" · ") :
-      "Start with its title as a heading, then what was decided: the card shows that paragraph.";
+      "Start with the title as a heading. Then write the decision. The card shows that paragraph.";
     var body = $("decision-body");
     body.textContent = "";
     if (decision && !editing) {
@@ -5662,7 +5662,7 @@
     $("decision-save").disabled = true;
     $("decision-error").textContent = "";
     api("POST", "decision", { file: decision ? decision.file : "", blob: decision ? decision.blob : "", text: $("decision-text").value }).then(function (result) {
-      toast(decision ? "Saved, on the app's branch." : "Added " + result.file + " to the app's branch.");
+      toast(decision ? "Saved on the branch of the app." : "Added " + result.file + " to the branch of the app.");
       return refreshDecisions().then(function () {
         var saved = (decisions.list || []).filter(function (each) { return each.file === result.file; })[0];
         if (saved) openDecision(saved, false);
@@ -5675,7 +5675,7 @@
   });
   $("decision-delete").addEventListener("click", function () {
     var decision = decisions.open;
-    ask("Delete the decision \u201c" + decision.title + "\u201d? It goes from the app's branch; git keeps its history.").then(function (answer) {
+    ask("Delete the decision \u201c" + decision.title + "\u201d? hi removes it from the branch of the app. Git keeps its history.").then(function (answer) {
       if (answer === null) return;
       api("POST", "decision", { file: decision.file, blob: decision.blob, delete: true }).then(function () {
         toast("Deleted " + decision.file + ".");
@@ -5726,10 +5726,10 @@
     var space = chatSpace();
     if (space && !mine && space.id) box.appendChild(el("div", {}, [
       el("div", { text: space.label || space.branch || "This workspace" }),
-      el("div", { class: "muted", text: "Has no task: it was started without one." })]));
+      el("div", { class: "muted", text: "This work has no task. Someone started it without a task." })]));
     var list = $("stask-list");
     list.textContent = "";
-    if (!tickets) { list.appendChild(el("li", { class: "empty", text: "Fetching the tasks…" })); return; }
+    if (!tickets) { list.appendChild(el("li", { class: "empty", text: "Loading the tasks…" })); return; }
     var words = $("stask-search").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     var closed = showing === "closed";
     var pool = closed ? (tickets.tickets || []).filter(function (ticket) { return ticket.state === "closed"; }) : openTickets();
@@ -5737,7 +5737,7 @@
       var hay = ("#" + ticket.number + " " + ticket.title + " " + (ticket.author || "") + " " + (ticket.asked || "") + " " + (ticket.labels || []).join(" ")).toLowerCase();
       return words.every(function (word) { return hay.indexOf(word) >= 0; });
     });
-    if (!shown.length) list.appendChild(el("li", { class: "empty", text: words.length ? "No task matches." : closed ? "No closed tasks." : "No open tasks. + files one; the lead files what people ask for in the channel." }));
+    if (!shown.length) list.appendChild(el("li", { class: "empty", text: words.length ? "No task matches." : closed ? "No closed tasks." : "No open tasks. Click + to make one. The lead makes tasks from requests in the channel." }));
     shown.forEach(function (ticket) {
       var space = closed ? null : spaceFor(ticket);
       var who = ticket.asked || ticket.author || "";
@@ -5748,7 +5748,7 @@
           el("span", { class: "stask-title", text: ticket.title })]),
         closed ? null : space
           ? el("button", { type: "button", class: "stask-go", text: "Open", title: "Show its workspace", onclick: function () { focus(space); } })
-          : el("button", { type: "button", class: "stask-go", text: "Start", title: "A branch, a worktree, and an agent told to read the task", onclick: function () { startDialog(ticket); } }),
+          : el("button", { type: "button", class: "stask-go", text: "Start", title: "Make a branch and a worktree, and start an agent that reads the task", onclick: function () { startDialog(ticket); } }),
       ]));
     });
   }
@@ -5760,7 +5760,7 @@
       $("stask-id").textContent = "#" + number;
       $("stask-acts").textContent = "";
       $("stask-body").textContent = "";
-      $("stask-body").appendChild(el("p", { class: "muted small", text: "Fetching the task…" }));
+      $("stask-body").appendChild(el("p", { class: "muted small", text: "Loading the task…" }));
     }
     var asked = ++stask.loading;
     return api("GET", "ticket?number=" + number).then(function (ticket) {
@@ -5782,12 +5782,12 @@
     if (!closed) {
       // Open its workspace, unless the chat is in it already; or Start it.
       if (space && space.id !== chat.space) acts.appendChild(el("button", { type: "button", text: "Open", title: "Show its workspace", onclick: function () { focus(space); } }));
-      if (!space) acts.appendChild(el("button", { type: "button", text: "Start", title: "A branch, a worktree, and an agent told to read the task", onclick: function () { startDialog(ticket); } }));
+      if (!space) acts.appendChild(el("button", { type: "button", text: "Start", title: "Make a branch and a worktree, and start an agent that reads the task", onclick: function () { startDialog(ticket); } }));
       acts.appendChild(el("button", { type: "button", class: "done", text: "Done ✓", busy: space ? "finish:" + space.id : "", title: space ? "Finish its work and close the task" : "Close the task", onclick: function () { taskDone(ticket, space); } }));
     }
     var items = [["View in full", function () { openTicket(ticket.number); }],
       ["Copy text", function () { copyText(ticket.body || ""); }]];
-    if (ticket.url) items.push(["Open where it's kept", function () { window.open(ticket.url, "_blank", "noopener"); }]);
+    if (ticket.url) items.push(["Open the original", function () { window.open(ticket.url, "_blank", "noopener"); }]);
     if (closed) items.push(["Reopen", function () { setTaskState(ticket, false); }]);
     acts.appendChild(menu(items));
     var body = $("stask-body");
