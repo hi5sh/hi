@@ -6989,6 +6989,14 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.258 — An eye on key fields
+
+- [x] Every field that hides what's typed, on the dev page and the admin
+  page (an env variable's value, a provider key, Slack's tokens, a
+  NetBird setup key), has an eye: a click shows what you typed or
+  pasted, a second hides it. Saving hides it again. One script for both
+  pages (reveal.js), which also takes fields the pages add later.
+
 ### v2.6.257 — Fork, ↑, and the time on responses; Ctrl+Enter steers
 
 - [x] Under each of the agent's responses in Chat, as in Orca: Copy (the
