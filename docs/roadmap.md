@@ -6989,6 +6989,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.248 — A publish keeps what the preview gathered
+
+- [x] A preview that gathered data production never got keeps it, after
+  a publish and when new work goes on it. Before, the first publish
+  without the preview's data forked production's empty database (the app
+  makes one as it starts) over it, and copying the preview to production
+  then copied that empty fork. On mech-rms the 271 items were left only in
+  `run/preview-data-before/`.
+- [x] The release and copy events in versions.json say that production got
+  the preview's data.
+- [x] On the dev page, copying a preview that runs on a fork of production
+  says it gives production back its own data from then.
+
 ### v2.6.247 — `hi dev <command> --help` posts nothing
 
 - [x] `hi dev <command> --help` (or `-h`) shows that command's lines of
