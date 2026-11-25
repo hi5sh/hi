@@ -6989,6 +6989,15 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.256 — Pictures in the chat
+
+- [x] Chat shows the pictures a session names as thumbnails, as in Orca:
+  one a tool read or wrote (under its steps), and one a message names,
+  absolute, from ~/, or relative to the session's folder (under the
+  message). A click shows it whole, with Open in a new tab. They come
+  from the dev box's home or clone only, through api/chat/image, which
+  serves pictures (png, jpg, gif, webp) and nothing else.
+
 ### v2.6.255 — Queued messages, and Steer
 
 - [x] A message sent in Chat while the agent works (or with others
