@@ -6989,6 +6989,16 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.255 — Queued messages, and Steer
+
+- [x] A message sent in Chat while the agent works (or with others
+  queued) waits in **Queued**, above the box, as in Orca. hi sends the
+  next one when the agent's turn ends, one turn at a time, from the
+  broker: the page can be closed, and the queue (run/chat-queue.json)
+  outlives a restart. **Steer** sends one now, into the turn that runs
+  (what Send did before while the agent worked); ✕ takes one out. A
+  question of the agent's own holds the queue until it's answered.
+
 ### v2.6.254 — Copy in the chat
 
 - [x] Each reply in Chat has Copy under it, as your messages do, and each
