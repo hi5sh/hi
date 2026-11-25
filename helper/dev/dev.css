@@ -515,6 +515,14 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .msg-act { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: var(--r-sm); background: none; color: var(--muted); cursor: pointer; }
 .msg-act:hover, .msg-act:focus-visible { background: var(--hover); color: var(--bright); }
 .msg-act[hidden] { display: none; }
+.msg-turn.reply { align-items: stretch; }
+.msg-turn.reply .msg-meta { margin-left: -6px; }
+.code-wrap { position: relative; }
+.md > .code-wrap:first-child > pre { margin-top: 0; }
+.md > .code-wrap:last-child > pre { margin-bottom: 0; }
+.code-wrap .code-copy { position: absolute; top: 6px; right: 6px; opacity: 0; background: var(--raised); transition: opacity .12s; }
+.code-wrap:hover .code-copy, .code-copy:focus-visible { opacity: 1; }
+@media (hover: none) { .code-wrap .code-copy { opacity: 1; } }
 .msg-time { padding: 0 6px; font-variant-numeric: tabular-nums; }
 .rewind-quote { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--line-strong); background: var(--widget); border-radius: var(--r-sm); color: var(--bright); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; font-size: 13px; }
 .stuck-option:disabled { opacity: .5; cursor: not-allowed; }

@@ -2617,7 +2617,7 @@
       if (sent) sent.node.remove();
       box.appendChild(userTurn(entry));
     } else if (entry.t === "text") {
-      box.appendChild(el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]));
+      box.appendChild(replyTurn(entry));
     } else if (entry.t === "thinking") {
       box.appendChild(el("details", { class: "fold thought" }, [el("summary", { text: "Thought" }), el("div", { class: "fold-body" }, [el("pre", { text: entry.text })])]));
     } else if (entry.t === "note") {
@@ -2756,9 +2756,26 @@
   // pointer is on the message (always on a touch screen).
   var ICON_COPY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
   var ICON_REWIND = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>';
+  function copyButton(text, label) {
+    var button = el("button", { type: "button", class: "msg-act", title: "Copy", "aria-label": label, onclick: function () { copyText(text); } });
+    button.innerHTML = ICON_COPY;
+    return button;
+  }
+  // The agent's reply, with Copy under it, as under your messages.
+  function replyTurn(entry) {
+    return el("div", { class: "msg-turn reply" }, [
+      el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]),
+      el("div", { class: "msg-meta" }, [copyButton(entry.text || "", "Copy the reply")]),
+    ]);
+  }
+  // A code block, with Copy in its corner.
+  function codeBlock(text) {
+    var copy = copyButton(text, "Copy the code");
+    copy.classList.add("code-copy");
+    return el("div", { class: "code-wrap" }, [el("pre", {}, [el("code", { text: text })]), copy]);
+  }
   function userTurn(entry) {
-    var copy = el("button", { type: "button", class: "msg-act", title: "Copy", "aria-label": "Copy the message", onclick: function () { copyText(entry.text || ""); } });
-    copy.innerHTML = ICON_COPY;
+    var copy = copyButton(entry.text || "", "Copy the message");
     var back = el("button", { type: "button", class: "msg-act msg-rewind", title: "Rewind to here", "aria-label": "Rewind to before this message", hidden: "",
       onclick: function () { openRewind(entry.uuid); } });
     back.innerHTML = ICON_REWIND;
@@ -2810,7 +2827,7 @@
     }
   }
   function renderPoints() {
-    document.querySelectorAll("#chat-entries .msg-turn").forEach(markRewind);
+    document.querySelectorAll("#chat-entries .msg-turn:not(.reply)").forEach(markRewind);
     if (rewind.open && $("rewind-dialog").open) openRewind(rewind.open.uuid);
   }
   // openRewind asks how far back to go, for one message.
@@ -4382,7 +4399,7 @@
         var code = [];
         for (i++; i < lines.length && !/^\s*```/.test(lines[i]); i++) code.push(lines[i]);
         i++;
-        box.appendChild(el("pre", {}, [el("code", { text: code.join("\n") })]));
+        box.appendChild(codeBlock(code.join("\n")));
       } else if ((m = /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(line))) {
         box.appendChild(el("h" + m[1].length, {}, inline(m[2])));
         i++;
