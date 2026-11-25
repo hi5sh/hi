@@ -473,6 +473,9 @@ dot.
   to the end of its turn into a new Claude Code session and resumes it
   in the workspace. The chat before stays in the session menu.
   **Ctrl+Enter** (⌘Enter) steers: the message goes now, not in the queue.
+  At the end of a response that changed files, a card says how many and
+  their lines (**2 changed files +40 −3**), each **Added** or **Edited**;
+  a click on one shows its changes, and its Copy copies them.
   **Pictures** the session names show as thumbnails, as in Orca: a
   picture the agent read or wrote (a screenshot it took), or one a
   message names (`shots/after.png`), from the dev box's home or clone. A

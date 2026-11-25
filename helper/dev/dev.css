@@ -535,6 +535,23 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .image-bar { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .image-bar code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .image-bar .grow { flex: 1; }
+/* The files a response changed (dev.js, renderChanges), as in Orca. */
+.changes-card { border: 1px solid var(--line); border-radius: var(--r-xl); padding: 10px 14px; background: var(--bg); }
+.changes-head { display: flex; align-items: baseline; gap: 8px; color: var(--muted); padding-bottom: 4px; }
+.changes-card .plus { color: var(--good); font-size: 12.5px; }
+.changes-card .minus { color: var(--bad); font-size: 12.5px; }
+.change-file > summary { display: flex; align-items: center; gap: 8px; min-height: 32px; cursor: pointer; list-style: none; border-radius: var(--r-sm); padding: 0 4px; }
+.change-file > summary::-webkit-details-marker { display: none; }
+.change-file > summary::before { content: "›"; color: var(--muted); width: 10px; transition: transform .12s; }
+.change-file[open] > summary::before { transform: rotate(90deg); }
+.change-file > summary:hover { background: var(--hover); }
+.change-verb { color: var(--muted); }
+.change-name { color: var(--bright); font-weight: 500; }
+.change-dir { color: var(--dim); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.change-file .grow { flex: 1; }
+.change-file .msg-act { opacity: 0; }
+.change-file > summary:hover .msg-act, .change-file[open] .msg-act { opacity: 1; }
+.change-diff { max-height: 360px; margin: 4px 0 6px; padding: 6px 0; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
 .msg-time { padding: 0 6px; font-variant-numeric: tabular-nums; }
 .rewind-quote { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--line-strong); background: var(--widget); border-radius: var(--r-sm); color: var(--bright); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; font-size: 13px; }
 .stuck-option:disabled { opacity: .5; cursor: not-allowed; }

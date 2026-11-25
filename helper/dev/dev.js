@@ -1940,7 +1940,7 @@
   // read from its transcript; what you write goes to the agent, so the chat
   // and the terminal are one session
   var narrow = window.matchMedia && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
-  var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], queue: [], queueOpen: true, turn: 0, spin: 0, composing: false, askSig: "" };
+  var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], resp: null, queue: [], queueOpen: true, turn: 0, spin: 0, composing: false, askSig: "" };
   // Rewind's points (Claude Code's checkpoints, one for each message you
   // sent), what the page last saw, and the point the dialog is open on.
   var rewind = { points: [], seen: "", open: null };
@@ -2515,6 +2515,7 @@
     chat.group = null;
     chat.lastAt = 0;
     chat.pending = [];
+    chat.resp = newResponse();
     $("chat-title").textContent = "";
   }
   var verbs = {
@@ -2585,6 +2586,8 @@
       if (at) chat.lastAt = at;
       if (!tool) return;
       tool.result.textContent = entry.text || "(nothing)";
+      if (tool.edit && /created/i.test(entry.text || "") && !entry.error) { tool.edit.created = true; renderChanges(chat.resp); }
+      if (tool.edit && entry.error) { tool.edit.failed = true; renderChanges(chat.resp); }
       tool.result.hidden = false;
       if (entry.error) { tool.box.classList.add("failed"); tool.result.classList.add("failed"); }
       return;
@@ -2606,7 +2609,7 @@
         entry.detail ? el("pre", { text: entry.detail }) : null,
         result,
       ]);
-      chat.tools[entry.id] = { box: item, result: result };
+      chat.tools[entry.id] = { box: item, result: result, edit: noteEdit(entry) };
       chat.group.body.appendChild(item);
       if ((entry.images || []).length) {
         if (!chat.group.images) { chat.group.images = imageStrip([]); box.appendChild(chat.group.images); }
@@ -2617,6 +2620,8 @@
     chat.group = null;
     if (at) chat.lastAt = at;
     if (entry.t === "user") {
+      placeChanges();
+      chat.resp = newResponse();
       if (entry.at) chat.turn = Date.parse(entry.at);
       var sent = chat.pending.shift();
       if (sent) sent.node.remove();
@@ -2755,6 +2760,110 @@
     chat.activity = text;
     var seconds = Math.round((Date.now() - (chat.turn || Date.now())) / 1000);
     line.lastChild.textContent = text || (seconds >= 0 && seconds < 3600 ? "Working… (" + seconds + "s)" : "Working…");
+  }
+  // ---- The files a response changed, as a card at its end, as in Orca:
+  // "2 changed files +40 −3", each file Added or Edited with its lines,
+  // and a click on one shows its changes. From the agent's Edit, Write,
+  // and MultiEdit calls, whose inputs say what went in and what came out.
+  var EDIT_TOOLS = { Edit: true, Write: true, MultiEdit: true };
+  function newResponse() { return { files: {}, order: [], card: null }; }
+  // lineDiff is a line diff of two texts, as ["+"|"-"|" ", line] pairs;
+  // past a size it's all out and all in.
+  function lineDiff(before, after) {
+    var a = before === "" ? [] : before.split("\n"), b = after === "" ? [] : after.split("\n");
+    if (a.length * b.length > 250000) return a.map(function (l) { return ["-", l]; }).concat(b.map(function (l) { return ["+", l]; }));
+    var n = a.length, m = b.length, lcs = [];
+    for (var i = 0; i <= n; i++) { lcs.push(new Array(m + 1).fill(0)); }
+    for (i = n - 1; i >= 0; i--) for (var j = m - 1; j >= 0; j--) lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+    var out = [];
+    i = 0; j = 0;
+    while (i < n || j < m) {
+      if (i < n && j < m && a[i] === b[j]) { out.push([" ", a[i]]); i++; j++; }
+      else if (i < n && (j === m || lcs[i + 1][j] >= lcs[i][j + 1])) { out.push(["-", a[i]]); i++; }
+      else { out.push(["+", b[j]]); j++; }
+    }
+    return out;
+  }
+  // noteEdit adds an editing tool call to the response's files.
+  function noteEdit(entry) {
+    if (!EDIT_TOOLS[entry.name]) return null;
+    var input;
+    try { input = JSON.parse(entry.detail || ""); } catch (e) { input = null; }
+    var path = (input && input.file_path) || entry.summary || "";
+    if (!path) return null;
+    var hunks = [];
+    if (input && entry.name === "Write") hunks.push(lineDiff("", String(input.content || "")));
+    else if (input && entry.name === "Edit") hunks.push(lineDiff(String(input.old_string || ""), String(input.new_string || "")));
+    else if (input && entry.name === "MultiEdit") (input.edits || []).forEach(function (e) { hunks.push(lineDiff(String(e.old_string || ""), String(e.new_string || ""))); });
+    var resp = chat.resp || (chat.resp = newResponse());
+    var file = resp.files[path];
+    if (!file) { file = resp.files[path] = { path: path, shown: entry.summary || path, edits: [] }; resp.order.push(path); }
+    var edit = { name: entry.name, hunks: hunks, known: !!input, file: file };
+    file.edits.push(edit);
+    renderChanges(resp);
+    return edit;
+  }
+  function fileCounts(file) {
+    var added = 0, removed = 0;
+    file.edits.forEach(function (edit) {
+      if (edit.failed) return;
+      edit.hunks.forEach(function (hunk) { hunk.forEach(function (line) { if (line[0] === "+") added++; else if (line[0] === "-") removed++; }); });
+    });
+    return { added: added, removed: removed };
+  }
+  function countSpans(c) {
+    return [c.added ? el("span", { class: "plus", text: "+" + c.added }) : null, c.removed ? el("span", { class: "minus", text: "−" + c.removed }) : null];
+  }
+  function renderChanges(resp) {
+    var files = resp.order.map(function (path) { return resp.files[path]; }).filter(function (file) {
+      return file.edits.some(function (edit) { return !edit.failed; });
+    });
+    if (!files.length) { if (resp.card) resp.card.hidden = true; return; }
+    if (!resp.card) resp.card = el("div", { class: "changes-card" });
+    var card = resp.card, open = {};
+    card.hidden = false;
+    card.querySelectorAll("details[open]").forEach(function (d) { open[d.dataset.path] = true; });
+    var total = { added: 0, removed: 0 };
+    var rows = files.map(function (file) {
+      var c = fileCounts(file);
+      total.added += c.added; total.removed += c.removed;
+      var created = file.edits[0].name === "Write" && file.edits[0].created;
+      var parts = file.shown.split("/"), name = parts.pop();
+      var body = el("div", { class: "change-body" });
+      var text = [];
+      file.edits.forEach(function (edit) {
+        if (edit.failed) return;
+        if (!edit.known) { body.appendChild(el("div", { class: "meta", text: "The change is too long to show here. Source control has it." })); return; }
+        edit.hunks.forEach(function (hunk, k) {
+          if (body.childNodes.length) body.appendChild(el("div", { class: "hunk", text: "⋯" }));
+          hunk.forEach(function (line) {
+            body.appendChild(el("div", { class: line[0] === "+" ? "add" : line[0] === "-" ? "del" : "", text: line[0] + " " + line[1] }));
+            if (line[0] !== " ") text.push(line[0] + line[1]);
+          });
+        });
+      });
+      var copy = iconButton(ICON_COPY, "Copy the changes", "Copy the changes to " + name, function (event) { event.preventDefault(); copyText(text.join("\n")); });
+      return el("details", { class: "change-file", "data-path": file.path, open: open[file.path] ? "" : null }, [
+        el("summary", { title: file.path }, [
+          el("span", { class: "change-verb", text: created ? "Added" : "Edited" }),
+          el("span", { class: "change-name", text: name }),
+          el("span", { class: "change-dir", text: parts.join("/") }),
+        ].concat(countSpans(c), [el("span", { class: "grow" }), copy])),
+        el("pre", { class: "diff change-diff" }, [body]),
+      ]);
+    });
+    card.textContent = "";
+    card.appendChild(el("div", { class: "changes-head" }, [el("span", { text: files.length === 1 ? "1 changed file" : files.length + " changed files" })].concat(countSpans(total))));
+    rows.forEach(function (row) { card.appendChild(row); });
+  }
+  // placeChanges puts the response's card at its end: before the line
+  // that says the agent works.
+  function placeChanges() {
+    var resp = chat.resp;
+    if (!resp || !resp.card || resp.card.hidden) return;
+    var box = $("chat-entries"), activity = $("chat-activity");
+    if (activity && activity.parentNode === box) box.insertBefore(resp.card, activity);
+    else box.appendChild(resp.card);
   }
   // ---- Your message in the chat: the bubble, and under it Copy, the time
   // it was sent, and Rewind, as in Orca's chat. The row shows when the
@@ -3007,7 +3116,7 @@
       chat.offset = view.offset || 0;
       chat.turns = view.turns || "";
       (view.entries || []).forEach(chatEntry);
-      if ((view.entries || []).length) markResponses();
+      if ((view.entries || []).length) { markResponses(); placeChanges(); }
       if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No session in this workspace yet. Start one from a task or in the terminal." }));
       chatState(view);
       renderQueue(view.queue || []);
