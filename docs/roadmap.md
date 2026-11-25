@@ -6989,6 +6989,18 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.252 — The dev and admin pages in plain words
+
+- [x] The text on the dev page and the admin page (captions, tooltips,
+  buttons, questions, toasts, empty lists) is in short, plain sentences,
+  in the style of ASD-STE100 Simplified Technical English. Long
+  explainers move below their controls as "How it works" lists
+  (Decisions, Snapshots, the preview's data, the helper; on the admin
+  page Budgets and approval, Env variables, People, Spend, Terminal,
+  Email, the vault, the dev box's sites).
+- [x] The dev page's Addresses drop their caption.
+- [x] One word for one thing: Env variables, publish, dev box, preview.
+
 ### v2.6.251 — Env variables for all three, in plain words
 
 - [x] Keys' Settings is **Env variables**. Its default is new: the dev
