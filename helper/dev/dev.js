@@ -1593,8 +1593,11 @@
       $("data-snapshots").appendChild(el("li", { class: "muted small", text: error.message }));
     });
   }
+  // The preview's folder as the data panel last saw it: its fork, if any.
+  var previewFolder = null;
   function renderData(data) {
     (data.folders || []).forEach(function (folder) {
+      if (folder.slot === "preview") previewFolder = folder;
       var facts = $("data-" + folder.slot);
       facts.textContent = "";
       function fact(name, value) {
@@ -1635,7 +1638,13 @@
     dataAct("Give the preview a fresh copy of production's data? What the preview wrote itself is kept once, apart; production pauses for a moment, and the preview restarts on the copy.", "data/copy", { to: "preview" }, "The preview has a fresh copy of production's data.");
   });
   $("data-copy").addEventListener("click", function () {
-    dataAct("Replace production's data with a copy of the preview's? hi snapshots production's data first, and production restarts on the copy.", "data/copy", {}, "Production has Stage's data now.");
+    // A preview on a fork has production's data from then, not data of its
+    // own: say so, or the copy looks like it brings what Stage gathered.
+    var fork = previewFolder && previewFolder.fork;
+    var question = fork
+      ? "The preview runs on a copy of production's data" + (fork.version ? " (v" + fork.version + ")" : "") + " from " + stamp(fork.at) + ", not on data of its own: copying it gives production that copy back, with what was tried on the preview since (" + (previewFolder.files ? dataSize(previewFolder.bytes) : "nothing") + "). Replace production's data with it? hi snapshots production's data first, and production restarts on the copy."
+      : "Replace production's data with a copy of the preview's? hi snapshots production's data first, and production restarts on the copy.";
+    dataAct(question, "data/copy", {}, "Production has Stage's data now.");
   });
   $("data-snapshot").addEventListener("click", function () {
     dataAct("", "data/snapshot", {}, "The snapshot is taken.");

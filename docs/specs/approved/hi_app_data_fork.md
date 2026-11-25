@@ -160,6 +160,18 @@ after production deletes it, until the next fork.
 
 A team whose production has no data yet gets an empty preview, as now.
 
+A preview that gathered data production never got is not forked over on
+its own, at a release or for new work: it isn't on a fork, it has data,
+and no release or copy took the preview's data to production. Production
+having data says nothing here: the app makes an empty database as it
+starts. On mech-rms the first release went out without the preview's
+data, the fork replaced 271 gathered items with that empty database, and
+copying the preview to production then copied the empty fork. The data
+was still in `run/preview-data-before/`. Now the preview keeps it until
+an owner copies it to production, or gives the preview a fork by hand.
+On the dev page, copying a preview that runs on a fork says that it
+gives production back its own data from then.
+
 ### Settings per slot
 
 ```text

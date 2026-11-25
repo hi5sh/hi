@@ -387,14 +387,51 @@ func (b *appBroker) forkPreviewLocked() (appDataCopy, error) {
 	return result, nil
 }
 
+// appPreviewGathered says the preview holds data it gathered itself that
+// production never got: it isn't on a fork of production, it has data,
+// and no release or copy took the preview's data to production. hi
+// doesn't fork over it on its own, after a release or for new work: the
+// app makes an empty database in production as it starts, so production
+// having data doesn't mean it has the preview's. On team mech-rms the
+// first release forked that empty database over 271 items the preview
+// had gathered, and copying the preview to production then copied the
+// empty fork. An owner copies the preview's data to production, or gives
+// the preview production's by hand.
+func appPreviewGathered(team string) bool {
+	if _, ok := loadTeamPreviewFork(team); ok {
+		return false
+	}
+	if _, files, _ := appDataUsage(appSlotDataDir(team, appSlotPreview)); files == 0 {
+		return false
+	}
+	versions, err := loadTeamVersions(team)
+	if err != nil {
+		return false
+	}
+	for _, event := range versions.History {
+		if event.PreviewData {
+			return false
+		}
+		// Events from before PreviewData say it in words.
+		if event.What == appEventDataFromPreview || strings.HasSuffix(event.What, appEventWithPreviewData) {
+			return false
+		}
+	}
+	return true
+}
+
 // appForkStale is how old the preview's fork may be when new work goes
 // on the preview: older, it gets a fresh one first.
 const appForkStale = time.Hour
 
 // forkForNewWork gives the preview a fresh fork of production's data for
-// new work, unless the fork is under appForkStale old, and says so.
+// new work, unless the fork is under appForkStale old, and says so. A
+// preview that gathered data production lacks keeps it.
 func (b *appBroker) forkForNewWork() string {
 	if fork, ok := loadTeamPreviewFork(b.team); ok && time.Since(fork.At) < appForkStale {
+		return ""
+	}
+	if appPreviewGathered(b.team) {
 		return ""
 	}
 	b.mu.Lock()
@@ -496,8 +533,9 @@ func (b *appBroker) restartPreviewLocked(target appPreview, had bool, result *ap
 // release, so it runs production's code on a new fork of it: the next
 // migration runs on a copy of production's real data first. A team whose
 // previews start empty gets an empty one. Nothing happens while
-// production has no data, so a preview that gathered what production
-// lacks keeps it, or without an overlay, where a fork is a whole copy.
+// production has no data, or while the preview holds data it gathered
+// that production never got (appPreviewGathered), or without an overlay,
+// where a fork is a whole copy.
 func (b *appBroker) previewAfterRelease() (appDataCopy, bool, error) {
 	config, err := loadTeam(b.team)
 	if err != nil {
@@ -509,7 +547,7 @@ func (b *appBroker) previewAfterRelease() (appDataCopy, bool, error) {
 		result, err := b.emptyPreviewLocked()
 		return result, true, err
 	}
-	if _, files, _ := appDataUsage(appSlotDataDir(b.team, appSlotProduction)); files == 0 || !appOverlayEngine() {
+	if _, files, _ := appDataUsage(appSlotDataDir(b.team, appSlotProduction)); files == 0 || !appOverlayEngine() || appPreviewGathered(b.team) {
 		return appDataCopy{}, false, nil
 	}
 	result, err := b.forkPreviewLocked()

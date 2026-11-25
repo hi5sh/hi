@@ -45,7 +45,17 @@ type appVersionEvent struct {
 	From     int    `json:"from,omitempty"`
 	To       int    `json:"to,omitempty"`
 	Snapshot string `json:"snapshot,omitempty"`
+	// PreviewData says the preview's data went to production: a first
+	// release with it, or a copy (appPreviewGathered).
+	PreviewData bool `json:"preview_data,omitempty"`
 }
+
+// How History said, before PreviewData, that production got the
+// preview's data.
+const (
+	appEventDataFromPreview = "production's data from the preview"
+	appEventWithPreviewData = ", with a copy of the preview's data"
+)
 
 // leftSnapshot is the snapshot taken the last time production left
 // version: its data as that version left it.
@@ -483,7 +493,8 @@ func (b *appBroker) moveProductionLocked(request appReleaseRequest) (appReleaseR
 		versions.Releases = append(versions.Releases, release)
 		event.What = fmt.Sprintf("release v%d", version)
 		if result.PreviewData > 0 {
-			event.What += ", with a copy of the preview's data"
+			event.What += appEventWithPreviewData
+			event.PreviewData = true
 		}
 		event.From, event.To = versions.Production, version
 		versions.Production, result.Release = version, release

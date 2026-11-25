@@ -230,7 +230,7 @@ func (b *appBroker) copyData(request appDataCopyRequest) (appDataCopy, error) {
 		return result, err
 	}
 	result.Snapshot = snapshot.ID
-	versions.History = append(versions.History, appVersionEvent{What: "production's data from the preview", Approval: &approval, At: time.Now().UTC(), Snapshot: snapshot.ID})
+	versions.History = append(versions.History, appVersionEvent{What: appEventDataFromPreview, Approval: &approval, At: time.Now().UTC(), Snapshot: snapshot.ID, PreviewData: true})
 	saveErr := saveTeamVersions(b.team, versions)
 	b.mu.Unlock()
 	if saveErr != nil {

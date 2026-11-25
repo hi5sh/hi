@@ -177,10 +177,32 @@ func TestTeamPreviewAfterRelease(t *testing.T) {
 		t.Fatal(result.Preview)
 	}
 
-	// With data in production, the preview gets a new fork at a release.
-	writeTeamTestData(t, appSlotProduction, map[string]string{"app.db": "production's"})
+	// The app made an empty database in production as it started: the
+	// preview still keeps what it gathered, at a release and for new
+	// work, so copying it to production copies it (team mech-rms).
+	writeTeamTestData(t, appSlotProduction, map[string]string{"app.db": "production's empty one"})
 	appTestMerge(t, b, "Add a search")
 	result, err = b.release(appReleaseRequest{host: "Olga", Notes: "Search."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Preview != nil || readTeamTestPreview("app.db") != "gathered in the preview" || !appPreviewGathered("payments") {
+		t.Fatalf("%+v", result.Preview)
+	}
+	if text := b.forkForNewWork(); text != "" || readTeamTestPreview("app.db") != "gathered in the preview" {
+		t.Fatal(text)
+	}
+	if _, err := b.copyData(appDataCopyRequest{From: "preview", To: "production", owner: "Olga"}); err != nil {
+		t.Fatal(err)
+	}
+	if readTeamTestData(appSlotProduction, "app.db") != "gathered in the preview" || appPreviewGathered("payments") {
+		t.Fatal(readTeamTestData(appSlotProduction, "app.db"))
+	}
+
+	// Once production has it, the preview gets a new fork at a release.
+	writeTeamTestData(t, appSlotProduction, map[string]string{"app.db": "production's"})
+	appTestMerge(t, b, "Add a filter")
+	result, err = b.release(appReleaseRequest{host: "Olga", Notes: "Filter."})
 	if err != nil {
 		t.Fatal(err)
 	}
