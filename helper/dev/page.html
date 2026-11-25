@@ -49,7 +49,7 @@
           <ul id="inbox-list" class="inbox-list"></ul>
         </div>
       </div>
-      <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Rewind, source control, logs, preview, publish, data, and system" aria-label="The right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
+      <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Source control, logs, preview, publish, data, and system" aria-label="The right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
     </div>
     <div class="code-body">
         <aside id="left-side" class="side side-left" aria-label="The left panel" hidden>
@@ -389,7 +389,6 @@
         <aside id="chat-side" class="side side-right" aria-label="The right panel" hidden>
           <div id="side-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
           <nav class="side-tabs" role="tablist" aria-label="Views">
-            <button data-side="rewind" role="tab" aria-selected="true" title="Rewind: put the code and the chat back to before a message" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
             <button data-side="git" role="tab" aria-selected="false" title="Source control: see the changes, commit them, and ship them" aria-label="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="git-count" class="side-badge" hidden></span></button>
             <button data-side="logs" role="tab" aria-selected="false" title="Logs: the output of production and the preview, and the requests they get" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
             <button data-side="preview" role="tab" aria-selected="false" title="Preview: see the preview or production next to your work" aria-label="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
@@ -452,11 +451,6 @@
             </div>
             <p id="preview-note" class="muted small logs-note"></p>
             <iframe id="preview-frame" class="preview-frame" title="Preview" referrerpolicy="no-referrer" allow="clipboard-write"></iframe>
-          </section>
-          <section id="side-rewind" class="side-view rewind" role="tabpanel" aria-label="Rewind">
-            <div class="rewind-head"><span class="rewind-title">Rewind</span><span class="muted small">to before a message</span></div>
-            <p id="rewind-empty" class="muted small" hidden></p>
-            <ol id="rewind-points" class="rewind-points"></ol>
           </section>
           <section id="side-release" class="side-view page-view" role="tabpanel" aria-label="Publish" hidden>
             <div class="release-wrap">
@@ -648,6 +642,29 @@
     <button type="button" id="mode-reset" class="link">Reset Vibe mode</button>
     <span class="grow"></span>
     <button type="button" id="mode-done" class="primary">Done</button>
+  </div>
+</dialog>
+<dialog id="rewind-dialog" class="wide stuck-dialog" aria-labelledby="rewind-title">
+  <h2 id="rewind-title">Rewind to before this message</h2>
+  <blockquote id="rewind-quote" class="rewind-quote"></blockquote>
+  <p id="rewind-changes" class="small muted"></p>
+  <div class="stuck-options">
+    <button type="button" class="stuck-option" data-rewind="both"><strong>Code and chat</strong><span class="muted small">The chat and the files that Claude changed go back to before this message.</span></button>
+    <button type="button" class="stuck-option" data-rewind="conversation"><strong>Chat only</strong><span class="muted small">The chat goes back. The files stay as they are now.</span></button>
+    <button type="button" class="stuck-option" data-rewind="code"><strong>Code only</strong><span class="muted small">The files that Claude changed go back. The chat stays as it is now.</span></button>
+  </div>
+  <p id="rewind-note" class="small warn" hidden></p>
+  <div class="how muted small">
+    <h3>How it works</h3>
+    <ul>
+      <li>When the chat goes back, this message and all messages after it leave the chat. The message goes back in the box. You can change it and send it again.</li>
+      <li>When the code goes back, hi puts back each file in full. Later changes to these files are lost, also changes by other people.</li>
+      <li>Changes made by shell commands stay.</li>
+      <li>Rewind works only while Claude Code runs in this workspace.</li>
+    </ul>
+  </div>
+  <div class="buttons">
+    <button type="button" id="rewind-cancel">Cancel</button>
   </div>
 </dialog>
 <dialog id="stuck-dialog" class="wide stuck-dialog" aria-labelledby="stuck-title">

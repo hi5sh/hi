@@ -260,7 +260,7 @@ asks for.
   building, developer, with Chat, the terminal, and SSH. Vibe mode and
   Pro mode are how much of the dev page shows, each person's choice in
   their own browser: everyone starts in Vibe (Tasks, Workspaces, Chat or
-  the terminal, Rewind, Preview, Publish), Pro shows the rest, and
+  the terminal, Preview, Publish), Pro shows the rest, and
   Customize Vibe mode picks what Vibe shows. app.json's vibe_developers
   are read as developers, and `vibe` and `pro` still say developer.
 - **Pro Dev and Vibe Dev** (2026-10-28, v2.6.20; replaced 2026-11-17). A developer was a Pro Dev

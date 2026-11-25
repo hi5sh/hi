@@ -318,8 +318,8 @@ address; a NetBird address on plain http stays a page in the browser.
 The page is the work, Chat or the terminal, with a panel on each side
 of it, as an editor's side bars, their views by the icons along their
 tops. The left has what goes into the app: **Tasks**,
-**Workspaces**, **Files**, **Search**, **Checks**, **Decisions**, and
-**Security**. The right has what comes out of it: **Rewind**, **Source
+**Workspaces**, **Files**, **Search**, **Checks**, **Decisions**,
+**Users**, and **Keys**. The right has what comes out of it: **Source
 control**, **Logs**, **Preview**, **Publish**, **Data**, and
 **System**. Each panel's inner edge drags it wider (a double click puts
 it back), its ✕ hides it, and the buttons at either end of the bar
@@ -386,9 +386,9 @@ dot.
 - **Vibe mode and Pro mode** (the sparkle in the top bar, beside the
   theme): how much of the page shows, each person's own choice, kept in
   their browser. Everyone starts in **Vibe**: Tasks and Workspaces on
-  the left, Chat or the terminal in the middle, and Rewind, Preview, and
+  the left, Chat or the terminal in the middle, and Preview and
   Publish on the right. **Pro** shows everything: Files, Search, Checks,
-  Decisions, Security, Source control, Logs, Data, System, and
+  Decisions, Users, Keys, Source control, Logs, Data, System, and
   **Editor ↗**. **Customize Vibe mode…** picks what Vibe shows, a box
   each. Something on the page that opens a view Vibe hides (a site's ask
   opens Security) shows it, until another is picked. It's a view, not a
@@ -467,16 +467,16 @@ dot.
   panel is beside the chat, the terminal, and the open files. Beside
   the terminal it follows the workspace you open in
   Workspaces ([below](#beside-the-chat)).
-  **Rewind** is a Claude Code conversation's messages
-  as a timeline, newest last: each with when, and what the code did
-  after it (green when it changed: `sand.ts +20`). A message opens to go
-  back to before it, as Claude Code's `/rewind` does: **Code and chat**,
-  **Chat only**, or **Code only**. hi presses `/rewind`'s keys in the
+  **Rewind** is on each of your messages in Chat: under the message,
+  with **Copy** and the time it was sent, when the pointer is on it. It
+  goes back to before that message, as Claude Code's `/rewind` does: a
+  dialog shows the files that go back, then **Code and chat**, **Chat
+  only**, or **Code only**. hi presses `/rewind`'s keys in the
   terminal for you, checking at each step that Claude Code shows what
   the chat does, and backs out if not; the message comes back in the
   chat's box, to change and send again. Restored files go back whole,
   and what shell commands changed stays, as with `/rewind`. Codex keeps
-  no checkpoints of the code, so it has no timeline. The workspaces
+  no checkpoints of the code, so its messages have no Rewind. The workspaces
   listed are pieces of work: a task's, or one with an agent at work
   (herdr's home and the project's own clone stay in the terminal). With
   none, or with **+ New**, the chat has **Start something new**: the
@@ -491,7 +491,6 @@ dot.
   the agent before it starts or resumes there, so Claude Code, Codex,
   and Antigravity never stop at "Trust this folder?" in the terminal.
 - <a id="beside-the-chat"></a>**The panels' views** for the work:
-  - **Rewind**, as above.
   - **Files** is the chat's workspace's files, a tree whose folders
     open in place: its worktree, or dev's clone for the project's own
     workspace; the list at the top picks another. A changed file is in

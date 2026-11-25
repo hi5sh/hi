@@ -1941,16 +1941,17 @@
   // and the terminal are one session
   var narrow = window.matchMedia && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
   var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], turn: 0, spin: 0, composing: false, askSig: "" };
-  // The rewind timeline's messages, what the page last saw, and the one open.
-  var rewind = { points: [], seen: "", open: "", at: 0 };
+  // Rewind's points (Claude Code's checkpoints, one for each message you
+  // sent), what the page last saw, and the point the dialog is open on.
+  var rewind = { points: [], seen: "", open: null };
   // The two panels beside the work, as an editor's side bars: on the left
   // what goes into the app (tasks, workspaces, files, search, checks,
-  // decisions, security); on the right what comes out of it (rewind,
-  // source control, logs, preview, release, data, system). Each has its
+  // decisions, users, keys); on the right what comes out of it (source
+  // control, logs, preview, release, data, system). Each has its
   // open view, whether it's shown, and how wide. On a narrow screen they
   // lie over the chat, one at a time, so they start hidden.
   var sideOver = window.matchMedia ? window.matchMedia("(max-width: 1100px)") : { matches: false };
-  var panes = { left: { view: "tasks", open: true, width: 300 }, right: { view: "rewind", open: true, width: 340 } };
+  var panes = { left: { view: "tasks", open: true, width: 300 }, right: { view: "preview", open: true, width: 340 } };
   // ---- Vibe mode and Pro mode: how much of the page shows, each person's
   // own, in this browser; not a right (hi 2.6.202). Vibe shows the chat,
   // the work, the preview, and publishing; what more, they choose
@@ -1958,7 +1959,7 @@
   var MODE_PARTS = [
     { group: "Left panel", items: [["tasks", "Tasks"], ["spaces", "Workspaces"], ["files", "Files"], ["search", "Search"], ["checks", "Checks"], ["decisions", "Decisions"], ["people", "Users (owners)"], ["security", "Keys"]] },
     { group: "The middle", items: [["terminal", "Terminal"], ["editor", "Editor ↗"]] },
-    { group: "Right panel", items: [["rewind", "Rewind"], ["git", "Source control"], ["logs", "Logs"], ["preview", "Preview"], ["release", "Publish"], ["data", "Data (owners)"], ["system", "System"]] },
+    { group: "Right panel", items: [["git", "Source control"], ["logs", "Logs"], ["preview", "Preview"], ["release", "Publish"], ["data", "Data (owners)"], ["system", "System"]] },
   ];
   var VIBE_HIDES = ["files", "search", "checks", "decisions", "people", "security", "editor", "git", "logs", "data", "system"];
   var viewMode = { mode: "vibe", hides: VIBE_HIDES.slice() };
@@ -2084,7 +2085,7 @@
   });
   var paneViews = {
     left: ["tasks", "spaces", "files", "search", "checks", "decisions", "people", "security"],
-    right: ["rewind", "git", "logs", "preview", "release", "data", "system"],
+    right: ["git", "logs", "preview", "release", "data", "system"],
   };
   var paneIds = {
     left: { panel: "left-side", toggle: "left-toggle", close: "left-close", resize: "left-resize", width: 300 },
@@ -2115,7 +2116,7 @@
       });
     });
     document.body.classList.toggle("layout-one", !!one);
-    var everything = "The panel: tasks, workspaces, rewind, preview, publish, and all other views";
+    var everything = "The panel: tasks, workspaces, preview, publish, and all other views";
     $("side-toggle").title = one === "right" ? everything : "Rewind, source control, logs, preview, publish, data, and system";
     $("left-toggle").title = one === "left" ? everything : "Tasks, workspaces, files, search, checks, decisions, users, and keys";
   }
@@ -2287,8 +2288,7 @@
     chat.turns = "";
     rewind.points = [];
     rewind.seen = "";
-    rewind.open = "";
-    renderPoints();
+    rewind.open = null;
     clearChat();
     showChatStart();
     git.view = null;
@@ -2615,7 +2615,7 @@
       if (entry.at) chat.turn = Date.parse(entry.at);
       var sent = chat.pending.shift();
       if (sent) sent.node.remove();
-      box.appendChild(el("div", { class: "msg-user", "data-uuid": entry.uuid || "" }, [userText(entry.text)]));
+      box.appendChild(userTurn(entry));
     } else if (entry.t === "text") {
       box.appendChild(el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]));
     } else if (entry.t === "thinking") {
@@ -2751,10 +2751,30 @@
     var seconds = Math.round((Date.now() - (chat.turn || Date.now())) / 1000);
     line.lastChild.textContent = text || (seconds >= 0 && seconds < 3600 ? "Working… (" + seconds + "s)" : "Working…");
   }
-  // ---- Rewind: Claude Code's /rewind as a timeline beside the chat: its
-  // messages, newest last, each with what the code did after it. One opens
-  // to go back to before it: the code and the chat, the chat, or the code.
-  // Codex keeps no checkpoints of the code, so it's Claude Code's only.
+  // ---- Your message in the chat: the bubble, and under it Copy, the time
+  // it was sent, and Rewind, as in Orca's chat. The row shows when the
+  // pointer is on the message (always on a touch screen).
+  var ICON_COPY = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+  var ICON_REWIND = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>';
+  function userTurn(entry) {
+    var copy = el("button", { type: "button", class: "msg-act", title: "Copy", "aria-label": "Copy the message", onclick: function () { copyText(entry.text || ""); } });
+    copy.innerHTML = ICON_COPY;
+    var back = el("button", { type: "button", class: "msg-act msg-rewind", title: "Rewind to here", "aria-label": "Rewind to before this message", hidden: "",
+      onclick: function () { openRewind(entry.uuid); } });
+    back.innerHTML = ICON_REWIND;
+    var at = entry.at ? new Date(entry.at) : null;
+    var time = at && !isNaN(at) ? el("time", { class: "msg-time", datetime: entry.at, title: at.toLocaleString(), text: at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : null;
+    var turn = el("div", { class: "msg-turn" }, [
+      el("div", { class: "msg-user", "data-uuid": entry.uuid || "" }, [userText(entry.text)]),
+      el("div", { class: "msg-meta" }, [copy, time, back]),
+    ]);
+    markRewind(turn);
+    return turn;
+  }
+  // ---- Rewind: Claude Code's /rewind, on each of your messages. Claude
+  // Code keeps a checkpoint at each message you send; Rewind goes back to
+  // before one: the code and the chat, the chat, or the code. Codex keeps
+  // no checkpoints of the code, so it's Claude Code's only.
   function loadPoints() {
     var asked = chat.space;
     if (!asked) return;
@@ -2767,98 +2787,86 @@
       renderPoints();
     });
   }
-  function changeLine(list) {
-    var added = 0, removed = 0;
-    list.forEach(function (change) { added += change.added; removed += change.removed; });
-    return [
-      el("span", { text: list.length === 1 ? list[0].path.split("/").pop() : list.length + " files" }),
-      added ? el("span", { class: "plus", text: " +" + added }) : null,
-      removed ? el("span", { class: "minus", text: " −" + removed }) : null,
-    ];
-  }
   function changeWords(list) {
     return list.map(function (change) {
       return change.path + (change.added ? " +" + change.added : "") + (change.removed ? " −" + change.removed : "");
     }).join(", ");
   }
-  function renderPoints() {
-    var list = $("rewind-points"), empty = $("rewind-empty");
+  function rewindPoint(uuid) {
+    return uuid ? rewind.points.filter(function (point) { return point.uuid === uuid; })[0] : null;
+  }
+  function rewindUsable() {
     var agent = chat.agent || {};
-    var usable = agent.running && agent.agent === "claude";
-    list.textContent = "";
-    empty.hidden = usable && rewind.points.length > 0;
-    empty.textContent = agent.running && agent.agent !== "claude" ? "Rewind works only with Claude Code. " + agent.agent + " keeps no checkpoints of the code."
-      : !usable ? "Rewind works while Claude Code runs in this workspace. You can go back to before each message you send."
-      : "Nothing to go back to yet. Each message you send adds a point here.";
-    if (!empty.hidden) return;
-    var busy = agent.status === "working" || agent.status === "blocked";
-    rewind.points.forEach(function (point) { list.appendChild(pointItem(point, busy)); });
-    list.appendChild(el("li", { class: "rp now" }, [el("span", { class: "rp-dot", "aria-hidden": "true" }), el("div", { class: "rp-now", text: "Now" })]));
+    return !!agent.running && agent.agent === "claude";
   }
-  function pointItem(point, busy) {
-    var open = rewind.open === point.uuid;
-    var changes = point.changes || [];
-    var meta = [el("span", { text: point.at ? ago(point.at) : "" })];
-    meta.push(el("span", { class: "rp-sep", text: " · " }));
-    meta = meta.concat(changes.length ? changeLine(changes) : [el("span", { text: "No code changes" })]);
-    var card = el("button", { type: "button", class: "rp-card", "aria-expanded": String(open),
-      title: changes.length ? "Changes after this message: " + changeWords(changes) : "No code changes after this message",
-      onclick: function () {
-        rewind.open = open ? "" : point.uuid;
-        renderPoints();
-        if (!open) showMessage(point.uuid);
-      } }, [el("div", { class: "rp-text", text: point.text }), el("div", { class: "rp-meta" }, meta)]);
-    var item = el("li", { class: "rp" + (changes.length ? " changed" : "") + (open ? " open" : "") }, [el("span", { class: "rp-dot", "aria-hidden": "true" }), card]);
-    if (!open) return item;
-    var actions = el("div", { class: "rp-actions" });
-    [["both", "Code and chat", "primary"], ["conversation", "Chat only", ""], ["code", "Code only", ""]].forEach(function (choice) {
-      var attrs = { type: "button", class: "small " + choice[2], text: choice[1], onclick: function () { rewindTo(point, choice[0]); } };
-      if (busy || (choice[0] !== "conversation" && !point.code)) attrs.disabled = "";
-      actions.appendChild(el("button", attrs));
-    });
-    item.appendChild(actions);
-    item.appendChild(el("p", { class: "rp-note", text: busy ? "Claude is working. Stop it first, then rewind."
-      : !point.code ? "Claude Code has no checkpoint of the code here. Only the chat goes back."
-      : "Go back to before this message. Pick the chat, the code that Claude changed, or both." }));
-    return item;
-  }
-  // showMessage scrolls the chat to a message the timeline names.
-  function showMessage(uuid) {
-    var message = uuid && document.querySelector('.msg-user[data-uuid="' + uuid + '"]');
-    if (!message) return;
-    message.scrollIntoView({ block: "center", behavior: "smooth" });
-    message.classList.add("flash");
-    setTimeout(function () { message.classList.remove("flash"); }, 1600);
-  }
-  function rewindTo(point, mode) {
-    var restore = point.restore || [];
-    var words = "Rewind to before “" + (point.text.length > 90 ? point.text.slice(0, 90) + "…" : point.text) + "”?";
-    if (mode !== "code") words += " This message and all messages after it leave the chat. The message goes back in the box. You can change it and send it again.";
-    if (mode !== "conversation") {
-      words += restore.length ? " The code goes back: " + changeWords(restore) + "." : " The code that Claude changed is already as it was then.";
-      words += " hi puts back each file in full. Later changes to these files are lost, also changes by other people. Changes made by shell commands stay.";
+  // markRewind shows a message's Rewind when Claude Code has a point for it.
+  function markRewind(turn) {
+    var bubble = turn.querySelector(".msg-user"), button = turn.querySelector(".msg-rewind");
+    var point = rewindUsable() && rewindPoint(bubble.dataset.uuid);
+    button.hidden = !point;
+    if (point) {
+      var changes = point.changes || [];
+      button.title = "Rewind to here" + (changes.length ? ". Claude changed after it: " + changeWords(changes) : "");
     }
-    ask(words).then(function (answer) {
-      if (answer === null) return;
-      toast("Rewinding…", true);
-      api("POST", "chat/rewind", { workspace: chat.space, uuid: point.uuid, mode: mode }).then(function (result) {
-        rewind.open = "";
-        var input = $("chat-input");
-        if (result.text && !input.value.trim()) {
-          input.value = result.text;
-          input.dispatchEvent(new Event("input"));
-          input.focus();
-        }
-        toast(mode === "code" ? "The code is back to before that message." : "Rewound. The message is in the box. You can change it and send it again.");
-        chat.offset = 0;
-        chat.session = "";
-        chat.turns = "";
-        pollChat();
-        loadPoints();
-      }).catch(function (error) {
-        toast(error.message);
-        loadPoints();
-      });
+  }
+  function renderPoints() {
+    document.querySelectorAll("#chat-entries .msg-turn").forEach(markRewind);
+    if (rewind.open && $("rewind-dialog").open) openRewind(rewind.open.uuid);
+  }
+  // openRewind asks how far back to go, for one message.
+  function openRewind(uuid) {
+    var point = rewindPoint(uuid);
+    var dialog = $("rewind-dialog");
+    if (!point || !rewindUsable()) {
+      if (dialog.open) dialog.close();
+      if (!point && rewind.open) toast("Claude Code has no point for that message now.");
+      rewind.open = null;
+      return;
+    }
+    rewind.open = point;
+    var agent = chat.agent || {};
+    var busy = agent.status === "working" || agent.status === "blocked";
+    var bubble = document.querySelector('#chat-entries .msg-user[data-uuid="' + point.uuid + '"]');
+    var text = (bubble && bubble.textContent) || point.text || "";
+    $("rewind-quote").textContent = text.length > 280 ? text.slice(0, 280) + "…" : text;
+    var restore = point.restore || [], changes = point.changes || [];
+    $("rewind-changes").textContent = (point.at ? "Sent " + ago(point.at) + ". " : "") +
+      (restore.length ? "Files that go back: " + changeWords(restore) + "." : changes.length ? "Claude changed after it: " + changeWords(changes) + "." : "Claude changed no files after this message.");
+    dialog.querySelectorAll("[data-rewind]").forEach(function (option) {
+      option.disabled = busy || (option.dataset.rewind !== "conversation" && !point.code);
+    });
+    var note = $("rewind-note");
+    note.textContent = busy ? "Claude is working. Stop it first, then rewind." : !point.code ? "Claude Code has no checkpoint of the code here. Only the chat can go back." : "";
+    note.hidden = !note.textContent;
+    if (!dialog.open) dialog.showModal();
+  }
+  $("rewind-dialog").querySelectorAll("[data-rewind]").forEach(function (option) {
+    option.addEventListener("click", function () {
+      var point = rewind.open;
+      $("rewind-dialog").close();
+      if (point) rewindTo(point, option.dataset.rewind);
+    });
+  });
+  $("rewind-cancel").addEventListener("click", function () { $("rewind-dialog").close(); });
+  $("rewind-dialog").addEventListener("close", function () { rewind.open = null; });
+  function rewindTo(point, mode) {
+    toast("Rewinding…", true);
+    api("POST", "chat/rewind", { workspace: chat.space, uuid: point.uuid, mode: mode }).then(function (result) {
+      var input = $("chat-input");
+      if (result.text && !input.value.trim()) {
+        input.value = result.text;
+        input.dispatchEvent(new Event("input"));
+        input.focus();
+      }
+      toast(mode === "code" ? "The code is back to before that message." : "Rewound. The message is in the box. You can change it and send it again.");
+      chat.offset = 0;
+      chat.session = "";
+      chat.turns = "";
+      pollChat();
+      loadPoints();
+    }).catch(function (error) {
+      toast(error.message);
+      loadPoints();
     });
   }
   function pollChat() {
@@ -3814,7 +3822,6 @@
     if (view === "logs") { logs.news = ""; renderLogsBadge(); loadLogs(); }
     if (view === "preview") loadPreview(false);
     if (view === "tasks") { renderSideTasks(); if (stask.ticket && !$("stask-one").hidden) showSideTask(stask.ticket.number, true); }
-    if (view === "rewind") { if (chat.view === "terminal") loadPoints(); else renderPoints(); }
   }
   // freshView fetches what a view shows only when it comes up: Decisions,
   // Data, and Users.
@@ -3942,7 +3949,6 @@
   }
   setInterval(function () {
     // Beside the terminal, the chat's poll is off: Rewind asks itself.
-    if (viewShown("rewind") && chat.view === "terminal" && Date.now() - rewind.at > 5000) { rewind.at = Date.now(); loadPoints(); }
     if (gitShown() && Date.now() - git.at > 4000) refreshGit();
     else if (filesShown() && files.loaded && Date.now() - files.at > 8000) {
       // The tree, and its letters, as the agent changes files.

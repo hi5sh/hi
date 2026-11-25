@@ -27,8 +27,11 @@ browser (an address of its own, `/__hi/dev/`):
   session as a terminal. What they type there reaches you as typed.
 - A panel on each side. The left: **Tasks**, **Workspaces**, **Files**,
   **Search**, **Checks**, **Decisions**, **Users**, **Keys**. The right:
-  **Rewind**, **Source control**, **Logs**, **Preview**, **Publish**,
-  **Data**, **System**.
+  **Source control**, **Logs**, **Preview**, **Publish**, **Data**,
+  **System**.
+- **Rewind** is on each of their messages in Chat (the ↶ under it, by
+  Copy and the time): back to before that message, the code and the
+  chat, the chat, or the code (Claude Code's `/rewind`).
 - **Preview** shows the preview (Stage) or production *inside the page*,
   in a frame, with a drop-down to pick which, ↻ to load it again, ↗ to
   open it in a tab of its own, and ⤢ for the whole screen. "The view",
