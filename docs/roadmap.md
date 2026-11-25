@@ -6989,6 +6989,15 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.246 — GitLab tasks show their comments
+
+- [x] A task on GitLab shows its comments on the dev page and in `hi app
+  task show`, from GitLab's API (`glab issue view` leaves them out), without
+  GitLab's own notes (status, title, commits). Before, a comment from `hi
+  app task comment` or the page reached GitLab but never showed in hi.
+- [x] An owner edits and deletes a GitLab task's comments from the dev page,
+  as on GitHub.
+
 ### v2.6.245 — The app sends to Slack through hi
 
 Approved spec: [hi_app_say.md](specs/approved/hi_app_say.md).
