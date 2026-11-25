@@ -6989,6 +6989,15 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.250 — The dev page's Security is Users and Keys
+
+- [x] The left panel's Security splits in two: **Users** (who may do
+  what; owners only) and **Keys**. Keys shows one part at a time, picked
+  with chips above it: SSH key, Settings, Keys and sign-ins (owners), and
+  Sites, which counts the sites agents asked for. A site's ask opens Keys
+  on Sites, and Editor's "Add my key" on SSH key. Vibe mode hides Users
+  as it hid Security.
+
 ### v2.6.249 — Model calls from apps that ask for gzip are counted
 
 - [x] hi's model proxies (an app's models socket, the boxes' Claude,
