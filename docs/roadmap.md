@@ -6989,6 +6989,15 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.247 — `hi dev <command> --help` posts nothing
+
+- [x] `hi dev <command> --help` (or `-h`) shows that command's lines of
+  `hi dev`'s usage. Before, `hi dev say --help` posted "--help" in the
+  app's channel.
+- [x] An option alone is never a message: `hi dev say`, `hi dev note`, and
+  the task commands that take text refuse `--verbose` and the like instead
+  of posting or saving it.
+
 ### v2.6.246 — GitLab tasks show their comments
 
 - [x] A task on GitLab shows its comments on the dev page and in `hi app
