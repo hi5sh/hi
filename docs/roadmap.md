@@ -6989,6 +6989,15 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.253 — Rewind is in the chat
+
+- [x] Rewind moves from the right panel into Chat, as in Orca: under each
+  of your messages, Copy, the time it was sent, and ↶ "Rewind to here"
+  (when the pointer is on the message; always on a touch screen). ↶ opens
+  one dialog: the message, the files that go back, and Code and chat,
+  Chat only, or Code only. It shows only while Claude Code runs and has
+  a point for that message. The right panel opens on the preview.
+
 ### v2.6.252 — The dev and admin pages in plain words
 
 - [x] The text on the dev page and the admin page (captions, tooltips,
