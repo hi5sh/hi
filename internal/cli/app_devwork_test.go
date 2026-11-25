@@ -222,6 +222,31 @@ func TestTeamTickets(t *testing.T) {
 	if strings.Join(env, " ") != "GITLAB_HOST=gitlab.example.com" || !strings.HasSuffix(calls[0], "-R acme/quarry") {
 		t.Fatal(env, calls)
 	}
+	// Its comments come from the API, without GitLab's own notes.
+	answers["glab issue view 3"] = `{"iid":3,"title":"Faster charts","state":"opened","description":"Slow.","author":{"username":"bo"}}`
+	answers["glab api projects/acme%2Fquarry/issues/3/notes"] = `[{"id":11,"body":"set status to **To do**","system":true,"author":{"username":"bo"}},{"id":12,"body":"Use the cache","system":false,"author":{"username":"ann"},"created_at":"2026-11-25T12:00:00Z","updated_at":"2026-11-25T12:00:00Z"}]`
+	if out := do("show", "3"); !strings.Contains(out, "Use the cache") || strings.Contains(out, "set status") {
+		t.Fatal(out)
+	}
+	calls = calls[:1]
+	for _, action := range []appTicketRequest{{Action: "edit-comment", Number: 3, Comment: "12", Body: "Use the new cache"}, {Action: "delete-comment", Number: 3, Comment: "12"}} {
+		if _, err := appTicketDo("payments", action); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var writes []string
+	for _, call := range calls {
+		if strings.Contains(call, " -X ") {
+			writes = append(writes, call)
+		}
+	}
+	if strings.Join(writes, " | ") != "glab api -X PUT projects/acme%2Fquarry/issues/3/notes/12 -f body=Use the new cache | glab api -X DELETE projects/acme%2Fquarry/issues/3/notes/12" {
+		t.Fatal(writes)
+	}
+	if _, err := appTicketDo("payments", appTicketRequest{Action: "delete-comment", Number: 3, Comment: "../1"}); err == nil {
+		t.Fatal("a path was taken for a comment")
+	}
+	calls = calls[:1]
 	do("close", "3", "Done")
 	if strings.Join(calls[1:], " | ") != "glab issue note 3 -m Done -R acme/quarry | glab issue close 3 -R acme/quarry" {
 		t.Fatal(calls)

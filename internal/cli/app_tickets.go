@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -499,6 +500,35 @@ func (f appForge) gitlab(request appTicketRequest, result *appTicketResult) erro
 			return fmt.Errorf("glab's answer: %w", err)
 		}
 		converted := convert(ticket)
+		// glab issue view leaves the comments out of its JSON: they come
+		// from the API, without GitLab's own notes (status, title, commits).
+		comments, err := appForgeRun(env, "glab", "api", fmt.Sprintf("projects/%s/issues/%d/notes?sort=asc&order_by=created_at&per_page=100", url.PathEscape(f.Repo), request.Number))
+		if err != nil {
+			return err
+		}
+		var notes []struct {
+			ID     int64  `json:"id"`
+			Body   string `json:"body"`
+			System bool   `json:"system"`
+			Author struct {
+				Username string `json:"username"`
+			} `json:"author"`
+			CreatedAt time.Time `json:"created_at"`
+			UpdatedAt time.Time `json:"updated_at"`
+		}
+		if err := json.Unmarshal([]byte(comments), &notes); err != nil {
+			return fmt.Errorf("glab's comments: %w", err)
+		}
+		for _, note := range notes {
+			if note.System {
+				continue
+			}
+			comment := appTicketComment{ID: strconv.FormatInt(note.ID, 10), Author: note.Author.Username, Body: note.Body, At: note.CreatedAt}
+			if note.UpdatedAt.Sub(note.CreatedAt) > time.Minute {
+				comment.Edited = note.UpdatedAt
+			}
+			converted.Comments = append(converted.Comments, comment)
+		}
 		result.Ticket = &converted
 	case "add":
 		out, err := run("issue", "create", "--title", request.Title, "--description", request.Body, "--yes")
@@ -550,7 +580,19 @@ func (f appForge) gitlab(request appTicketRequest, result *appTicketResult) erro
 		}
 		result.Ticket = &appTicket{Number: request.Number}
 	case "delete-comment", "edit-comment":
-		return errors.New("hi doesn't show GitLab's comments yet: change it on GitLab")
+		// GitLab's comment IDs are its notes' numbers.
+		if !regexp.MustCompile(`^[0-9]+$`).MatchString(request.Comment) {
+			return fmt.Errorf("%q isn't a comment", request.Comment)
+		}
+		path := fmt.Sprintf("projects/%s/issues/%d/notes/%s", url.PathEscape(f.Repo), request.Number, request.Comment)
+		args := []string{"api", "-X", "DELETE", path}
+		if request.Action == "edit-comment" {
+			args = []string{"api", "-X", "PUT", path, "-f", "body=" + request.Body}
+		}
+		if _, err := appForgeRun(env, "glab", args...); err != nil {
+			return err
+		}
+		result.Ticket = &appTicket{Number: request.Number}
 	default:
 		return fmt.Errorf("no task command %q", request.Action)
 	}
