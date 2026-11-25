@@ -6989,6 +6989,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.257 — Fork, ↑, and the time on responses; Ctrl+Enter steers
+
+- [x] Under each of the agent's responses in Chat, as in Orca: Copy (the
+  whole response), Fork, ↑ (to the start of the response), and the time.
+  One row for each response, under its last reply.
+- [x] Fork starts a new chat from a response: hi copies the conversation
+  as it is now (not a branch a rewind left) up to the end of that
+  response's turn into a new Claude Code session beside the old one,
+  stops the agent, and resumes the new session in the workspace. The
+  old chat stays in the session menu. Not while the agent works.
+- [x] Ctrl+Enter (⌘Enter) in the chat's box steers: the message goes now,
+  into the turn that runs, not into the queue.
+
 ### v2.6.256 — Pictures in the chat
 
 - [x] Chat shows the pictures a session names as thumbnails, as in Orca:
