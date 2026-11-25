@@ -6989,6 +6989,21 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.245 — The app sends to Slack through hi
+
+Approved spec: [hi_app_say.md](specs/approved/hi_app_say.md).
+
+- [x] An app's box has `$HI_SAY_URL`: the app POSTs `{"text", "to",
+  "thread"}` and hi sends it from the app's Slack bot, in its channel, in a
+  thread, or as a DM to someone in the channel or with a level in the app.
+  No app needs a Slack token of its own.
+- [x] Production sends; the preview answers what it would have sent and
+  sends nothing.
+- [x] 30,000 characters a message, 60 messages an hour per slot.
+- [x] The dev box's instructions and the hi-dev-say skill say how app code
+  sends to Slack, and that it records what it sent so a restart doesn't
+  send it twice.
+
 ### v2.6.244 — Sign in and come back through NetBird's sign-in
 
 - [x] **Sign in and come back** on the dev page's Preview puts the next
