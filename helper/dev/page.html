@@ -160,7 +160,6 @@
             <div class="keys-box">
                 <section id="people-box" class="owners-only">
                   <h2>Users</h2>
-                  <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Developers</strong> build and publish as owners do, with Chat, terminal, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who; how much of the page they see is theirs (Vibe or Pro mode). <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
                   <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
                   <div class="people-wrap">
                     <table id="people-table" class="people-table">
@@ -174,8 +173,19 @@
                       <tbody id="people"><tr><td colspan="5" class="muted small">Loading…</td></tr></tbody>
                     </table>
                   </div>
-                  <p class="muted small">Owners are set by an admin of the machine (<code>hi app owners</code>).<span id="admin-owners" hidden> <a target="_blank" rel="noopener noreferrer">You're one: change them on the admin page ↗</a></span> The channel hears every change made here.</p>
-                  <p id="people-warn" class="small warn" hidden>The preview runs on a copy of production's data, so a developer can read it through the preview, with their own work on it. To keep that data from developers, start the preview empty (in Data).</p>
+                  <p id="people-warn" class="small warn" hidden>Developers can read production's data in the preview, because the preview uses a copy of it. To stop this, start the preview empty (in Data).</p>
+                  <div class="how muted small">
+                    <h3>How it works</h3>
+                    <ul>
+                      <li>An owner gives each level. A person in the app's channel has no level until an owner gives one.</li>
+                      <li><strong>Owners</strong> can do all things. An admin of the machine sets the owners (<code>hi app owners</code>).<span id="admin-owners" hidden> <a target="_blank" rel="noopener noreferrer">You are an admin: change them on the admin page ↗</a></span></li>
+                      <li><strong>Developers</strong> build and publish the app. They use Chat, the terminal, and SSH.</li>
+                      <li>Developers cannot roll back. They cannot change production's data or variables, the app's keys, the sites, the addresses, or the users.</li>
+                      <li><strong>Contributors</strong> report bugs as tasks, in Slack or in the app's helper.</li>
+                      <li>Other people can use the app and ask the lead questions.</li>
+                      <li>The app's channel gets a message for each change here.</li>
+                    </ul>
+                  </div>
                 </section>
             </div>
           </section>
@@ -183,45 +193,79 @@
             <div class="keys-box">
               <div id="keys-show" class="chips keys-chips" role="group" aria-label="Which keys">
                 <button type="button" data-keys="ssh" aria-pressed="true">SSH key</button>
-                <button type="button" data-keys="settings" aria-pressed="false">Settings</button>
+                <button type="button" data-keys="settings" aria-pressed="false">Env variables</button>
                 <button type="button" data-keys="signins" class="owners-only" aria-pressed="false">Keys and sign-ins</button>
                 <button type="button" data-keys="sites" aria-pressed="false">Sites<span id="sites-count" class="chip-count" hidden></span></button>
               </div>
                 <section id="sshkey-box" data-keys-pane="ssh">
-                  <p class="muted small">For <code>ssh</code> and your own editor (Editor ↗ on a workspace) into the dev box, over the app's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
                   <p id="sshkey-now" class="small"></p>
                   <div id="sshkey-connect" class="small" hidden></div>
                   <form id="sshkey-form" class="setting-form">
                     <input id="sshkey" placeholder="ssh-ed25519 AAAA… you@laptop" autocomplete="off" spellcheck="false" required>
                     <button type="submit">Save the key</button>
                   </form>
+                  <div class="how muted small">
+                    <h3>How it works</h3>
+                    <ul>
+                      <li>Your key lets you connect to the dev box with <code>ssh</code> or your own editor (Editor ↗ on a workspace).</li>
+                      <li>The connection goes through the app's NetBird network.</li>
+                      <li>Paste your public key. It is the .pub file, for example ~/.ssh/id_ed25519.pub.</li>
+                      <li>A new key replaces your old key.</li>
+                    </ul>
+                  </div>
                 </section>
                 <section id="settings-box" data-keys-pane="settings" hidden>
-                  <p class="muted small">API keys and other settings the app reads as environment variables, kept encrypted in the machine's vault (each change a version an admin can roll back). A file's variable holds its path in the app's box. Names only: values are never shown. A shared key an admin shared to the app can give a setting its value: a new value there reaches the app too. Within a minute of a change the preview and production have it in /run/hi/settings, without a restart; their environment has it from their next start. The dev box gets only its own, such as a test database's.</p>
                   <ul id="settings" class="list"></ul>
                   <form id="setting-form" class="setting-form owners-only">
-                    <input id="setting-key" placeholder="NAME" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
-                    <input id="setting-value" type="password" placeholder="value" autocomplete="new-password" required>
-                    <select id="setting-from" hidden aria-label="Its value">
-                      <option value="">its own value, above</option>
+                    <input id="setting-key" placeholder="NAME" aria-label="Name" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
+                    <input id="setting-value" type="password" placeholder="Value" aria-label="Value" autocomplete="new-password" required>
+                    <select id="setting-from" hidden aria-label="Where the value comes from">
+                      <option value="">Use the value I type</option>
                     </select>
-                    <label class="setting-file muted small">or a file, such as a certificate with its key: <input id="setting-file" type="file"></label>
-                    <select id="setting-slot">
-                      <option value="">The preview and production</option>
-                      <option value="preview">The preview only</option>
-                      <option value="production">production only</option>
-                      <option value="dev">the dev box only, from its next restart</option>
+                    <label class="setting-file muted small">Or upload a file, for example a certificate: <input id="setting-file" type="file"></label>
+                    <select id="setting-slot" aria-label="Where the app gets it">
+                      <option value="all">Dev box, preview, and production</option>
+                      <option value="">Preview and production</option>
+                      <option value="preview">Preview only</option>
+                      <option value="production">Production only</option>
+                      <option value="dev">Dev box only</option>
                     </select>
-                    <button type="submit">Set</button>
+                    <button type="submit">Save</button>
                   </form>
+                  <div class="how muted small">
+                    <h3>How it works</h3>
+                    <ul>
+                      <li>The app reads each variable from its environment. Use them for API keys and other values.</li>
+                      <li>hi keeps the values encrypted in the vault on this machine. After you save a value, nobody can see it here. You see only the names.</li>
+                      <li>If you upload a file, the variable holds the path to the file.</li>
+                      <li>If an admin shared a key with the app, you can use it as the value. When the admin changes the shared key, the app gets the new value.</li>
+                      <li>The preview and production get a change in less than 1 minute, in /run/hi/settings. Their environment gets it at their next start.</li>
+                      <li>The dev box gets a change at its next restart.</li>
+                      <li>An admin can go back to an earlier version of a value.</li>
+                    </ul>
+                  </div>
                 </section>
                 <section id="signins-box" class="owners-only" data-keys-pane="signins" hidden>
-                  <p class="muted small">What the app's models and Slack run on. They stay on the machine, where hi puts them on the calls: no agent and no app ever sees them. An admin of the machine changes them.<span id="admin-keys" hidden> <a target="_blank" rel="noopener noreferrer">You're one: on the admin page ↗</a></span></p>
                   <ul id="team-keys" class="list"></ul>
+                  <div class="how muted small">
+                    <h3>How it works</h3>
+                    <ul>
+                      <li>These are the keys and sign-ins for the app's models and Slack.</li>
+                      <li>They stay on this machine. hi adds them to each call, so no agent and no app sees them.</li>
+                      <li>Only an admin of the machine can change them.<span id="admin-keys" hidden> <a target="_blank" rel="noopener noreferrer">You are an admin: change them on the admin page ↗</a></span></li>
+                    </ul>
+                  </div>
                 </section>
                 <section id="sites-box" data-keys-pane="sites" hidden>
-                  <p class="muted small">Besides what development needs (GitHub, npm, PyPI, Go modules, crates.io, Hugging Face, the agents' services). Agents ask with <code>hi dev allow</code>; the box never reaches the machine or the network it's on.</p>
                   <ul id="sites" class="list"></ul>
+                  <div class="how muted small">
+                    <h3>How it works</h3>
+                    <ul>
+                      <li>The dev box can always reach the sites for development: GitHub, npm, PyPI, Go modules, crates.io, Hugging Face, and the agents' services.</li>
+                      <li>For other sites, an agent asks with <code>hi dev allow</code>. An owner allows the site or says no.</li>
+                      <li>The dev box can never reach this machine or its network.</li>
+                    </ul>
+                  </div>
                 </section>
             </div>
           </section>

@@ -750,6 +750,14 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		for _, scope := range sortedKeys(config.EnvFrom) {
 			for _, key := range sortedKeys(config.EnvFrom[scope]) {
 				where := map[string]string{"": "", appSlotProduction: ", production only", appSlotPreview: ", the preview's own", appSlotDev: ", the dev box's"}[scope]
+				// The same shared key for the two and the dev box is one line.
+				both := config.EnvFrom[""][key]
+				switch {
+				case scope == "" && both == config.EnvFrom[appSlotDev][key]:
+					where = ", the dev box too"
+				case scope == appSlotDev && both == config.EnvFrom[appSlotDev][key]:
+					continue
+				}
 				names = append(names, fmt.Sprintf("%s (from %s%s)", key, config.EnvFrom[scope][key], where))
 			}
 		}
@@ -1145,6 +1153,8 @@ func appEnvNames(secrets appSecrets) []string {
 			switch {
 			case dev && !both && !production && !preview:
 				about = append(about, "the dev box only")
+			case dev && both && (*kind.maps.dev)[key] == (*kind.maps.both)[key]:
+				about = append(about, "the dev box too")
 			case dev:
 				about = append(about, "the dev box has its own")
 			}

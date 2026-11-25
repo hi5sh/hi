@@ -968,17 +968,37 @@ func appDevNewTitle(text string) string {
 
 // appDevPageSetting is a setting an owner changes on the page: both
 // slots, or one, as hi app env does.
+// appDevSettingAll is the dev page's setting for the dev box, the
+// preview, and production.
+const appDevSettingAll = "all"
+
 type appDevPageSetting struct {
 	Key   string `json:"key"`
 	Value string `json:"value,omitempty"`
 	File  string `json:"file,omitempty"` // a file setting's content, base64
-	Slot  string `json:"slot,omitempty"` // "", preview, production, or dev
+	Slot  string `json:"slot,omitempty"` // "", preview, production, dev, or all (the two and the dev box)
 	Unset bool   `json:"unset,omitempty"`
 	// From is a shared key the setting takes its value from, shared/<name>.
 	From string `json:"from,omitempty"`
 }
 
 func (b *appBroker) devPageSetting(request appDevPageSetting) error {
+	// All: the preview and production, and the dev box the same, so
+	// the code finds the variable wherever it runs. The page's default.
+	if request.Slot == appDevSettingAll {
+		if request.Unset {
+			request.Slot = ""
+			return b.devPageSetting(request)
+		}
+		for _, slot := range []string{"", appSlotDev} {
+			one := request
+			one.Slot = slot
+			if err := b.devPageSetting(one); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	switch {
 	case request.Slot != "" && request.Slot != appSlotPreview && request.Slot != appSlotProduction && request.Slot != appSlotDev:
 		return fmt.Errorf("a setting is for both, the preview, production, or the dev box, not %q", request.Slot)
@@ -1010,9 +1030,9 @@ func (b *appBroker) devPageSetting(request appDevPageSetting) error {
 		return saveTeam(config)
 	case request.Unset:
 		// A value, a file, or a shared key's reference: in the slot asked,
-		// or, for both, in whichever slot has it.
+		// or, for "", in every slot.
 		reference := appEnvFromUnset(&config, request.Slot, request.Key)
-		if !reference && request.Slot == "" {
+		if request.Slot == "" {
 			for _, scope := range []string{appSlotProduction, appSlotPreview, appSlotDev} {
 				reference = appEnvFromUnset(&config, scope, request.Key) || reference
 			}

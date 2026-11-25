@@ -88,3 +88,42 @@ func TestAdminSettingsAndVaultNames(t *testing.T) {
 		t.Fatal(how)
 	}
 }
+
+// The dev page's default: a variable for the dev box, the preview, and
+// production at once, listed once, and Remove takes it from all three.
+func TestDevPageSettingAll(t *testing.T) {
+	b, _ := appTestDevPage(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	saveTeamSecrets("payments", appSecrets{SlackBotToken: "xoxb-1"})
+	handler := b.devPageHandler()
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/settings", appDevPageSetting{Key: "API_URL", Value: "https://api.example.com", Slot: "all"}); code != 200 {
+		t.Fatal(code, body)
+	}
+	secrets, _ := loadTeamSecrets("payments")
+	if secrets.Env["API_URL"] != "https://api.example.com" || secrets.EnvDev["API_URL"] != "https://api.example.com" {
+		t.Fatalf("%+v", secrets)
+	}
+	if appDevSettings("payments")["API_URL"] != "https://api.example.com" {
+		t.Fatal(appDevSettings("payments"))
+	}
+	vaultSharedSet("market", "mk-secret-1", "ana")
+	vaultSharedGive("market", []string{"payments"}, false, "ana")
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/settings", appDevPageSetting{Key: "MARKET_KEY", From: "shared/market", Slot: "all"}); code != 200 {
+		t.Fatal(code, body)
+	}
+	view := b.devPageView(appPersonKey{User: "U07OWNER1", Name: "Olga"}, "owner")
+	if got := strings.Join(view.Settings, "|"); got != "API_URL (the dev box too)|MARKET_KEY (from shared/market, the dev box too)" {
+		t.Fatal(got)
+	}
+	for _, key := range []string{"API_URL", "MARKET_KEY"} {
+		if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/settings", appDevPageSetting{Key: key, Unset: true}); code != 200 {
+			t.Fatal(code, body)
+		}
+	}
+	secrets, _ = loadTeamSecrets("payments")
+	config, _ := loadTeam("payments")
+	if len(secrets.Env)+len(secrets.EnvDev)+len(config.EnvFrom) != 0 {
+		t.Fatalf("%+v %v", secrets, config.EnvFrom)
+	}
+}

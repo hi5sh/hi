@@ -657,6 +657,13 @@ func appEnvRefNames(config appConfig) []string {
 	for _, scope := range sortedKeys(config.EnvFrom) {
 		where := map[string]string{"": "", appSlotProduction: ", production only", appSlotPreview: ", the preview only", appSlotDev: ", the dev box only"}[scope]
 		for _, key := range sortedKeys(config.EnvFrom[scope]) {
+			// The same shared key for the two and the dev box is one line.
+			where := where
+			if same := config.EnvFrom[""][key] == config.EnvFrom[appSlotDev][key]; same && scope == "" {
+				where = ", the dev box too"
+			} else if same && scope == appSlotDev {
+				continue
+			}
 			names = append(names, fmt.Sprintf("%s (from %s%s)", key, config.EnvFrom[scope][key], where))
 		}
 	}

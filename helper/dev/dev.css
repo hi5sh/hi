@@ -836,6 +836,11 @@ button.small { font-size: 12.5px; padding: 3px 10px; }
 .keys-box { max-width: 760px; }
 .keys-chips { flex-wrap: wrap; margin: 4px 0 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .keys-chips button { display: inline-flex; align-items: center; gap: 6px; }
+/* How it works: short lines under what they explain. */
+.how { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); }
+.how h3 { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--text); }
+.how ul { margin: 0; padding-left: 18px; }
+.how li { margin: 3px 0; }
 .chip-count { min-width: 15px; height: 15px; padding: 0 4px; border-radius: var(--pill); background: var(--badge); color: var(--on-accent); font-size: 10px; font-weight: 600; line-height: 15px; text-align: center; }
 #term { position: absolute; inset: 10px 6px 6px 12px; }
 /* On a touch screen, the keys its keyboard may lack, under the terminal. */

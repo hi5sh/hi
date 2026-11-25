@@ -1516,7 +1516,7 @@
         ]),
       ]));
     });
-    if (!list.childNodes.length) list.appendChild(el("li", { class: "muted", text: "Nothing else yet." }));
+    if (!list.childNodes.length) list.appendChild(el("li", { class: "muted", text: "No other sites yet." }));
   }
 
   // chatSites shows the asks of the chat's work, and those of work that
@@ -1669,20 +1669,20 @@
     // The shared keys an admin shared to the app, as a setting's source.
     var from = $("setting-from"), chosen = from.value, shared = state.shared || [];
     while (from.options.length > 1) from.remove(1);
-    shared.forEach(function (name) { from.appendChild(el("option", { value: name, text: "from " + name })); });
+    shared.forEach(function (name) { from.appendChild(el("option", { value: name, text: "Use the shared key " + name })); });
     from.hidden = !shared.length;
     from.value = shared.indexOf(chosen) >= 0 ? chosen : "";
     settingInputs();
     var list = $("settings");
     list.textContent = "";
-    if (!state.settings.length) list.appendChild(el("li", { class: "muted", text: "The app gets no settings." }));
+    if (!state.settings.length) list.appendChild(el("li", { class: "muted", text: "No variables yet." }));
     state.settings.forEach(function (label) {
       var name = label.split(" ")[0];
       list.appendChild(el("li", {}, [
         el("div", { class: "what" }, [el("code", { text: name }), el("span", { class: "muted small", text: label.slice(name.length) })]),
         el("div", { class: "actions owners-only" }, [el("button", {
           text: "Remove", onclick: function () {
-            act("Remove " + name + " from the preview, production, and the dev box?", "settings", { key: name, unset: true }, name + " is removed.");
+            act("Remove " + name + " from the dev box, the preview, and production?", "settings", { key: name, unset: true }, name + " is removed.");
           },
         })]),
       ]));
@@ -1724,7 +1724,7 @@
         $("setting-file").value = "";
         $("setting-from").value = "";
         settingInputs();
-        toast(shared ? key + " takes its value from " + shared + "." : file ? key + " is set: the app finds the file at $" + key + "." : key + " is set.");
+        toast(shared ? key + " uses the shared key " + shared + "." : file ? key + " is saved. The app finds the file at $" + key + "." : key + " is saved.");
         refresh();
       });
     }).catch(function (error) { toast(error.message); });
