@@ -467,6 +467,10 @@ dot.
   panel is beside the chat, the terminal, and the open files. Beside
   the terminal it follows the workspace you open in
   Workspaces ([below](#beside-the-chat)).
+  **Queued**: a message you send while the agent works waits in a box
+  above the chat's box. hi sends the next one when the agent's turn
+  ends, also with the page closed. **Steer** sends one now: the agent
+  reads it when its current step ends. ✕ takes one out.
   **Rewind** is on each of your messages in Chat: under the message,
   with **Copy** and the time it was sent, when the pointer is on it. It
   goes back to before that message, as Claude Code's `/rewind` does: a

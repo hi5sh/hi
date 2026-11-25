@@ -1940,7 +1940,7 @@
   // read from its transcript; what you write goes to the agent, so the chat
   // and the terminal are one session
   var narrow = window.matchMedia && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
-  var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], turn: 0, spin: 0, composing: false, askSig: "" };
+  var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], queue: [], queueOpen: true, turn: 0, spin: 0, composing: false, askSig: "" };
   // Rewind's points (Claude Code's checkpoints, one for each message you
   // sent), what the page last saw, and the point the dialog is open on.
   var rewind = { points: [], seen: "", open: null };
@@ -2289,6 +2289,7 @@
     rewind.points = [];
     rewind.seen = "";
     rewind.open = null;
+    renderQueue([]);
     clearChat();
     showChatStart();
     git.view = null;
@@ -2910,6 +2911,7 @@
       (view.entries || []).forEach(chatEntry);
       if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No session in this workspace yet. Start one from a task or in the terminal." }));
       chatState(view);
+      renderQueue(view.queue || []);
       // The timeline again when its messages, or what Claude is doing, change.
       var agent = view.agent || {};
       var seen = [agent.running, agent.agent, agent.status, view.turns, view.session].join("/");
@@ -3263,6 +3265,59 @@
   draftStore("readwrite").then(function (store) { store.delete("chat"); }).catch(function () { /* a private window */ });
   // The workspace the page opens on, from the last visit: its draft.
   if (chat.space) loadDraft(chat.space);
+  // ---- Queued messages, as in Orca: sent while the agent works, a
+  // message waits above the box, and hi sends the next one when the
+  // agent's turn ends. Steer sends one now, into the turn that runs; ✕
+  // takes one out. The queue is the server's (app_devqueue.go), so it goes
+  // on with the page closed.
+  var ICON_QUEUED = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 12H3"/><path d="M16 6H3"/><path d="M10 18H3"/><path d="M21 6v10a2 2 0 0 1-2 2h-5"/><path d="m16 16-2 2 2 2"/></svg>';
+  var ICON_STEER = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v7a4 4 0 0 0 4 4h11"/><path d="m16 11 4 4-4 4"/></svg>';
+  function renderQueue(queue) {
+    chat.queue = queue;
+    var box = $("chat-queue"), list = $("chat-queue-list");
+    box.hidden = !queue.length;
+    var send = $("chat-send"), queues = chatQueues();
+    send.title = queues ? "Queue it (Enter). hi sends it when the agent's turn ends." : "Send (Enter)";
+    send.setAttribute("aria-label", queues ? "Queue" : "Send");
+    $("chat-queue-count").textContent = queue.length > 1 ? String(queue.length) : "";
+    $("chat-queue-head").setAttribute("aria-expanded", String(chat.queueOpen));
+    list.hidden = !chat.queueOpen;
+    list.textContent = "";
+    queue.forEach(function (item) {
+      var icon = el("span", { class: "q-icon" });
+      icon.innerHTML = ICON_QUEUED;
+      var steer = el("button", { type: "button", class: "q-steer", title: "Send it now. The agent reads it when its current step ends.", onclick: function () { queueAct("steer", item, steer); } });
+      steer.innerHTML = ICON_STEER;
+      steer.appendChild(document.createTextNode("Steer"));
+      var remove = el("button", { type: "button", class: "msg-act", title: "Take it out of the queue", "aria-label": "Take it out of the queue", text: "✕", onclick: function () { queueAct("remove", item, remove); } });
+      if (!item.id) steer.disabled = remove.disabled = true; // on its way to the server
+      list.appendChild(el("li", {}, [icon, el("span", { class: "q-text", title: item.shown + (item.by ? "\n— " + item.by : ""), text: item.shown }), steer, remove]));
+    });
+  }
+  function queueAct(what, item, button) {
+    button.disabled = true;
+    api("POST", "chat/queue/" + what, { workspace: chat.space, id: item.id }).then(function () {
+      renderQueue(chat.queue.filter(function (other) { return other.id !== item.id; }));
+      if (what === "steer") {
+        var node = el("div", { class: "msg-user pending" }, [userText(item.shown)]);
+        chat.pending.push({ node: node, since: Date.now(), text: item.shown });
+        chatPending(chat.agent || {});
+        $("chat-entries").insertBefore(node, $("chat-activity"));
+        $("chat-log").scrollTop = $("chat-log").scrollHeight;
+      }
+      pollChat();
+    }).catch(function (error) { button.disabled = false; toast(error.message); });
+  }
+  $("chat-queue-head").addEventListener("click", function () {
+    chat.queueOpen = !chat.queueOpen;
+    renderQueue(chat.queue);
+  });
+  // chatQueues says a message goes in the queue: the agent works, or
+  // others wait already.
+  function chatQueues() {
+    var agent = chat.agent || {};
+    return !!agent.running && (agent.status === "working" || agent.status === "blocked" || chat.queue.length > 0);
+  }
   function chatSend() {
     var input = $("chat-input"), space = chat.space;
     var shown = input.value.trim();
@@ -3273,9 +3328,23 @@
     // their pictures with it.
     var used = usedPicks(input.value), pictures = pickPictures(used);
     if (used.length) text += pickNotes(used);
+    var queued = chatQueues();
     chatFiles.read().then(function (files) {
-      return api("POST", "chat/send", { workspace: space, text: text, files: files.concat(pictures) });
+      return api("POST", queued ? "chat/queue" : "chat/send", { workspace: space, text: text, shown: shown || "Attached files", files: files.concat(pictures) });
     }).then(function () {
+      if (queued) {
+        input.value = "";
+        picks.refs = [];
+        chatFiles.clear();
+        sizeChatInput();
+        chatReady();
+        clearTimeout(chat.draftTimer);
+        chat.draftTimer = 0;
+        writeDraft(space);
+        renderQueue(chat.queue.concat([{ id: "", shown: shown || "Attached files" }]));
+        pollChat();
+        return;
+      }
       input.value = "";
       picks.refs = [];
       chatFiles.clear();

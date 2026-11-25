@@ -83,6 +83,9 @@ type appDevChatView struct {
 	Model  string `json:"model,omitempty"`
 	Effort string `json:"effort,omitempty"`
 	Choose bool   `json:"choose,omitempty"`
+	// Queue is the messages that wait for the agent's turn to end
+	// (app_devqueue.go).
+	Queue []appDevQueued `json:"queue,omitempty"`
 }
 
 const (
@@ -889,6 +892,7 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 			failure(w, http.StatusBadGateway, err)
 			return
 		}
+		view.Queue = b.devQueue(workspace)
 		reply(w, http.StatusOK, view)
 	})
 	act := func(w http.ResponseWriter, r *http.Request, do func(agent appDevChatAgent, session string, body map[string]any) error) {
@@ -917,37 +921,59 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 	}
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/send", func(w http.ResponseWriter, r *http.Request) {
 		act(w, r, func(agent appDevChatAgent, _ string, body map[string]any) error {
-			text, _ := body["text"].(string)
-			text = strings.TrimSpace(text)
-			files, err := appDevChatFiles(body)
-			switch {
-			case err != nil:
-				return err
-			case text == "" && len(files) == 0:
-				return errors.New("nothing to send")
-			case len(text) > appDevChatTextMax:
-				return fmt.Errorf("the message is longer than %s", formatDataSize(appDevChatTextMax))
-			case !agent.Running:
+			if !agent.Running {
 				return errors.New("no agent is running in this workspace; resume the session, or start one from the task")
 			}
-			// A dialog of the agent's own, which herdr takes for idle, takes
-			// what's typed as its keys: the message would be lost in it.
-			if agent.Status != "blocked" && agent.Status != "working" {
-				if screen, _, err := devChatScreen(b.team, agent.Pane); err == nil {
-					if ask := appDevParseAsk(screen); appDevAskTabbed(ask) || appDevAskDialog(screen, ask) {
-						who := firstNonEmpty(map[string]string{"claude": "Claude", "codex": "Codex", "agy": "agy"}[agent.Agent], "The agent")
-						return fmt.Errorf("%s is asking something first: answer it above, or in Terminal, then send your message again", who)
-					}
-				}
-			}
-			paths, err := appDevSaveChatFiles(b.team, body["workspace"].(string), files)
+			text, err := appDevChatMessage(b.team, body["workspace"].(string), body)
 			if err != nil {
 				return err
 			}
-			if len(paths) > 0 {
-				text = strings.TrimSpace(text + "\n\nAttached, in the box: " + strings.Join(paths, " "))
+			return appDevChatPrompt(b.team, agent, text)
+		})
+	})
+	// A message for when the agent's turn ends: into the queue.
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/queue", func(w http.ResponseWriter, r *http.Request) {
+		person, ok := builder(w, r)
+		if !ok {
+			return
+		}
+		act(w, r, func(agent appDevChatAgent, _ string, body map[string]any) error {
+			if !agent.Running {
+				return errors.New("no agent is running in this workspace; resume the session, or start one from the task")
 			}
-			return appDevHerdrDo(b.team, "agent", "prompt", agent.Pane, text)
+			workspace := body["workspace"].(string)
+			text, err := appDevChatMessage(b.team, workspace, body)
+			if err != nil {
+				return err
+			}
+			shown, _ := body["shown"].(string)
+			return b.devQueueAdd(workspace, appDevQueued{Text: text, Shown: firstNonEmpty(strings.TrimSpace(shown), text), By: person.Name})
+		})
+	})
+	// Steer: a queued message now, into the turn that runs; or out of the
+	// queue, unsent.
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/queue/steer", func(w http.ResponseWriter, r *http.Request) {
+		act(w, r, func(agent appDevChatAgent, _ string, body map[string]any) error {
+			if !agent.Running {
+				return errors.New("no agent is running in this workspace; resume the session, or start one from the task")
+			}
+			id, _ := body["id"].(string)
+			item, err := b.devQueueTake(body["workspace"].(string), id)
+			if err != nil {
+				return err
+			}
+			if err := appDevChatPrompt(b.team, agent, item.Text); err != nil {
+				b.devQueuePutBack(body["workspace"].(string), item) // back in, first
+				return err
+			}
+			return nil
+		})
+	})
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/queue/remove", func(w http.ResponseWriter, r *http.Request) {
+		act(w, r, func(_ appDevChatAgent, _ string, body map[string]any) error {
+			id, _ := body["id"].(string)
+			_, err := b.devQueueTake(body["workspace"].(string), id)
+			return err
 		})
 	})
 	// A picture pasted into the terminal: the box's clipboard is empty, so

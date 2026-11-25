@@ -324,6 +324,10 @@
           <span id="chat-stopped-why">The agent is not running in this workspace.</span>
           <button id="chat-resume" hidden>Resume this session</button>
         </div>
+        <div id="chat-queue" class="chat-queue" hidden>
+          <button type="button" id="chat-queue-head" class="chat-queue-head" aria-expanded="true" aria-controls="chat-queue-list" title="Messages that wait. hi sends the next one when the agent's turn ends.">Queued <span id="chat-queue-count" class="muted"></span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+          <ol id="chat-queue-list" class="chat-queue-list"></ol>
+        </div>
         <form id="chat-form" class="chat-form composer" autocomplete="off">
           <div id="chat-attached" class="chat-attached" hidden></div>
           <div class="chat-input-wrap">

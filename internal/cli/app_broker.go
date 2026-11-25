@@ -165,6 +165,10 @@ func appTaskNumber(id string) int {
 type appBroker struct {
 	// devNeeds is the dev box's waiting agents, for their DMs (app_devneeds.go).
 	devNeeds appDevNeedsState
+	// devQueued is the chat's queued messages (app_devqueue.go), and
+	// devQueueStop ends the loop that sends them.
+	devQueued    appDevQueueState
+	devQueueStop <-chan struct{}
 	team     string
 	repo     string
 	hi       string // this hi binary

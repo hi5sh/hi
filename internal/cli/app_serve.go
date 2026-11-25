@@ -240,6 +240,14 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	go broker.keepDevPage(ctx.Done(), stderr)
 	// One DM for an agent that waits with nobody on the dev page (app_devneeds.go).
 	go broker.keepNeedsYou(ctx.Done(), stderr)
+	// The chat's queued messages, sent as their agents get free (app_devqueue.go).
+	broker.devQueueStop = ctx.Done()
+	broker.devQueued.mu.Lock()
+	broker.devQueued.load(broker.team)
+	if len(broker.devQueued.queues) > 0 {
+		broker.devQueueStart()
+	}
+	broker.devQueued.mu.Unlock()
 	go broker.keepHTTPS(ctx.Done(), stderr)
 	broker.wakeLead = func(name, prompt, deliver string) error {
 		// A job that runs once, in a minute, with the hi-team skill; its
