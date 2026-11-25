@@ -558,6 +558,16 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 		appDevHookClient(args[1:], stdin, stdout)
 		return nil
 	}
+	// hi dev <command> --help shows the command's usage: never its text,
+	// as when hi dev say --help posted "--help" in the channel.
+	if len(args) >= 2 && (args[1] == "--help" || args[1] == "-h") {
+		if usage := appDevCommandUsage(args[0]); usage != "" {
+			fmt.Fprint(stdout, usage)
+			return nil
+		}
+		fmt.Fprint(stdout, appDevUsage)
+		return nil
+	}
 	socket := os.Getenv(appDevSocketEnv)
 	if socket == "" {
 		return errors.New("hi dev works in an app's dev box; on the machine, use hi app")
@@ -695,7 +705,7 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 		request.Cwd, _ = os.Getwd()
 		if len(rest) == 1 && rest[0] == "--clear" {
 			rest = nil
-		} else if len(rest) == 0 {
+		} else if len(rest) == 0 || len(rest) == 1 && strings.HasPrefix(rest[0], "-") && !strings.Contains(rest[0], " ") {
 			return errors.New("say where the work stands, in a line: hi dev note \"tests pass; waiting for the API key\" (--clear takes it away)")
 		}
 		request.Text = strings.Join(rest, " ")
@@ -734,7 +744,30 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 }
 
 // appDevText is the words given, or stdin for "-".
+// appDevCommandUsage is the lines of hi dev's usage about one command.
+func appDevCommandUsage(command string) string {
+	var out strings.Builder
+	in := false
+	for _, line := range strings.Split(appDevUsage, "\n") {
+		switch {
+		case strings.HasPrefix(line, "  hi dev "):
+			fields := strings.Fields(line)
+			in = len(fields) >= 3 && fields[2] == command
+		case !strings.HasPrefix(line, "    "):
+			in = false
+		}
+		if in {
+			out.WriteString(line + "\n")
+		}
+	}
+	return out.String()
+}
+
 func appDevText(words []string, stdin io.Reader) (string, error) {
+	// An option alone isn't a message: hi dev say --verbose posts nothing.
+	if len(words) == 1 && strings.HasPrefix(words[0], "-") && words[0] != "-" && !strings.ContainsAny(words[0], " \n") {
+		return "", fmt.Errorf("%s isn't an option here; give the text itself (quoted), or - and the text on stdin", words[0])
+	}
 	if len(words) == 1 && words[0] == "-" {
 		data, err := io.ReadAll(io.LimitReader(stdin, 64<<10))
 		return strings.TrimSpace(string(data)), err

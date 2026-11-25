@@ -486,3 +486,30 @@ func TestAppDevHelp(t *testing.T) {
 		t.Fatal("not to the developers:", posted)
 	}
 }
+
+// hi dev <command> --help shows its usage and posts nothing; an option
+// alone is never a message.
+func TestAppDevHelpIsNotText(t *testing.T) {
+	var out strings.Builder
+	if err := appDevClient([]string{"say", "--help"}, strings.NewReader(""), &out); err != nil || !strings.HasPrefix(out.String(), "  hi dev say [--thread <ts>]") || strings.Contains(out.String(), "hi dev note") {
+		t.Fatalf("%v %q", err, out.String())
+	}
+	out.Reset()
+	if err := appDevClient([]string{"task", "-h"}, strings.NewReader(""), &out); err != nil || !strings.Contains(out.String(), "hi dev task comment") || strings.Contains(out.String(), "hi dev review") {
+		t.Fatalf("%v %q", err, out.String())
+	}
+	if usage := appDevCommandUsage("allow"); !strings.Contains(usage, "--wait waits up to 9 minutes") {
+		t.Fatal(usage)
+	}
+	for _, words := range [][]string{{"--verbose"}, {"-x"}} {
+		if _, err := appDevText(words, strings.NewReader("")); err == nil {
+			t.Fatal(words)
+		}
+	}
+	if text, err := appDevText([]string{"-5%", "on", "load"}, nil); err != nil || text != "-5% on load" {
+		t.Fatal(text, err)
+	}
+	if text, err := appDevText([]string{"-"}, strings.NewReader("From stdin\n")); err != nil || text != "From stdin" {
+		t.Fatal(text, err)
+	}
+}
