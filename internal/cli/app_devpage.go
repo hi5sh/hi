@@ -1198,6 +1198,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 	asset("dev.js", "text/javascript; charset=utf-8", appDevPageScript)
 	asset("presence.js", "text/javascript; charset=utf-8", hi.AppPresenceScript)
 	asset("theme.js", "text/javascript; charset=utf-8", hi.AppThemeScript)
+	asset("reveal.js", "text/javascript; charset=utf-8", hi.AppRevealScript)
 	asset("dev.css", "text/css; charset=utf-8", appDevPageStyle)
 	asset("xterm.js", "text/javascript; charset=utf-8", appXtermScript)
 	asset("xterm.css", "text/css; charset=utf-8", appXtermStyle)

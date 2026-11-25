@@ -925,6 +925,12 @@ button.busy::before {
 .list li details pre { white-space: pre-wrap; font-size: 12px; max-height: 240px; overflow: auto; background: var(--raised); padding: 8px 10px; border-radius: var(--r-sm); margin: 4px 0 0; }
 button.danger { color: var(--bad); }
 .warn { color: var(--warn); }
+/* The eye on a field that hides what's typed (reveal.js). */
+.reveal { position: relative; display: block; flex: 1 1 0; min-width: 0; }
+.reveal:has(> input[hidden]), .reveal > input:disabled + .reveal-btn { display: none; }
+.reveal > input { width: 100%; padding-right: 36px; }
+.reveal-btn { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r-sm); background: none; color: var(--muted); cursor: pointer; }
+.reveal-btn:hover, .reveal-btn[aria-pressed="true"] { color: var(--bright); background: var(--hover); }
 .setting-form { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
 .setting-form select, .setting-form .setting-file { grid-column: 1 / -1; }
 .setting-form button { grid-column: 1 / -1; }

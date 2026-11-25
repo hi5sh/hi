@@ -59,6 +59,12 @@ var AppPresenceScript []byte
 //go:embed helper/dev/theme.js
 var AppThemeScript []byte
 
+// AppRevealScript is the eye on the fields that hide what's typed: the
+// admin page's and the dev page's.
+//
+//go:embed helper/dev/reveal.js
+var AppRevealScript []byte
+
 // AppFontSans and AppFontMono are Geist's variable fonts (third_party/geist,
 // OFL): the typeface of the admin page, the dev page, and the helper,
 // served beside dev.css and under the helper's /__hi/.
