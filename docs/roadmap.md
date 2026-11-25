@@ -6989,6 +6989,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.249 — Model calls from apps that ask for gzip are counted
+
+- [x] hi's model proxies (an app's models socket, the boxes' Claude,
+  OpenRouter, and ChatGPT proxies, and the OpenRouter fallback) drop the
+  caller's `Accept-Encoding`, so the answer reaches hi unpacked and its
+  usage is read. An app whose fetch asks for gzip (Bun's, Node's) had none
+  of its calls counted: not in its spend, its budget, the preview's daily
+  limit, or the shared key's check, which then took its spend for someone
+  else's.
+- [x] The shared key's warning says what OpenRouter counted, in the last how
+  many minutes, which apps on which machine use the key and what they
+  counted, and what else the gap may be; no clock time in the server's zone.
+
 ### v2.6.248 — A publish keeps what the preview gathered
 
 - [x] A preview that gathered data production never got keeps it, after
