@@ -433,6 +433,7 @@ func (f *boxFallback) serve(w http.ResponseWriter, r *http.Request, body []byte,
 		}
 	}
 	request.Header.Set("Authorization", "Bearer "+key)
+	appPlainAnswers(request.Header)
 	f.log.record("openrouter", request.URL.Path)
 	response, err := http.DefaultTransport.RoundTrip(request)
 	if err != nil {

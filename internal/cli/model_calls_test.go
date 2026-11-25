@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"compress/gzip"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -150,6 +151,46 @@ func TestModelsSocketRecordsCalls(t *testing.T) {
 	}
 }
 
+// An app whose fetch asks for gzip (Bun's, Node's) is counted too: hi
+// takes the answer unpacked, and the app gets it unpacked.
+func TestModelsSocketCountsGzipAnswers(t *testing.T) {
+	setupTeamTest(t)
+	os.MkdirAll(appDir("payments"), 0o700)
+	saveTeam(testTeamConfig())
+	saveTeamSecrets("payments", appSecrets{SlackBotToken: "xoxb-1", OpenRouterAPIKey: "sk-or-app"})
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		answer := `{"model":"m1","usage":{"prompt_tokens":12,"completion_tokens":3,"cost":0.004}}`
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			io.WriteString(w, answer)
+			return
+		}
+		// As OpenRouter does: gzip whenever the caller takes it.
+		w.Header().Set("Content-Encoding", "gzip")
+		zipped := gzip.NewWriter(w)
+		io.WriteString(zipped, answer)
+		zipped.Close()
+	}))
+	defer upstream.Close()
+	proxy := httptest.NewServer(newTeamModelsProxy("payments", upstream.URL, appSlotProduction))
+	defer proxy.Close()
+	request, _ := http.NewRequest(http.MethodPost, proxy.URL+"/api/v1/chat/completions", strings.NewReader(`{"model":"m1"}`))
+	request.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	// A transport of its own, so Go doesn't unpack it for the test.
+	response, err := (&http.Transport{DisableCompression: true}).RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.Header.Get("Content-Encoding") != "" || !strings.HasPrefix(string(body), `{"model":"m1"`) {
+		t.Fatalf("%v %q", response.Header, body)
+	}
+	data, _ := os.ReadFile(appCallsLogPath("payments", time.Now()))
+	if !strings.Contains(string(data), `"model":"m1","in":12,"out":3,"usd":0.004`) {
+		t.Fatalf("not counted: %q", data)
+	}
+}
+
 // A shared key spending outside hi's apps: OpenRouter counts more on it
 // in an hour than the apps here spent with it, by more than $1 and 10%;
 // told once in six hours; equal isn't.
@@ -191,10 +232,11 @@ func TestSharedKeySpentOutside(t *testing.T) {
 	if told := checkSharedKeys(start.Add(time.Hour)); len(told) != 0 {
 		t.Fatal("equal spend told:", told)
 	}
-	// OpenRouter counted $7 more; the apps $2: $5 outside.
+	// OpenRouter counted $9 since the first look; the apps $2: $7 elsewhere.
 	usage = 19
 	told := checkSharedKeys(start.Add(time.Hour + time.Minute))
-	if len(told) != 1 || !strings.Contains(told[0], "shared/openrouter spent $") || !strings.Contains(told[0], "outside hi's apps") || strings.Contains(told[0], "sk-or") {
+	if len(told) != 1 || !strings.Contains(told[0], "shared/openrouter: OpenRouter counted $9.00 on this key in the last 61 minutes") ||
+		!strings.Contains(told[0], "(payments) counted $2.00 through hi. $7.00 was spent somewhere hi doesn't see") || strings.Contains(told[0], "sk-or") {
 		t.Fatal(told)
 	}
 	if again := checkSharedKeys(start.Add(time.Hour + 2*time.Minute)); len(again) != 0 {

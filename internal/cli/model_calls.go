@@ -51,6 +51,13 @@ func (c modelCall) json() string {
 // used says whether the answer said anything worth a line.
 func (c modelCall) used() bool { return c.In > 0 || c.Out > 0 || c.USD > 0 }
 
+// appPlainAnswers drops the caller's Accept-Encoding from a model call
+// hi counts: Go's transport then asks for gzip itself and hands the answer
+// on unpacked, so appCostReader reads its usage. A caller's own gzip (as
+// Bun's and Node's fetch ask) left every call of such an app uncounted,
+// and its shared key's spend looked like someone else's.
+func appPlainAnswers(header http.Header) { header.Del("Accept-Encoding") }
+
 // callKeyFingerprint is a key's first 8 hex of SHA-256, never the key.
 func callKeyFingerprint(key string) string {
 	if key == "" {
@@ -877,7 +884,13 @@ func checkSharedKeys(now time.Time) []string {
 		hi := 0.0
 		kfp := callKeyFingerprint(key)
 		from := then.At.Truncate(time.Hour)
+		var users []string
 		for _, app := range machineAppNames() {
+			if config, err := loadTeam(app); err == nil {
+				if used, ok := appSharedName(config.OpenRouterFrom); ok && used == name {
+					users = append(users, app)
+				}
+			}
 			for hour, keys := range loadModelHours(app) {
 				if at, err := time.Parse(time.RFC3339, hour); err == nil && !at.Before(from) {
 					hi += keys[kfp]
@@ -894,8 +907,13 @@ func checkSharedKeys(now time.Time) []string {
 		outside[name] = sharedOutside{At: now.UTC(), USD: gap}
 		changed = true
 		vaultAudit("hi", "vault.shared-outside", vaultSharedPath(name), fmt.Sprintf("$%.2f outside hi's apps since %s", gap, then.At.UTC().Format(time.RFC3339)))
-		told = append(told, fmt.Sprintf("shared/%s spent %s outside hi's apps since %s: something else has it. Change it (hi server vault shared set %s) and revoke the old one at OpenRouter.",
-			name, formatDollars(gap), then.At.Local().Format("15:04"), name))
+		// No clock time: the server's zone isn't the reader's.
+		machine, _ := os.Hostname()
+		told = append(told, fmt.Sprintf("shared/%s: OpenRouter counted %s on this key in the last %d minutes, but the apps on %s that use it (%s) counted %s through hi. "+
+			"%s was spent somewhere hi doesn't see: another machine or a script with this key, or calls hi didn't count. "+
+			"If nobody knows what it is, change the key (hi server vault shared set %s) and revoke the old one at OpenRouter.",
+			name, formatDollars(spent), int(now.Sub(then.At).Round(time.Minute)/time.Minute), firstNonEmpty(machine, "this machine"), strings.Join(users, ", "), formatDollars(hi),
+			formatDollars(gap), name))
 	}
 	if changed {
 		data, _ := json.Marshal(outside)

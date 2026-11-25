@@ -483,6 +483,7 @@ func newBoxClaudeInjector(secret, upstream string, log *boxNetworkLog) http.Hand
 			r.Header.Set("Authorization", "Bearer "+token)
 		}
 		r.Header.Del("X-Api-Key")
+		appPlainAnswers(r.Header)
 		log.record("claude", r.URL.Path)
 	}
 	// What each call used, in tokens: a sign-in's plan pays it.
@@ -534,6 +535,7 @@ func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Han
 			// OpenRouter refusing it is then not hi's key.
 			log.record("openrouter-own-key", r.URL.Path)
 		}
+		appPlainAnswers(r.Header)
 		log.record("openrouter", r.URL.Path)
 	}
 	// What each call used and cost, as a line of its own, so a team's
@@ -597,6 +599,7 @@ func newBoxChatGPTInjector(tokenFile, upstream, originator string, log *boxNetwo
 			r.Header.Set("originator", originator)
 			r.Header.Set("User-Agent", "HermesAgent (hi "+version_()+")")
 		}
+		appPlainAnswers(r.Header)
 		log.record("chatgpt", r.URL.Path)
 	}
 	proxy.ModifyResponse = func(response *http.Response) error {
