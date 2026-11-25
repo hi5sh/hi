@@ -6989,6 +6989,17 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.251 — Env variables for all three, in plain words
+
+- [x] Keys' Settings is **Env variables**. Its default is new: the dev
+  box, the preview, and production get the same variable (a value, a
+  file, or a shared key), listed once as "the dev box too". Preview and
+  production, each alone, and the dev box alone are still there.
+- [x] Remove takes a shared key's variable from every place, the dev box
+  too; before, it left the dev box's when both had one.
+- [x] Users and each Keys part explain themselves in short, plain
+  sentences under "How it works", below the controls.
+
 ### v2.6.250 — The dev page's Security is Users and Keys
 
 - [x] The left panel's Security splits in two: **Users** (who may do
