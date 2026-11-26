@@ -233,6 +233,11 @@ by someone else, with an agent:
 
 If a workspace on that branch exists already, the button says **Open**.
 
+A push straight to `main` is in the card too. A workspace can't have
+`main` as its branch, so **Work on it** names it after the push, such as
+`main-2b3f2cd`. Adding that workspace adds the push, and hi can push
+`main` to GitLab again.
+
 The workspace's commits don't go back to the branch on GitLab. If the
 author keeps working on their laptop after that, they start again from
 `origin/main` (`git fetch origin && git rebase origin/main`).

@@ -927,13 +927,14 @@ func appDevStartPushed(config appConfig, branch appPushedBranch, agent, by strin
 	if err := appDevAgentOK(config.Name, agent, true); err != nil {
 		return "", "", err
 	}
+	name := firstNonEmpty(branch.Workspace, branch.Name)
 	for _, space := range appDevSpacesNow(config.Name) {
-		if space.Branch == branch.Name && space.ID != "" {
-			return branch.Name, space.ID, nil
+		if space.Branch == name && space.ID != "" {
+			return name, space.ID, nil
 		}
 	}
-	if branch.Dev || !appDevBranchPattern.MatchString(branch.Name) {
-		return "", "", fmt.Errorf("%s can't be a workspace's branch: add it from Publish, or start new work and ask the agent to bring in origin/%s", branch.Name, appPushedRef(branch.Name))
+	if name == config.Branch || !appDevBranchPattern.MatchString(name) {
+		return "", "", fmt.Errorf("%s can't be a workspace's branch: add it from Publish, or start new work and ask the agent to bring in origin/%s", name, appPushedRef(branch.Name))
 	}
 	appDevBoxExec(config.Name, "git", "-C", "/box/repo", "fetch", "-q", "origin")
 	var created struct {
@@ -941,17 +942,21 @@ func appDevStartPushed(config appConfig, branch appPushedBranch, agent, by strin
 			ID string `json:"pane_id"`
 		} `json:"root_pane"`
 	}
-	if err := appDevHerdr(config.Name, &created, "worktree", "create", "--cwd", "/box/repo", "--branch", branch.Name, "--base", "origin/"+appPushedRef(branch.Name), "--focus"); err != nil {
+	if err := appDevHerdr(config.Name, &created, "worktree", "create", "--cwd", "/box/repo", "--branch", name, "--base", "origin/"+appPushedRef(branch.Name), "--focus"); err != nil {
 		return "", "", err
 	}
-	appDevStarted(config.Name, branch.Name, by)
+	appDevStarted(config.Name, name, by)
 	appDevSpacesForget()
 	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
-	prompt := fmt.Sprintf("This workspace starts from the branch %s, which %s pushed to %s from their own machine: %s dev hasn't, the last %q. "+
+	from := "the branch " + branch.Name
+	if branch.Dev {
+		from = "what was pushed straight to " + branch.Name
+	}
+	prompt := fmt.Sprintf("This workspace starts from %s, which %s pushed to %s from their own machine: %s dev hasn't, the last %q. "+
 		"Read what it changes (git log --oneline origin/%s..HEAD, and git diff --stat origin/%s...HEAD, then the code), "+
 		"and tell me in a few lines what it does, and whether it looks ready to add to the preview. Change nothing until I say what to do.",
-		branch.Name, firstNonEmpty(branch.Author, "someone"), appForgeName(config.Remote), appPlural(branch.Ahead, "commit"), branch.Subject, config.Branch, config.Branch)
-	return branch.Name, workspace, appDevStartAgent(config, branch.Name, created.Pane.ID, agent, prompt)
+		from, firstNonEmpty(branch.Author, "someone"), appForgeName(config.Remote), appPlural(branch.Ahead, "commit"), branch.Subject, config.Branch, config.Branch)
+	return name, workspace, appDevStartAgent(config, name, created.Pane.ID, agent, prompt)
 }
 
 // appDevStartNew is Start something new: the words, and the pictures

@@ -256,6 +256,10 @@ type appPushedBranch struct {
 	Shipped bool `json:"shipped,omitempty"`
 	// Out says its change was taken out of dev since.
 	Out bool `json:"out,omitempty"`
+	// Workspace is the branch of the workspace Work on it makes: its own
+	// name, or for dev's own branch, which no workspace can have, the
+	// name and the commit (main-2b3f2cd).
+	Workspace string `json:"workspace"`
 }
 
 // appPushedView is what the page and hi app branches show.
@@ -289,6 +293,10 @@ func appPushedBranches(config appConfig) appPushedView {
 		branch := appPushedBranch{Name: strings.TrimPrefix(parts[0], "refs/heads/"+appPushedPrefix), Commit: parts[1],
 			Author: parts[2], Email: strings.Trim(parts[3], "<>"), Subject: parts[5], Dev: strings.TrimPrefix(parts[0], "refs/heads/"+appPushedPrefix) == config.Branch}
 		branch.At, _ = time.Parse(time.RFC3339, parts[4])
+		branch.Workspace = branch.Name
+		if branch.Dev {
+			branch.Workspace = branch.Name + "-" + branch.Commit[:min(7, len(branch.Commit))]
+		}
 		count := func(spec string) int {
 			n := 0
 			fmt.Sscan(boxGit(repo, "rev-list", "--count", "--no-merges", spec), &n)

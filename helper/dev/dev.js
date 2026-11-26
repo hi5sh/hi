@@ -1360,7 +1360,7 @@
   // is there already.
   function renderStartPushed() {
     var box = $("start-pushed");
-    var branches = pushedWaiting().filter(function (b) { return !b.dev; }).slice(0, 5);
+    var branches = pushedWaiting().slice(0, 5);
     box.hidden = !branches.length;
     box.textContent = "";
     if (!branches.length) return;
@@ -1369,13 +1369,14 @@
       el("span", { class: "muted small", text: "Branches that came from other places. Dev does not have them yet." }),
     ]));
     box.appendChild(el("ul", { class: "start-pushed-list" }, branches.map(function (b) {
-      var space = workSpaces().filter(function (s) { return s.branch === b.name; })[0];
-      var what = (b.author || "someone") + " · " + (b.ahead > 0 ? b.ahead + (b.ahead === 1 ? " commit" : " commits") : "taken out") + (b.at ? " · " + ago(b.at) : "");
+      var name = b.workspace || b.name;
+      var space = workSpaces().filter(function (s) { return s.branch === name; })[0];
+      var what = (b.dev ? "pushed straight to " + b.name + " by " : "") + (b.author || "someone") + " · " + (b.ahead > 0 ? b.ahead + (b.ahead === 1 ? " commit" : " commits") : "taken out") + (b.at ? " · " + ago(b.at) : "");
       return el("li", { title: [b.subject].concat(b.files || []).join("\n") }, [
         el("span", { class: "start-pushed-name" }, [el("span", { text: b.name }), el("span", { class: "muted small", text: what })]),
         space
           ? el("button", { class: "small", text: "Open", title: "Open the workspace that works on this branch", onclick: function () { chat.composing = false; chooseChatSpace(space.id); } })
-          : el("button", { class: "small", text: "Work on it", busy: "start-pushed:" + b.name, title: "Make a workspace on this branch with the agent picked below. The agent reads the branch and says what it does. It changes nothing until you say.", onclick: function () { startPushed(b); } }),
+          : el("button", { class: "small", text: "Work on it", busy: "start-pushed:" + b.name, title: (b.dev ? "Make a workspace " + name + " from this push" : "Make a workspace on this branch") + " with the agent picked below. The agent reads the branch and says what it does. It changes nothing until you say.", onclick: function () { startPushed(b); } }),
       ]);
     })));
   }

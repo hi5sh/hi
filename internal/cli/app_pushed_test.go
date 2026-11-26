@@ -268,4 +268,19 @@ func TestTeamPushedStart(t *testing.T) {
 	if code != 200 || !strings.Contains(body, `"workspace":"w2"`) || strings.Contains(strings.Join(*ran, "\n"), "worktree create") {
 		t.Fatalf("%d %s %v", code, body, *ran)
 	}
+
+	// Pushed straight to main: a workspace of its own name, from that push.
+	appTestPush(t, laptop, "main", "src/main.ts", "export const fix = 1\n", "Fix it on main")
+	fetchTeamPushed(config, false)
+	pushed, err := appPushedFind(config, "main")
+	if err != nil || !pushed.Dev || pushed.Workspace != "main-"+pushed.Commit[:7] {
+		t.Fatalf("%+v %v", pushed, err)
+	}
+	*ran = nil
+	code, body = appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/pushed", map[string]any{"branch": "main", "start": true, "agent": "claude"})
+	all = strings.Join(*ran, "\n")
+	if code != 200 || !strings.Contains(body, `"branch":"`+pushed.Workspace+`"`) ||
+		!strings.Contains(all, "--branch "+pushed.Workspace+" --base origin/pushed/main") || !strings.Contains(all, "what was pushed straight to main") {
+		t.Fatalf("%d %s\n%s", code, body, all)
+	}
 }
