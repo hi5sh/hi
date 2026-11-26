@@ -273,6 +273,22 @@ const appDefaultRegion = "us-east-1"
 // s3.<region>.amazonaws.com.
 var appBucketHostRegion = regexp.MustCompile(`^s3[.-]([a-z0-9-]+)\.(?:backblazeb2|wasabisys|amazonaws)\.com$`)
 
+// appCheckBucket says what is missing from a bucket's address: restic
+// needs s3:https://<host>/<bucket>[/<path>].
+func appCheckBucket(offsite string) error {
+	rest, ok := strings.CutPrefix(offsite, "s3:")
+	if !ok {
+		return fmt.Errorf("%s isn't an S3 bucket's address: s3:https://<host>/<bucket>[/<path>]", offsite)
+	}
+	rest = strings.TrimPrefix(strings.TrimPrefix(rest, "https://"), "http://")
+	host, bucket, _ := strings.Cut(rest, "/")
+	bucket, _, _ = strings.Cut(bucket, "/")
+	if host == "" || bucket == "" {
+		return fmt.Errorf("%s has no bucket: give it after the host, s3:https://%s/<bucket>[/<path>]", offsite, firstNonEmpty(host, "<host>"))
+	}
+	return nil
+}
+
 // appBucketRegion is the region in a bucket's address, or "" when the
 // host doesn't say it.
 func appBucketRegion(offsite string) string {
@@ -1319,6 +1335,9 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	} else if offsite != "" {
 		if !strings.HasPrefix(offsite, "s3:https://") && !strings.HasPrefix(offsite, "s3:http://") {
 			return usageError{"--offsite takes an S3-compatible bucket as restic names it: s3:https://<host>/<bucket>[/<path>]"}
+		}
+		if err := appCheckBucket(offsite); err != nil {
+			return usageError{err.Error()}
 		}
 		secrets, err := loadTeamSecrets(name)
 		if err != nil {

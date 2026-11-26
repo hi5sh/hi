@@ -461,6 +461,12 @@ func TestTeamBackupsCommand(t *testing.T) {
 	if err := appBackupsCommand([]string{"payments", "--offsite", "s3.example.com/bucket"}, strings.NewReader(""), &out); err == nil {
 		t.Fatal("an offsite URL is restic's s3:https://...")
 	}
+	if err := appBackupsCommand([]string{"payments", "--offsite", "s3:https://s3.eu-central-003.backblazeb2.com"}, strings.NewReader("AKID\nSECRET\n"), &out); err == nil || !strings.Contains(err.Error(), "no bucket") {
+		t.Fatal("an address without a bucket isn't saved:", err)
+	}
+	if config, _ := loadTeam("payments"); config.backups().Offsite != "" {
+		t.Fatal(config.backups())
+	}
 	t.Setenv("HI_APP_S3_ACCESS_KEY_ID", "AKID")
 	t.Setenv("HI_APP_S3_SECRET_ACCESS_KEY", "SECRET")
 	if err := appBackupsCommand([]string{"payments", "--offsite", "s3:https://s3.example.com/bucket", "--keep", "14,8,12"}, strings.NewReader(""), &out); err != nil {

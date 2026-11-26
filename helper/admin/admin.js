@@ -4374,7 +4374,7 @@ async function rollback(app, version) {
   if (answer) change("rollback", { version, code: answer.checked, confirm: app }, "Rolling " + app + " back");
 }
 async function offsite() {
-  const answer = await ask({ title: "Copy the snapshots offsite", text: "Give an S3-compatible bucket, as s3:https://<host>/<bucket>. Then give its region and keys.", ok: "Next", field: "s3:https://s3.example.com/backups", fieldCheck: (v) => (v.startsWith("s3:") ? "" : "The address must start with s3:") });
+  const answer = await ask({ title: "Copy the snapshots offsite", text: "Give an S3-compatible bucket, as s3:https://<host>/<bucket>. Add /<app> to keep each app in its own folder. Then give its region and keys.", ok: "Next", field: "s3:https://s3.eu-central-003.backblazeb2.com/my-bucket/app", fieldCheck: (v) => (!v.startsWith("s3:") ? "The address must start with s3:" : /^s3:(https?:\/\/)?[^/]+\/[^/]+/.test(v) ? "" : "Add the bucket name after the host: s3:https://<host>/<bucket>") });
   if (!answer) return;
   const region = await ask({ title: "Region of the bucket", text: "For example eu-central-003 for Backblaze, from the host s3.eu-central-003.backblazeb2.com. Leave it empty to use us-east-1.", ok: "Next", field: "us-east-1", fieldValue: bucketRegion(answer.field), fieldCheck: (v) => (/^[a-z0-9-]*$/.test(v) ? "" : "Use only small letters, digits, and -.") });
   if (!region) return;

@@ -2110,9 +2110,9 @@ func appReadSecret(stdin io.Reader, stdout io.Writer, label string) (string, err
 	if appStyled(stdin, stdout) {
 		return appFieldAsk(stdin, stdout, label, true, func(string) error { return nil })
 	}
-	fmt.Fprintf(stdout, "%s (paste it; it shows as *): ", label)
 	var value string
 	if file, ok := stdin.(*os.File); ok && isTerminal(stdin) {
+		fmt.Fprintf(stdout, "%s (paste it; it shows as *): ", label)
 		secret, err := readSecret(file, stdout)
 		fmt.Fprintln(stdout)
 		if err != nil {
@@ -2120,8 +2120,9 @@ func appReadSecret(stdin io.Reader, stdout io.Writer, label string) (string, err
 		}
 		value = string(secret)
 	} else {
+		// Piped in, as the admin page does: no prompt, which would end
+		// up in the command's output.
 		line, err := readLine(stdin)
-		fmt.Fprintln(stdout)
 		if err != nil && !errors.Is(err, io.EOF) {
 			return "", err
 		}
