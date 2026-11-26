@@ -6989,6 +6989,24 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.268 — One bucket for every app, set on the server
+
+Approved spec: [hi_server_backups.md](specs/approved/hi_server_backups.md) (release 1).
+
+- [x] `hi server backups --bucket s3:https://<host>/<bucket>`: one bucket
+  for every app on the machine, its keys in the vault at
+  `hi/server/backups`. Each server writes to a folder of its own
+  (`<name>/`, the short hostname by default), claimed with
+  `hi-server.json`, so several servers share a bucket.
+- [x] Apps copy to `<name>/apps/<app>/` unless they have a bucket of
+  their own or are turned off (`hi server backups on|off`,
+  `hi app backups --offsite server|off`).
+- [x] The plan: daily snapshot time and how many to keep, for every app;
+  `hi server backups now` copies at once.
+- [x] The admin page's server **Backups**: the bucket, the plan, and
+  each app's last snapshot and copy, with **Back up now** and on/off for
+  the apps picked.
+
 ### v2.6.267 — An offsite address needs its bucket
 
 - [x] `hi app backups --offsite` and **Copy offsite…** refuse an address
