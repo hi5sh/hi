@@ -6989,6 +6989,13 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.269 — Backups shows a backup while it runs
+
+- [x] The server's **Backups** shows each running **Back up now** job
+  (started when, how many apps to go, **Show the output**), marks its
+  apps **Copying…** until each is in the bucket, and refreshes every 5
+  seconds while one runs. **Back up all now** waits until it ends.
+
 ### v2.6.268 — One bucket for every app, set on the server
 
 Approved spec: [hi_server_backups.md](specs/approved/hi_server_backups.md) (release 1).
