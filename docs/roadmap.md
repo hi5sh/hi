@@ -6989,6 +6989,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.266 — Backblaze backups, with their region
+
+- [x] **Copy offsite…** on the admin page asks for the bucket's region,
+  between its address and its keys. It fills in the region when the host
+  names it (`s3.<region>.backblazeb2.com`, Wasabi's, and AWS's); empty is
+  us-east-1.
+- [x] `hi app backups --offsite` and `hi app restore --from` take the
+  region from such a host when `--region` isn't given: Backblaze refuses
+  a request signed for us-east-1.
+- [x] The admin page's dialogs of more than one step go on to the next
+  step: the first step's close no longer cancels the second, so **Copy
+  offsite…** never got past the key ID before.
+
 ### v2.6.265 — Agent buttons in Start something new, the rest in Publish
 
 - [x] A pushed branch's buttons, by where they are: **Inspect** and
