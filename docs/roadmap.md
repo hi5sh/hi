@@ -6989,6 +6989,32 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.260 — Branches pushed from people's own machines
+
+- [x] The broker looks at the app's GitHub or GitLab project every 2
+  minutes, with the machine's `gh` or `glab` sign-in, running nothing
+  from it. Each branch but dev's and `production` is kept in the app's
+  repository as `pushed/<branch>`; the dev box reads it as
+  `origin/pushed/<branch>`. One deleted there goes, unless it is on
+  Stage.
+- [x] The dev page's Publish lists them under **Not on the preview yet**:
+  who pushed, the commits dev hasn't, the files, with **Try** (Stage
+  alone, with a fork of production's data) and **Add to Preview** (into
+  dev, with `hi dev ship`'s checks). A clash opens the Stuck dialog: an
+  agent in the dev box combines them, or the change there last makes
+  way. **Check now** looks at once.
+- [x] The work is recorded as "pushed to GitLab by <author>", in the
+  merge message, the versions, and the release.
+- [x] A push straight to dev's branch is one more branch, added the same
+  way; hi's push after is a fast-forward. A push to `production` isn't
+  taken: the ops channel hears once.
+- [x] `hi app branches <app> [--fetch]` on the machine; `hi dev branches
+  [--fetch]`, `hi dev preview --pushed <branch>`, and `hi dev ship
+  --pushed <branch>` in the box.
+- [x] The daily fetch of a private upstream on GitLab signs in with
+  `glab`, not only `gh`: it failed with "could not read Username".
+  Approved spec: [hi_app_pushed_branches.md](specs/approved/hi_app_pushed_branches.md).
+
 ### v2.6.259 — Changed files at the end of a response
 
 - [x] A response that changed files ends with a card, as in Orca: "N
