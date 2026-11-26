@@ -92,7 +92,7 @@ func TestTeamPushedBranches(t *testing.T) {
 		t.Fatalf("%+v %v", state, err)
 	}
 	saveTeamSlot("payments", state)
-	if status, _ := b.devStatus(); status.PreviewBranch != "pushed/local-dev" {
+	if status, _ := b.devStatus(); status.PreviewBranch != "pushed/local-dev" || status.PreviewCommit != branch.Commit {
 		t.Fatalf("%+v", status)
 	}
 
@@ -186,6 +186,32 @@ func TestTeamPushedMainAndProduction(t *testing.T) {
 	fetchTeamPushed(config, false)
 	if view := appPushedBranches(config); len(view.Branches) != 0 {
 		t.Fatalf("%+v", view)
+	}
+
+	// A merge request merged on the forge after its branch was added: only
+	// a merge commit dev hasn't. It still shows, and adding it lets hi push.
+	appTestPush(t, laptop, "chart", "chart.txt", "31\n", "Chart")
+	fetchTeamPushed(config, false)
+	if _, err := b.shipPushedBranch(appDevShipRequest{Branch: "chart"}); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, laptop, "fetch", "-q", "origin")
+	gitIn(t, laptop, "checkout", "-q", "-B", "main", "origin/main~1")
+	gitIn(t, laptop, "merge", "-q", "--no-ff", "-m", "Merge branch 'chart'", "chart")
+	gitIn(t, laptop, "push", "-q", "-f", "origin", "main")
+	fetchTeamPushed(config, false)
+	view = appPushedBranches(config)
+	var main *appPushedBranch
+	for i := range view.Branches {
+		if view.Branches[i].Name == "main" {
+			main = &view.Branches[i]
+		}
+	}
+	if main == nil || main.Ahead == 0 {
+		t.Fatalf("%+v", view)
+	}
+	if result, err := b.shipPushedBranch(appDevShipRequest{Branch: "main"}); err != nil || result.Task.Error != "" {
+		t.Fatalf("%+v %v", result.Task, err)
 	}
 }
 

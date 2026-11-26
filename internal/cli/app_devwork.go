@@ -363,7 +363,10 @@ type appDevStatusView struct {
 	// PreviewBranch is the dev box's branch the preview shows instead of
 	// dev; PreviewOld, that it shows dev as it was, before what was shipped
 	// since. Either way, Show dev puts dev as it is on it.
-	PreviewBranch string   `json:"preview_branch,omitempty"`
+	PreviewBranch string `json:"preview_branch,omitempty"`
+	// PreviewCommit is the commit of a pushed branch on the preview, so the
+	// page can tell when the branch was pushed again since.
+	PreviewCommit string   `json:"preview_commit,omitempty"`
 	PreviewOld    bool     `json:"preview_old,omitempty"`
 	ProductionURL string   `json:"production_url,omitempty"`
 	Snapshot      string   `json:"snapshot,omitempty"`
@@ -389,7 +392,7 @@ func (b *appBroker) devStatus() (appDevStatusView, error) {
 			case strings.HasPrefix(slot.Source, appDevBranchRef("")):
 				status.PreviewBranch = strings.TrimPrefix(slot.Source, appDevBranchRef(""))
 			case strings.HasPrefix(slot.Source, appPushedPrefix):
-				status.PreviewBranch = slot.Source // pushed/<branch>
+				status.PreviewBranch, status.PreviewCommit = slot.Source, slot.Commit // pushed/<branch>
 			case slot.Source == config.Branch && slot.Commit != "" && boxGit(filepath.Join(appDir(b.team), "repo"), "rev-parse", config.Branch) == slot.Commit:
 				status.Preview = view.Dev
 			case slot.Source == config.Branch:

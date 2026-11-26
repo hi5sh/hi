@@ -1340,9 +1340,11 @@
           : "Taken out of the preview";
         var sub = (b.dev ? "Pushed straight to " + b.name + " by " : "By ") + (b.author || "someone") + ". " + what + ".";
         var onPreview = (state.status || {}).preview_branch === "pushed/" + b.name;
+        // Pushed again since Try: the preview shows the commits before.
+        var stale = onPreview && (state.status || {}).preview_commit && (state.status || {}).preview_commit !== b.commit;
         return el("li", { title: [b.subject].concat(b.files || []).join("\n") }, [
-          el("span", { class: "flow-name" }, [el("span", { text: b.name }), el("span", { class: "small muted flow-sub", text: onPreview ? "Only this branch is on the preview. It is not added yet." : sub })]),
-          b.ahead > 0 && !onPreview ? el("button", { text: "Try", busy: "try:" + space.id, title: "Put only this branch on the preview, with a copy of production's data. It is not added yet.", onclick: function () {
+          el("span", { class: "flow-name" }, [el("span", { text: b.name }), el("span", { class: "small muted flow-sub", text: stale ? "On the preview as it was before the last push. Try again shows the new commits." : onPreview ? "Only this branch is on the preview. It is not added yet." : sub })]),
+          b.ahead > 0 && (!onPreview || stale) ? el("button", { text: stale ? "Try again" : "Try", busy: "try:" + space.id, title: "Put only this branch on the preview, with a copy of production's data. It is not added yet.", onclick: function () {
             toast("Putting only " + b.name + " on the preview…", true);
             act("", "pushed", { branch: b.name, preview: true }, function (r) { return r.text; }, "try:" + space.id);
           } }) : null,

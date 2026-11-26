@@ -25,6 +25,8 @@
       url: /guide/app/how-it-works/
     - title: Build in the dev box
       url: /guide/app/dev/
+    - title: Work from your own machine
+      url: /guide/app/own-machine/
     - title: Try the app
       url: /guide/app/try/
     - title: Help and feedback in the app

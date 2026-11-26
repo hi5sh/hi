@@ -56,35 +56,13 @@ hi dev task list          # the app's tasks
 
 ### Work from your own machine
 
-Developers don't have to use the dev box. Clone the app's GitHub or
-GitLab project, work in your own editor with your own agent, and push a
-branch:
-
-```bash
-git clone https://gitlab.com/acme/billing.git && cd billing
-git switch -c better-chart origin/main
-# … commit …
-git push -u origin better-chart
-```
-
-- hi looks at the project every 2 minutes. The branch then shows on the
-  dev page, in Publish, under **Not on the preview yet**: who pushed it,
-  the commits dev hasn't, and the files.
-- **Try** puts only that branch on Stage, with a copy of production's
-  data. **Add to Preview** merges it into dev, with the same checks as
-  `hi dev ship`. **Publish** sends dev to production.
-- A merge request or pull request for the branch shows as merged by
-  itself once hi pushes dev.
-- When it conflicts with dev, rebase and push again
-  (`git fetch && git rebase origin/main`, then `git push -f`), or let an
-  agent in the dev box combine the two.
-- A push straight to `main` shows as the branch `main`, and is added the
-  same way. hi never takes a push to `production`: production moves only
-  by Publish, and the next one overwrites it. Protect `production` on
-  GitHub or GitLab, so only hi's account pushes there.
-- In the dev box, `hi dev branches` lists the pushed branches, and
-  `git fetch origin` brings them in as `origin/pushed/<branch>`. On the
-  machine, `hi app branches <app> [--fetch]`.
+Developers can also work on their own laptop, with their own editor and
+agent, and push branches to the app's GitHub or GitLab project. hi
+lists them on the dev page within 2 minutes, with **Try** and **Add to
+Preview**. In the box, `hi dev branches` lists them, and
+`git fetch origin` brings them in as `origin/pushed/<branch>`. See
+[Work from your own machine](/guide/app/own-machine/) for the whole
+workflow.
 
 ### Tasks
 

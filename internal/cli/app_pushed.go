@@ -296,6 +296,12 @@ func appPushedBranches(config appConfig) appPushedView {
 		}
 		branch.Ahead = count(dev + ".." + branch.Commit)
 		branch.Behind = count(branch.Commit + ".." + dev)
+		if branch.Dev && branch.Ahead == 0 && !appIsAncestor(repo, branch.Commit, dev) {
+			// A merge request merged on the forge after its branch was
+			// added: only a merge commit dev hasn't, which still stops hi's
+			// push of dev until it's added.
+			fmt.Sscan(boxGit(repo, "rev-list", "--count", dev+".."+branch.Commit), &branch.Ahead)
+		}
 		if base := boxGit(repo, "merge-base", dev, branch.Commit); base != "" && branch.Ahead > 0 {
 			files := strings.Fields(boxGit(repo, "diff", "--name-only", base, branch.Commit))
 			if len(files) > appPushedFilesMax {
