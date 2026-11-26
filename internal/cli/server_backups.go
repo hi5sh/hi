@@ -619,13 +619,37 @@ type serverBackupsView struct {
 	Keep    string             `json:"keep"`
 	AppsOff bool               `json:"apps_off,omitempty"`
 	Apps    []serverBackupsApp `json:"apps"`
+	// Running are the backup jobs (Back up now) that run: the page marks
+	// their apps as copying until each is in the bucket.
+	Running []serverBackupsJob `json:"running,omitempty"`
+}
+
+// serverBackupsJob is a running hi server backups now, from the page.
+type serverBackupsJob struct {
+	ID      string    `json:"id"`
+	Title   string    `json:"title"`
+	Apps    []string  `json:"apps,omitempty"` // none: every app that is copied
+	Started time.Time `json:"started"`
+}
+
+// serverBackupsRunning are the page's backup jobs that still run.
+func serverBackupsRunning() []serverBackupsJob {
+	var running []serverBackupsJob
+	for _, job := range adminJobs() {
+		if job.State != "running" || len(job.Args) < 3 || job.Args[0] != "server" || job.Args[1] != "backups" || job.Args[2] != "now" {
+			continue
+		}
+		running = append(running, serverBackupsJob{ID: job.ID, Title: job.Title, Apps: job.Args[3:], Started: job.Started})
+	}
+	return running
 }
 
 func serverBackupsViewOf() serverBackupsView {
 	b := loadServerBackups()
 	keep := b.keep()
 	view := serverBackupsView{On: b.on(), Name: firstNonEmpty(b.Name, serverDefaultName()), At: b.at(),
-		Keep: fmt.Sprintf("%d,%d,%d", keep.Daily, keep.Weekly, keep.Monthly), AppsOff: b.AppsOff, Apps: serverBackupsApps(b)}
+		Keep: fmt.Sprintf("%d,%d,%d", keep.Daily, keep.Weekly, keep.Monthly), AppsOff: b.AppsOff, Apps: serverBackupsApps(b),
+		Running: serverBackupsRunning()}
 	if b.on() {
 		view.Bucket, view.Region, view.Folder = b.Bucket, b.region(), b.folder()+"/"
 	}

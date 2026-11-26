@@ -335,4 +335,8 @@ func TestAdminBackups(t *testing.T) {
 	if strings.Join(last.Args, " ") != "server backups now payments" || last.By != "olga" {
 		t.Fatalf("%+v", last)
 	}
+	// While it runs, Backups shows it, for the page to mark its apps.
+	if code := a.get(t, olga, "/api/backups", &view); code != http.StatusOK || len(view.Running) != 1 || view.Running[0].ID != last.ID || strings.Join(view.Running[0].Apps, " ") != "payments" {
+		t.Fatalf("%d %+v", code, view.Running)
+	}
 }

@@ -3673,10 +3673,19 @@ let backupsView = null;
 const backupsPicked = new Set();
 const canBackups = () => !!(state && state.me && state.me.machine);
 
+let backupsTimer = 0;
 async function refreshBackups() {
+  clearTimeout(backupsTimer);
   try { backupsView = await api("/api/backups"); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return; }
+  const shown = orgOpen() && orgSection === "backups";
   const typing = document.activeElement && $("orgview").contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-  if (orgOpen() && orgSection === "backups" && !typing) renderOrgSection();
+  if (shown && !typing) renderOrgSection();
+  // While a backup runs, the table follows it.
+  if (shown && (backupsView.running || []).length) backupsTimer = setTimeout(refreshBackups, 5000);
+}
+// backupsCopying is the running job that copies app a now, if any.
+function backupsCopying(a) {
+  return (backupsView.running || []).find((j) => (!j.apps || !j.apps.length ? !!a.offsite : j.apps.includes(a.name)) && (!a.copied || a.copied < j.started));
 }
 
 // backupsDo sends a change; a failure is toasted, unless handled says it
@@ -3687,7 +3696,8 @@ async function backupsDo(body, done, handled) {
     if (answer.job) { toast((done || "Started") + ". See the output in Jobs.", true); followJob(answer.job); }
     else toast(done || firstLine(answer.text) || "Done.", true);
     if (answer.view) backupsView = answer.view;
-    if (orgOpen() && orgSection === "backups") renderOrgSection();
+    if (answer.job) await refreshBackups();
+    else if (orgOpen() && orgSection === "backups") renderOrgSection();
     return true;
   } catch (e) {
     if (!(e instanceof SignIn) && !(handled && await handled(e))) toast(e.message, true);
@@ -3777,15 +3787,22 @@ function backupsBlock() {
     pick.addEventListener("change", () => { if (pick.checked) backupsPicked.add(a.name); else backupsPicked.delete(a.name); renderOrgSection(); });
     const snap = a.failed && (!a.last || a.failed_at > a.last) ? el("span", { class: "warn", title: a.failed }, "Failed " + backupsWhen(a.failed_at)) : backupsWhen(a.last);
     let copy = a.offsite ? backupsWhen(a.copied) : "—";
-    if (a.offsite && a.copy_failed) copy = el("span", { class: "warn", title: a.copy_failed }, "Failed " + backupsWhen(a.copy_failed_at));
+    const copying = a.offsite && backupsCopying(a);
+    if (copying) copy = el("span", { class: "muted", title: copying.title }, "Copying…");
+    else if (a.offsite && a.copy_failed) copy = el("span", { class: "warn", title: a.copy_failed }, "Failed " + backupsWhen(a.copy_failed_at));
     else if (a.offsite && !a.copied) copy = el("span", { class: "muted" }, "Not yet");
     t.append(el("tr", {}, el("td", {}, pick), el("th", { scope: "row" }, a.name),
       el("td", { title: a.offsite || "" }, where[a.use] || a.use), el("td", {}, snap), el("td", {}, copy),
       el("td", { title: a.own_keep ? "The app's own number" : "The plan's number" }, a.keep + (a.own_keep ? " *" : "")),
-      el("td", {}, can && a.offsite ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", apps: [a.name] }, "Backing up " + a.name) }, "Back up now") : "")));
+      el("td", {}, can && a.offsite && !copying ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", apps: [a.name] }, "Backing up " + a.name) }, "Back up now") : "")));
   }
   const picked = [...backupsPicked];
   const appsBox = el("div", { class: "machine-block" });
+  for (const j of v.running || []) {
+    const left = apps.filter((a) => a.offsite && backupsCopying(a) === j).length;
+    appsBox.append(el("p", { class: "small" }, "Running: " + j.title + ", started " + ago(j.started) + (left ? ", " + left + (left === 1 ? " app" : " apps") + " to go. " : ". "),
+      el("button", { class: "small", onclick: () => followJob(j) }, "Show the output")));
+  }
   if (!apps.length) appsBox.append(el("p", { class: "muted small" }, "This machine has no apps."));
   else appsBox.append(t);
   for (const a of apps) if (a.offsite && a.copy_failed) appsBox.append(el("p", { class: "warn small" }, a.name + ": " + a.copy_failed));
@@ -3793,7 +3810,7 @@ function backupsBlock() {
     el("span", { class: "muted small" }, picked.length ? picked.length + " picked:" : "Pick apps to change them together."),
     el("button", { class: "small", disabled: !picked.length || !v.on, onclick: () => backupsDo({ what: "apps", apps: picked, on: true }, "Copies to the bucket are on for " + picked.join(", ")) }, "Copy to the bucket"),
     el("button", { class: "small", disabled: !picked.length, onclick: () => backupsDo({ what: "apps", apps: picked, on: false }, "Copies offsite are off for " + picked.join(", ")) }, "Do not copy"),
-    el("button", { class: "small", disabled: !apps.some((a) => a.offsite), onclick: () => backupsDo({ what: "now", apps: picked }, picked.length ? "Backing up " + picked.join(", ") : "Backing up every app") }, picked.length ? "Back up picked now" : "Back up all now")));
+    el("button", { class: "small", disabled: !apps.some((a) => a.offsite) || (v.running || []).length > 0, onclick: () => backupsDo({ what: "now", apps: picked }, picked.length ? "Backing up " + picked.join(", ") : "Backing up every app") }, picked.length ? "Back up picked now" : "Back up all now")));
   appsBox.append(el("ul", { class: "bullets small muted" },
     el("li", {}, "Do not copy: the snapshots stay on this machine. Rollback still works."),
     el("li", {}, "Own bucket: the app uses its own bucket (hi app backups <app> --offsite). Copy to the bucket moves it to the server's bucket. Its old copies stay where they are."),
