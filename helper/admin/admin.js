@@ -3685,7 +3685,15 @@ async function refreshBackups() {
 }
 // backupsCopying is the running job that copies app a now, if any.
 function backupsCopying(a) {
-  return (backupsView.running || []).find((j) => (!j.apps || !j.apps.length ? !!a.offsite : j.apps.includes(a.name)) && (!a.copied || a.copied < j.started));
+  return (backupsView.running || []).find((j) => !j.server && (!j.apps || !j.apps.length ? !!a.offsite : j.apps.includes(a.name)) && (!a.copied || a.copied < j.started));
+}
+// backupsSize is bytes as people read them.
+function backupsSize(n) {
+  if (!n) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+  return (n >= 10 || i === 0 ? Math.round(n) : n.toFixed(1)) + " " + units[i];
 }
 
 // backupsDo sends a change; a failure is toasted, unless handled says it
@@ -3705,9 +3713,10 @@ async function backupsDo(body, done, handled) {
   }
 }
 
+// backupsWhen is a time, short ("3 h ago"), with the full one on hover.
 function backupsWhen(t) {
   if (!t) return "—";
-  return new Date(t).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return el("span", { title: new Date(t).toLocaleString() }, ago(t));
 }
 
 async function backupsSetBucket() {
@@ -3767,34 +3776,51 @@ function backupsBlock() {
   const keep = input({ value: v.keep, class: "small-input", placeholder: "7,4,6", "aria-label": "Keep daily, weekly, monthly" });
   const follow = el("input", { type: "checkbox" });
   follow.checked = !v.apps_off;
+  const limit = input({ value: v.limit_upload ? String(v.limit_upload) : "", class: "small-input", placeholder: "none", inputmode: "numeric", "aria-label": "Upload limit in KiB/s" });
   plan.append(el("ul", { class: "bullets small muted" },
-    el("li", {}, "hi takes a snapshot of each app every day, up to an hour after this time."),
+    v.queued ? el("li", {}, "Every day at this time, hi backs up the apps one after another, then this server.")
+      : el("li", {}, "hi takes a snapshot of each app every day, up to an hour after this time."),
     el("li", {}, "hi copies each snapshot to the bucket, and before each release."),
+    el("li", {}, "Once a week, hi reads each copy in the bucket back, to check it. Once a month it also reads 1% of the data."),
     el("li", {}, "Keep: how many daily, weekly and monthly snapshots stay. An app can keep its own number.")),
-    el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "Daily at"), at, el("span", { class: "muted small" }, "Keep daily, weekly, monthly"), keep),
+    el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "Daily at"), at, el("span", { class: "muted small" }, "Keep daily, weekly, monthly"), keep,
+      el("span", { class: "muted small" }, "Upload limit (KiB/s)"), limit),
     el("label", { class: "check small" }, follow, " Copy new apps, and apps that did not choose"),
-    can ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => backupsDo({ what: "plan", at: at.value, keep: keep.value.trim(), apps_default: follow.checked ? "on" : "off" }, "The plan is saved.") }, "Save the plan")) : null);
+    can ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => backupsDo({ what: "plan", at: at.value, keep: keep.value.trim(), apps_default: follow.checked ? "on" : "off", limit_upload: limit.value.trim() || "off" }, "The plan is saved.") }, "Save the plan")) : null);
   parts.push(card("Plan", plan));
   // The apps.
   const apps = v.apps || [];
   for (const name of [...backupsPicked]) if (!apps.some((a) => a.name === name)) backupsPicked.delete(name);
-  const where = { server: "Server's bucket", own: "Own bucket", off: "Off", none: "—" };
+  const where = { server: "Bucket", own: "Own bucket", off: "Off", none: "—" };
   const t = el("table", { class: "people-matrix backups-table" });
-  t.append(el("tr", {}, el("th", {}, ""), el("th", {}, "App"), el("th", {}, "Offsite"), el("th", {}, "Last snapshot"), el("th", {}, "Last copy"), el("th", {}, "Keep"), el("th", {}, "")));
+  t.append(el("tr", {}, el("th", {}, ""), el("th", {}, "App"), el("th", {}, "Offsite"), el("th", {}, "Last snapshot"), el("th", {}, "Last copy"), el("th", {}, "Checked"), el("th", {}, "Keep"), el("th", {}, "")));
   for (const a of apps) {
     const pick = el("input", { type: "checkbox", "aria-label": "Pick " + a.name, disabled: !can });
     pick.checked = backupsPicked.has(a.name);
     pick.addEventListener("change", () => { if (pick.checked) backupsPicked.add(a.name); else backupsPicked.delete(a.name); renderOrgSection(); });
-    const snap = a.failed && (!a.last || a.failed_at > a.last) ? el("span", { class: "warn", title: a.failed }, "Failed " + backupsWhen(a.failed_at)) : backupsWhen(a.last);
+    const snap = a.failed && (!a.last || a.failed_at > a.last) ? el("span", { class: "warn", title: a.failed }, "Failed " + ago(a.failed_at)) : backupsWhen(a.last);
     let copy = a.offsite ? backupsWhen(a.copied) : "—";
     const copying = a.offsite && backupsCopying(a);
     if (copying) copy = el("span", { class: "muted", title: copying.title }, "Copying…");
-    else if (a.offsite && a.copy_failed) copy = el("span", { class: "warn", title: a.copy_failed }, "Failed " + backupsWhen(a.copy_failed_at));
+    else if (a.offsite && a.copy_failed) copy = el("span", { class: "warn", title: a.copy_failed }, "Failed " + ago(a.copy_failed_at));
     else if (a.offsite && !a.copied) copy = el("span", { class: "muted" }, "Not yet");
     t.append(el("tr", {}, el("td", {}, pick), el("th", { scope: "row" }, a.name),
       el("td", { title: a.offsite || "" }, where[a.use] || a.use), el("td", {}, snap), el("td", {}, copy),
+      el("td", {}, !a.offsite ? "—" : a.check_failed ? el("span", { class: "warn", title: a.check_failed }, "Failed") : backupsWhen(a.checked)),
       el("td", { title: a.own_keep ? "The app's own number" : "The plan's number" }, a.keep + (a.own_keep ? " *" : "")),
-      el("td", {}, can && a.offsite && !copying ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", apps: [a.name] }, "Backing up " + a.name) }, "Back up now") : "")));
+      el("td", {}, can && a.offsite && !copying ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", apps: [a.name] }, "Backing up " + a.name), title: "Back up " + a.name + " now" }, "Back up") : "")));
+  }
+  if (v.on) {
+    const sv = v.server || {};
+    const serverCopying = (v.running || []).find((j) => (j.server || !j.apps || !j.apps.length) && (!sv.last || sv.last < j.started));
+    let last = sv.last ? el("span", { title: new Date(sv.last).toLocaleString() + ", " + backupsSize(sv.size) }, ago(sv.last)) : el("span", { class: "muted" }, "Not yet");
+    if (serverCopying) last = el("span", { class: "muted" }, "Copying…");
+    else if (sv.failed && (!sv.last || sv.failed_at > sv.last)) last = el("span", { class: "warn", title: sv.failed }, "Failed " + ago(sv.failed_at));
+    if (!v.vault) last = el("span", { class: "muted" }, "Needs the vault");
+    t.append(el("tr", { class: "backups-server" }, el("td", {}, ""), el("th", { scope: "row", title: "The vault (encrypted), the admins, and the settings of this server" }, "This server"),
+      el("td", {}, "Bucket"), el("td", {}, "—"), el("td", {}, last),
+      el("td", {}, sv.check_failed ? el("span", { class: "warn", title: sv.check_failed }, "Failed") : backupsWhen(sv.checked)), el("td", {}, v.keep),
+      el("td", {}, can && v.vault && !serverCopying ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", server: true }, "Backing up the server"), title: "Back up this server now" }, "Back up") : "")));
   }
   const picked = [...backupsPicked];
   const appsBox = el("div", { class: "machine-block" });
@@ -3804,7 +3830,7 @@ function backupsBlock() {
       el("button", { class: "small", onclick: () => followJob(j) }, "Show the output")));
   }
   if (!apps.length) appsBox.append(el("p", { class: "muted small" }, "This machine has no apps."));
-  else appsBox.append(t);
+  else appsBox.append(el("div", { class: "table-scroll" }, t));
   for (const a of apps) if (a.offsite && a.copy_failed) appsBox.append(el("p", { class: "warn small" }, a.name + ": " + a.copy_failed));
   if (can && apps.length) appsBox.append(el("div", { class: "data-actions" },
     el("span", { class: "muted small" }, picked.length ? picked.length + " picked:" : "Pick apps to change them together."),
@@ -3814,8 +3840,27 @@ function backupsBlock() {
   appsBox.append(el("ul", { class: "bullets small muted" },
     el("li", {}, "Do not copy: the snapshots stay on this machine. Rollback still works."),
     el("li", {}, "Own bucket: the app uses its own bucket (hi app backups <app> --offsite). Copy to the bucket moves it to the server's bucket. Its old copies stay where they are."),
-    el("li", {}, "The snapshot key of each app is in the bucket too, sealed to the vault's recovery key. Keep the recovery key off this machine.")));
+    el("li", {}, "This server: the vault (still encrypted), the admins and the settings. Not the vault's key file."),
+    el("li", {}, "The snapshot keys are in the bucket too, sealed to the vault's recovery key. Keep the recovery key off this machine.")));
+  for (const a of apps) if (a.offsite && a.check_failed) appsBox.append(el("p", { class: "warn small" }, a.name + ": the copy in the bucket failed its check: " + a.check_failed));
   parts.push(card("Apps", appsBox));
+  // Recent runs, newest first.
+  const runs = v.runs || [];
+  const runsBox = el("div", { class: "machine-block" });
+  if (!runs.length) runsBox.append(el("p", { class: "muted small" }, "No backups yet."));
+  else {
+    const rt = el("table", { class: "people-matrix backups-runs" });
+    rt.append(el("tr", {}, el("th", {}, "When"), el("th", {}, "What"), el("th", {}, "Took"), el("th", {}, "Size"), el("th", {}, "New"), el("th", {}, "Result")));
+    const kinds = { daily: "Daily", now: "Back up now", check: "Check", server: "Server" };
+    for (const r of runs) {
+      const took = r.took < 60 ? Math.round(r.took) + " s" : Math.round(r.took / 60) + " min";
+      rt.append(el("tr", {}, el("td", {}, backupsWhen(r.at)), el("td", {}, (kinds[r.what] || r.what) + ": " + (r.app || "this server")),
+        el("td", {}, took), el("td", {}, r.size ? backupsSize(r.size) : "—"), el("td", {}, r.added ? backupsSize(r.added) : "—"),
+        el("td", {}, r.error ? el("span", { class: "warn", title: r.error }, "Failed") : (r.note || "OK"))));
+    }
+    runsBox.append(el("div", { class: "table-scroll" }, rt));
+  }
+  parts.push(card("Recent runs", runsBox));
   return parts;
 }
 

@@ -5,7 +5,8 @@ questions: the folder is the short hostname, set at setup; a key per
 server is recommended and a shared one works; admins (of the server and
 the machine) turn apps on and off; apps follow the server by default;
 an app may keep a bucket of its own; the server's own state is release
-2. Release 1 built as v2.6.268 (see [As built](#as-built-release-1)).
+2. Release 1 built as v2.6.268 (see [As built](#as-built-release-1)),
+release 2 as v2.6.270 (see [As built](#as-built-release-2)).
 
 Dependencies: [hi_app_snapshots.md](hi_app_snapshots.md)
 (snapshots, restic, `hi app backups`), [hi_server_vault.md](hi_server_vault.md)
@@ -292,3 +293,41 @@ v2.6.268:
   **Back up now** does.
 - **Not yet checked:** Backblaze keys limited by a file name prefix, and
   its lifecycle text, against a real bucket.
+
+## As built (release 2)
+
+v2.6.270:
+
+- **One queue.** `hi-backups.timer` (user unit, at the plan's time, up
+  to 10 minutes after; caught up after a reboot) runs `hi server backups
+  run --daily`: each app whose service is enabled, in name order, takes
+  its daily snapshot through its service (or itself when the app is
+  down, as before) and the queue waits for its copy (up to 3 hours);
+  then the server's state. An app turned down has no daily snapshot, as
+  with its own timer. `hi server backups now` and the queue take one
+  lock, so they wait for each other.
+- **Installing it.** `hi server run` (the server's service) installs the
+  timer as it starts, so an update's restart brings it, and only once
+  it is enabled removes each app's own `hi-app-<app>-snapshot.timer`.
+  `hi app up` installs no app timer while the queue's is there, and
+  removes one it finds. `--at` rewrites the queue's timer.
+- **The server's state** goes to `<name>/server/`, host
+  `hi-server-<name>`: the server's folder (without the bucket keys' file
+  and the lock), the vault's folder (copied with the vault's lock held;
+  the key file is in `~/.config/hi/vault-key`, never copied), and the
+  admin page's folder (without its sockets, jobs, and drafts). They are
+  copied to `~/.cache/hi/server-backup/` first, a fixed folder so restic
+  compares with the last snapshot, and that copy is removed after. It
+  needs the vault: its key is `hi/server/snapshots`, given to restic by
+  `hi server backups __key`, and sealed beside it as `hi-key.sealed` to
+  the recovery key (app `hi-server:<name>`). Kept by the plan's numbers.
+  `now --server` backs it up alone; status in `backups-status.json`.
+- **Checks.** After an app's daily copy, and after the server's, when a
+  week has passed: `restic check`, with `--read-data-subset=1%` when a
+  month has. Results in the app's `status.json` (`checked`,
+  `check_failed`) and on the page.
+- **Upload limit.** `--limit-upload <KiB/s>` adds restic's
+  `--limit-upload` to every copy and the server's backup.
+- **Recent runs.** `backups-runs.jsonl` in the server's folder (the last
+  200 steps): when, what (daily, now, check), the app or the server, how
+  long, size, new bytes, and the error. The page shows the last 30.

@@ -2398,6 +2398,15 @@ func orgRunCommand(args []string, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stdout, "hi: %v\n", err)
 		}
 		go vaultFinishMove(stdout)
+		// The daily backup queue, from the hi that runs now: installed
+		// here, so an update's restart brings it (hi_server_backups.md).
+		if orgUserUnitHere() {
+			go func() {
+				if err := serverBackupsEnsureTimer(stdout); err != nil {
+					fmt.Fprintf(stdout, "hi: the backup queue's timer: %v; the apps keep their own\n", err)
+				}
+			}()
+		}
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
 	if err != nil {

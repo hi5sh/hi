@@ -18,7 +18,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -43,6 +45,8 @@ type serverBackups struct {
 	Monthly int    `json:"keep_monthly,omitempty"`
 	// AppsOff: apps that haven't chosen aren't copied (on by default).
 	AppsOff bool `json:"apps_off,omitempty"`
+	// LimitUpload is restic's upload limit, KiB/s; 0 is none.
+	LimitUpload int `json:"limit_upload,omitempty"`
 }
 
 func (b serverBackups) on() bool       { return b.Bucket != "" && b.Name != "" }
@@ -191,6 +195,8 @@ type serverBackupsApp struct {
 	Copied       time.Time `json:"copied,omitzero"` // the last copy to Offsite
 	CopyFailed   string    `json:"copy_failed,omitempty"`
 	CopyFailedAt time.Time `json:"copy_failed_at,omitzero"`
+	Checked      time.Time `json:"checked,omitzero"`
+	CheckFailed  string    `json:"check_failed,omitempty"`
 }
 
 func serverBackupsApps(server serverBackups) []serverBackupsApp {
@@ -218,6 +224,7 @@ func serverBackupsApps(server serverBackups) []serverBackupsApp {
 			if status.CopyFailed != "" && status.CopyFailedAt.After(line.Copied) {
 				line.CopyFailed, line.CopyFailedAt = status.CopyFailed, status.CopyFailedAt
 			}
+			line.Checked, line.CheckFailed = status.Checked, status.CheckFailed
 		}
 		apps = append(apps, line)
 	}
@@ -230,13 +237,14 @@ func serverBackupsApps(server serverBackups) []serverBackupsApp {
 const serverBackupsUsage = `usage: hi server backups                       the bucket, the plan, and each app
        hi server backups --bucket s3:https://<host>/<bucket> [--region <r>] [--name <server>] [--take-over]
        hi server backups --bucket off
-       hi server backups [--at HH:MM] [--keep <daily>,<weekly>,<monthly>] [--apps-default on|off]
+       hi server backups [--at HH:MM] [--keep <daily>,<weekly>,<monthly>] [--apps-default on|off] [--limit-upload <KiB/s>|off]
        hi server backups on|off <app>... | --all
-       hi server backups now [<app>...]`
+       hi server backups now [<app>... | --server]
+       hi server backups run --daily                 the daily queue (hi-backups.timer runs it)`
 
 func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
-	var bucket, region, name, at, keep, appsDefault, verb string
-	var takeOver, all bool
+	var bucket, region, name, at, keep, appsDefault, limit, verb string
+	var takeOver, all, daily, stateOnly bool
 	var apps []string
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -261,13 +269,19 @@ func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 			keep, err = value()
 		case arg == "--apps-default":
 			appsDefault, err = value()
+		case arg == "--limit-upload":
+			limit, err = value()
+		case arg == "--daily" && verb == "run":
+			daily = true
+		case arg == "--server" && verb == "now":
+			stateOnly = true
 		case arg == "--take-over":
 			takeOver = true
 		case arg == "--all":
 			all = true
 		case strings.HasPrefix(arg, "-"):
 			return usageError{"unknown option " + arg + "\n" + serverBackupsUsage}
-		case verb == "" && (arg == "on" || arg == "off" || arg == "now"):
+		case verb == "" && (arg == "on" || arg == "off" || arg == "now" || arg == "run" || arg == "__key"):
 			verb = arg
 		case verb != "":
 			apps = append(apps, arg)
@@ -278,18 +292,29 @@ func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 			return err
 		}
 	}
+	if verb == "__key" {
+		return serverStateKeyCommand(stdout)
+	}
 	if _, err := loadServerConfig(serverBackupsDir()); err != nil {
 		return errors.New("this machine runs no server: hi server init makes one, and its backups are set there")
 	}
-	settings := bucket != "" || region != "" || name != "" || at != "" || keep != "" || appsDefault != "" || takeOver
-	if verb != "" && settings || verb == "" && (all || len(apps) > 0) {
+	settings := bucket != "" || region != "" || name != "" || at != "" || keep != "" || appsDefault != "" || limit != "" || takeOver
+	if verb != "" && settings || verb == "" && (all || len(apps) > 0) || stateOnly && len(apps) > 0 {
 		return usageError{serverBackupsUsage}
 	}
 	switch verb {
 	case "on", "off":
 		return serverBackupsTurn(verb == "on", apps, all, stdout)
 	case "now":
-		return serverBackupsNow(apps, stdout)
+		// Every app that is copied, and the server's state; or the apps
+		// named; or, with --server, the server's state alone.
+		b := loadServerBackups()
+		return serverBackupsRunAll(false, apps, !stateOnly, stateOnly || len(apps) == 0 && b.on() && vaultExists(), stdout)
+	case "run":
+		if !daily || len(apps) > 0 {
+			return usageError{"usage: hi server backups run --daily"}
+		}
+		return serverBackupsRunAll(true, nil, true, loadServerBackups().on() && vaultExists(), stdout)
 	}
 	if bucket != "" {
 		if err := serverBackupsSetBucket(bucket, region, name, takeOver, stdin, stdout); err != nil {
@@ -298,8 +323,8 @@ func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 	} else if region != "" || name != "" || takeOver {
 		return usageError{"--region, --name, and --take-over go with --bucket"}
 	}
-	if at != "" || keep != "" || appsDefault != "" {
-		if err := serverBackupsSetPlan(at, keep, appsDefault, stdout); err != nil {
+	if at != "" || keep != "" || appsDefault != "" || limit != "" {
+		if err := serverBackupsSetPlan(at, keep, appsDefault, limit, stdout); err != nil {
 			return err
 		}
 	}
@@ -360,7 +385,7 @@ func serverBackupsSetBucket(address, region, name string, takeOver bool, stdin i
 	return nil
 }
 
-func serverBackupsSetPlan(at, keep, appsDefault string, stdout io.Writer) error {
+func serverBackupsSetPlan(at, keep, appsDefault, limit string, stdout io.Writer) error {
 	b := loadServerBackups()
 	timers := false
 	if at != "" {
@@ -378,6 +403,17 @@ func serverBackupsSetPlan(at, keep, appsDefault string, stdout io.Writer) error 
 			return err
 		}
 		b.Daily, b.Weekly, b.Monthly = counts[0], counts[1], counts[2]
+	}
+	switch limit {
+	case "":
+	case "off", "0":
+		b.LimitUpload = 0
+	default:
+		n, err := strconv.Atoi(limit)
+		if err != nil || n < 1 || n > 10_000_000 {
+			return usageError{"--limit-upload takes KiB/s, such as 5000 (about 40 Mbit/s), or off"}
+		}
+		b.LimitUpload = n
 	}
 	switch appsDefault {
 	case "":
@@ -401,12 +437,21 @@ func serverBackupsSetPlan(at, keep, appsDefault string, stdout io.Writer) error 
 // new time, and restarts those that run.
 func serverRewriteSnapshotTimers(stdout io.Writer) {
 	changed := []string{}
+	if serverBackupsQueued() {
+		_, timer := serverBackupsUnits("", loadServerBackups())
+		if err := os.WriteFile(serverBackupsTimerPath(), []byte(timer), 0o644); err != nil {
+			fmt.Fprintf(stdout, "hi: %s: %v\n", serverBackupsUnit+".timer", err)
+		} else {
+			appSystemctl("daemon-reload")
+			appSystemctl("restart", serverBackupsUnit+".timer")
+		}
+	}
 	for _, name := range machineAppNames() {
 		config, err := loadTeam(name)
 		if err != nil {
 			continue
 		}
-		path := filepath.Join(filepath.Dir(appUnitPath(name)), appSnapshotUnitName(name)+".timer")
+		path := appSnapshotTimerPath(name)
 		if !fileExists(path) {
 			continue
 		}
@@ -490,70 +535,6 @@ func serverBackupsTurn(on bool, apps []string, all bool, stdout io.Writer) error
 	return nil
 }
 
-// serverBackupsWait is how long now waits for an app's service to copy.
-var serverBackupsWait = 3 * time.Hour
-
-// serverBackupsNow takes a snapshot of each app that is copied offsite,
-// and waits until it is in the bucket.
-func serverBackupsNow(apps []string, stdout io.Writer) error {
-	server := loadServerBackups()
-	if len(apps) == 0 {
-		for _, line := range serverBackupsApps(server) {
-			if line.Offsite != "" {
-				apps = append(apps, line.Name)
-			}
-		}
-		if len(apps) == 0 {
-			return errors.New("no app is copied offsite: set the server's bucket (hi server backups --bucket), or turn apps on")
-		}
-	}
-	var failed []string
-	for _, name := range apps {
-		config, err := loadTeam(name)
-		if err != nil {
-			return err
-		}
-		if config.backupsWith(server).Offsite == "" {
-			fmt.Fprintf(stdout, "App %s isn't copied offsite; skipped.\n", name)
-			continue
-		}
-		if err := serverBackupsNowOne(name, stdout); err != nil {
-			fmt.Fprintf(stdout, "App %s: %v\n", name, err)
-			failed = append(failed, name)
-		}
-	}
-	if len(failed) > 0 {
-		return fmt.Errorf("not copied: %s", strings.Join(failed, ", "))
-	}
-	return nil
-}
-
-func serverBackupsNowOne(name string, stdout io.Writer) error {
-	if err := appSnapshotCommand([]string{name}, stdout); err != nil {
-		return err
-	}
-	status := loadTeamSnapshotStatus(name)
-	if status.Last == nil {
-		return errors.New("the snapshot isn't in its status")
-	}
-	taken := status.Last.Time
-	deadline := time.Now().Add(serverBackupsWait)
-	for {
-		status = loadTeamSnapshotStatus(name)
-		if !status.Copied.Before(taken) {
-			fmt.Fprintf(stdout, "App %s is in the bucket, %s.\n", name, status.CopiedOffsite)
-			return nil
-		}
-		if status.CopyFailed != "" && !status.CopyFailedAt.Before(taken) {
-			return errors.New(status.CopyFailed)
-		}
-		if time.Now().After(deadline) {
-			return errors.New("the copy hasn't ended yet; hi server backups shows when it does")
-		}
-		time.Sleep(2 * time.Second)
-	}
-}
-
 func serverBackupsShow(stdout io.Writer) error {
 	b := loadServerBackups()
 	if b.on() {
@@ -563,6 +544,23 @@ func serverBackupsShow(stdout io.Writer) error {
 	}
 	keep := b.keep()
 	fmt.Fprintf(stdout, "Plan: a snapshot of each app daily around %s, copied offsite after it; keep %d days, %d weeks, %d months.\n", b.at(), keep.Daily, keep.Weekly, keep.Monthly)
+	if b.LimitUpload > 0 {
+		fmt.Fprintf(stdout, "Uploads are limited to %d KiB/s.\n", b.LimitUpload)
+	}
+	if serverBackupsQueued() {
+		fmt.Fprintf(stdout, "%s takes the snapshots one app after another, then backs up the server's state.\n", serverBackupsUnit+".timer")
+	}
+	if b.on() {
+		state := loadServerStateStatus()
+		switch {
+		case state.Failed != "" && state.FailedAt.After(state.Last):
+			fmt.Fprintf(stdout, "The server's state: failed %s: %s\n", state.FailedAt.Local().Format("Jan 2 15:04"), state.Failed)
+		case !state.Last.IsZero() && state.Repository == b.stateRepository():
+			fmt.Fprintf(stdout, "The server's state (vault, admins, settings): copied %s, %s.\n", state.Last.Local().Format("Jan 2 15:04"), qSize(state.Size))
+		default:
+			fmt.Fprintln(stdout, "The server's state (vault, admins, settings): not copied yet (hi server backups now --server).")
+		}
+	}
 	if b.AppsOff {
 		fmt.Fprintln(stdout, "Apps are copied only when turned on (hi server backups on <app>).")
 	} else {
@@ -574,7 +572,7 @@ func serverBackupsShow(stdout io.Writer) error {
 	}
 	fmt.Fprintln(stdout)
 	table := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(table, "APP\tOFFSITE\tLAST SNAPSHOT\tLAST COPY\tKEEP")
+	fmt.Fprintln(table, "APP\tOFFSITE\tLAST SNAPSHOT\tLAST COPY\tCHECKED\tKEEP")
 	when := func(t time.Time) string {
 		if t.IsZero() {
 			return "-"
@@ -594,12 +592,22 @@ func serverBackupsShow(stdout io.Writer) error {
 		if app.Failed != "" && app.FailedAt.After(app.Last) {
 			snapshot = "failed " + when(app.FailedAt)
 		}
-		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", app.Name, use, snapshot, copied, app.Keep)
+		checked := when(app.Checked)
+		if app.CheckFailed != "" {
+			checked = "failed"
+		}
+		if app.Offsite == "" {
+			checked = "-"
+		}
+		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", app.Name, use, snapshot, copied, checked, app.Keep)
 	}
 	table.Flush()
 	for _, app := range apps {
 		if app.CopyFailed != "" && app.Offsite != "" {
 			fmt.Fprintf(stdout, "%s: %s\n", app.Name, app.CopyFailed)
+		}
+		if app.CheckFailed != "" && app.Offsite != "" {
+			fmt.Fprintf(stdout, "%s: the bucket's copy failed its check: %s\n", app.Name, app.CheckFailed)
 		}
 	}
 	return nil
@@ -622,13 +630,22 @@ type serverBackupsView struct {
 	// Running are the backup jobs (Back up now) that run: the page marks
 	// their apps as copying until each is in the bucket.
 	Running []serverBackupsJob `json:"running,omitempty"`
+	// LimitUpload is the plan's upload limit, KiB/s.
+	LimitUpload int `json:"limit_upload,omitempty"`
+	// Queued: hi-backups.timer takes the snapshots, one app at a time.
+	Queued bool `json:"queued"`
+	// Server is the server's own state's copy; Vault says it can be copied.
+	Server serverStateStatus  `json:"server"`
+	Vault  bool               `json:"vault"`
+	Runs   []serverBackupsRun `json:"runs"`
 }
 
 // serverBackupsJob is a running hi server backups now, from the page.
 type serverBackupsJob struct {
 	ID      string    `json:"id"`
 	Title   string    `json:"title"`
-	Apps    []string  `json:"apps,omitempty"` // none: every app that is copied
+	Apps    []string  `json:"apps,omitempty"`   // none: every app that is copied
+	Server  bool      `json:"server,omitempty"` // the server's state alone
 	Started time.Time `json:"started"`
 }
 
@@ -639,7 +656,11 @@ func serverBackupsRunning() []serverBackupsJob {
 		if job.State != "running" || len(job.Args) < 3 || job.Args[0] != "server" || job.Args[1] != "backups" || job.Args[2] != "now" {
 			continue
 		}
-		running = append(running, serverBackupsJob{ID: job.ID, Title: job.Title, Apps: job.Args[3:], Started: job.Started})
+		line := serverBackupsJob{ID: job.ID, Title: job.Title, Apps: job.Args[3:], Started: job.Started}
+		if slices.Contains(line.Apps, "--server") {
+			line.Apps, line.Server = nil, true
+		}
+		running = append(running, line)
 	}
 	return running
 }
@@ -649,7 +670,16 @@ func serverBackupsViewOf() serverBackupsView {
 	keep := b.keep()
 	view := serverBackupsView{On: b.on(), Name: firstNonEmpty(b.Name, serverDefaultName()), At: b.at(),
 		Keep: fmt.Sprintf("%d,%d,%d", keep.Daily, keep.Weekly, keep.Monthly), AppsOff: b.AppsOff, Apps: serverBackupsApps(b),
-		Running: serverBackupsRunning()}
+		Running: serverBackupsRunning(), LimitUpload: b.LimitUpload, Queued: serverBackupsQueued(), Vault: vaultExists(), Runs: serverBackupsRuns(30)}
+	if b.on() {
+		view.Server = loadServerStateStatus()
+		if view.Server.Repository != b.stateRepository() {
+			view.Server.Last, view.Server.Size, view.Server.Added = time.Time{}, 0, 0
+		}
+	}
+	if view.Runs == nil {
+		view.Runs = []serverBackupsRun{}
+	}
 	if b.on() {
 		view.Bucket, view.Region, view.Folder = b.Bucket, b.region(), b.folder()+"/"
 	}
@@ -670,6 +700,8 @@ type serverBackupsChange struct {
 	AppsDefault string   `json:"apps_default"`
 	Apps        []string `json:"apps"`
 	On          bool     `json:"on"`
+	Server      bool     `json:"server"` // now: the server's state alone
+	LimitUpload string   `json:"limit_upload"`
 }
 
 // serverBackupsArgs is the hi server backups command a change runs, what
@@ -710,6 +742,9 @@ func serverBackupsArgs(c serverBackupsChange) (args []string, stdin, said string
 		if c.AppsDefault == "on" || c.AppsDefault == "off" {
 			args = append(args, "--apps-default", c.AppsDefault)
 		}
+		if limit := clean(c.LimitUpload); limit != "" {
+			args = append(args, "--limit-upload", limit)
+		}
 		return args, "", "changed the backup plan: " + strings.Join(args[2:], " "), nil
 	case "apps":
 		if len(c.Apps) == 0 {
@@ -718,6 +753,12 @@ func serverBackupsArgs(c serverBackupsChange) (args []string, stdin, said string
 		verb := map[bool]string{true: "on", false: "off"}[c.On]
 		return append([]string{"server", "backups", verb}, c.Apps...), "", "turned offsite copies " + verb + " for " + strings.Join(c.Apps, ", "), nil
 	case "now":
+		if c.Server {
+			if len(c.Apps) > 0 {
+				return nil, "", "", errors.New("the server's state, or apps")
+			}
+			return []string{"server", "backups", "now", "--server"}, "", "", nil
+		}
 		return append([]string{"server", "backups", "now"}, c.Apps...), "", "", nil
 	}
 	return nil, "", "", errors.New("bucket, off, plan, apps, or now")
@@ -751,8 +792,10 @@ func (s *adminServer) backupsRoutes(mux *http.ServeMux, reply func(http.Response
 			return
 		}
 		if change.What == "now" {
-			title := "Back up every app now"
-			if len(change.Apps) > 0 {
+			title := "Back up every app and the server now"
+			if change.Server {
+				title = "Back up the server's state now"
+			} else if len(change.Apps) > 0 {
 				title = "Back up " + strings.Join(change.Apps, ", ") + " now"
 			}
 			job, err := s.startJob(adminJob{Title: title, By: admin.Name, Args: args})

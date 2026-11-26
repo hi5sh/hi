@@ -115,8 +115,9 @@ On the server box:
                                        How the machine sends email: sign-in links and invitations
   hi server vault [init|unlock|lock|recovery|ls|history|rollback|forget|shared|connect|move]
                                        The vault every secret hi keeps is in, encrypted on disk
-  hi server backups [--bucket s3:https://<host>/<bucket> | on|off <app>... | now]
-                                       One S3 bucket for every app's snapshots, the daily plan, and each app's last copy
+  hi server backups [--bucket s3:https://<host>/<bucket> | on|off <app>... | now [--server]]
+                                       One S3 bucket for every app's snapshots and the server's own state, the daily
+                                       plan (--at, --keep, --limit-upload), and each app's last copy and check
   hi server sites [allow <site> [--why W] | remove <site> | org on|off]
                                        What every app's dev box reaches beyond its own list
   hi server provider add|remove <p>    Store or remove a provider key (runpod, shadeform)

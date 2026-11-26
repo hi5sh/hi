@@ -400,3 +400,4 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 /* Short explainers under controls (STE style). */
 .bullets { margin: 6px 0 10px; padding-left: 18px; list-style: disc; }
 .bullets li { margin: 2px 0; }
+.table-scroll { max-width: 100%; overflow-x: auto; }

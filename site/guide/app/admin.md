@@ -273,9 +273,12 @@ server and no apps.
   - **Backups:** one S3 bucket for every app's snapshots
     (`hi server backups`): **Set the bucket…** (its address, region,
     this server's folder in it, and its keys), the plan (when, how many
-    to keep, and whether new apps are copied), and each app with where
-    it copies, its last snapshot and copy, **Back up now**, and, for the
-    apps picked, **Copy to the bucket** and **Do not copy**.
+    to keep, whether new apps are copied, and an upload limit), each app
+    and **This server** (its vault, admins, and settings) with where it
+    copies, its last snapshot, copy, and weekly check, and **Back up**;
+    for the apps picked, **Copy to the bucket** and **Do not copy**; and
+    **Recent runs**: each step of each backup, how long it took, and how
+    much was new.
   - **Users:** the server's users, by their hi user name, their groups and
     devices; **Add**, and **Remove** with their name typed.
   - **Admins:** the owner, and **Hand it on…** for the owner; the admins,

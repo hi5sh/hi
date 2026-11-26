@@ -2485,10 +2485,19 @@ func appUp(name string, stdout io.Writer) error {
 	if err := os.WriteFile(unit, []byte(appUnit(config, executable)), 0o644); err != nil {
 		return err
 	}
-	if err := appInstallSnapshotTimer(config, executable); err != nil {
-		return err
+	steps := [][]string{{"daemon-reload"}, {"enable", appUnitName(name)}, {"restart", appUnitName(name)}}
+	if serverBackupsQueued() {
+		// The server's queue takes the daily snapshot (hi-backups.timer).
+		if fileExists(appSnapshotTimerPath(name)) {
+			appRemoveSnapshotTimer(name)
+		}
+	} else {
+		if err := appInstallSnapshotTimer(config, executable); err != nil {
+			return err
+		}
+		steps = append(steps, []string{"enable", "--now", appSnapshotUnitName(name) + ".timer"})
 	}
-	for _, args := range [][]string{{"daemon-reload"}, {"enable", appUnitName(name)}, {"restart", appUnitName(name)}, {"enable", "--now", appSnapshotUnitName(name) + ".timer"}} {
+	for _, args := range steps {
 		if out, err := appSystemctl(args...); err != nil {
 			return fmt.Errorf("systemctl --user %s: %s", strings.Join(args, " "), qFirstLine(out, err.Error()))
 		}

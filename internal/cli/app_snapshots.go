@@ -193,6 +193,14 @@ type appSnapshotStatus struct {
 	// key, recovery key, and bucket (vault_offsite.go).
 	KeySealed     string `json:"key_sealed,omitempty"`
 	KeySealFailed string `json:"key_seal_failed,omitempty"`
+	// Checked is when restic check last read the bucket's repository
+	// through (hi server backups' queue, weekly); DataChecked when it also
+	// read a part of the data (monthly). CheckFailed is the last one's
+	// error, until one passes.
+	Checked       time.Time `json:"checked,omitzero"`
+	DataChecked   time.Time `json:"data_checked,omitzero"`
+	CheckFailed   string    `json:"check_failed,omitempty"`
+	CheckFailedAt time.Time `json:"check_failed_at,omitzero"`
 }
 
 var appSnapshotStatusMu sync.Mutex
@@ -648,7 +656,7 @@ func appCopyOffsite(team string, forget bool) (err error) {
 			return fmt.Errorf("making the repository in %s: %w", backups.Offsite, err)
 		}
 	}
-	if _, err := appRestic(env, dir, "copy", "--quiet", "--host", appSnapshotHost(team)); err != nil {
+	if _, err := appRestic(env, dir, slices.Concat([]string{"copy", "--quiet", "--host", appSnapshotHost(team)}, serverBackupsLimitArgs())...); err != nil {
 		return fmt.Errorf("copying to %s: %w", backups.Offsite, err)
 	}
 	if forget {
@@ -1551,6 +1559,12 @@ func appInstallSnapshotTimer(config appConfig, executable string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, appSnapshotUnitName(config.Name)+".timer"), []byte(timer), 0o644)
+}
+
+// appSnapshotTimerPath is the app's own daily timer, from before the
+// server's queue.
+func appSnapshotTimerPath(name string) string {
+	return filepath.Join(filepath.Dir(appUnitPath(name)), appSnapshotUnitName(name)+".timer")
 }
 
 func appRemoveSnapshotTimer(name string) {
