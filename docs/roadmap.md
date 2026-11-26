@@ -6989,6 +6989,22 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.264 — Inspect a pushed branch
+
+- [x] **Inspect**, beside **Work on it** in Start something new's card
+  and beside **Try** in Publish: an agent in a workspace
+  `inspect/<branch>-<commit>`, a checkout of the push, reads it and says
+  what it changes and what it is for, whether it merges cleanly with dev,
+  new dependencies, keys, database changes and the tests, and whether it
+  looks ready. Then it offers `hi dev preview --pushed` to try it and
+  `hi dev ship --pushed` to add it as its author's work, and takes one
+  only when told. A second click opens the same inspection
+  (**Inspection**); a new push gets a new one.
+- [x] An inspection's workspace never offers **Add to Preview**, and
+  `hi dev ship` refuses its branch.
+- [x] In a narrow Publish panel, a pushed branch's buttons go under its
+  name instead of over it.
+
 ### v2.6.263 — Work on a push straight to main
 
 - [x] **Start something new**'s card lists a push straight to `main`
