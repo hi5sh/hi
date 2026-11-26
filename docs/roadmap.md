@@ -6989,6 +6989,20 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.261 — Work from your own machine, in the guide
+
+- [x] A guide page, **Work from your own machine**: the workflow for
+  developers who clone the app's GitHub or GitLab project and push
+  branches, step by step, with conflicts, checks, settings and data,
+  the pushes hi doesn't take, and how to protect `main` and
+  `production` (force push on for `production`: Publish force-pushes it).
+- [x] A pushed branch on Stage that was pushed again since shows **Try
+  again**, and says Stage has it as it was before the last push. Before,
+  Try was hidden while the branch was on Stage.
+- [x] `main` on the remote with only a merge commit dev hasn't (a merge
+  request merged there after its branch was added) shows as waiting.
+  Before, it was hidden, and hi's push of dev failed until it was added.
+
 ### v2.6.260 — Branches pushed from people's own machines
 
 - [x] The broker looks at the app's GitHub or GitLab project every 2
