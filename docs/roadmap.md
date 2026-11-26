@@ -6989,6 +6989,13 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.263 — Work on a push straight to main
+
+- [x] **Start something new**'s card lists a push straight to `main`
+  too. **Work on it** makes a workspace `main-<commit>` from that push,
+  since no workspace can have dev's own branch. Adding that workspace
+  adds the push, and hi can push dev to GitLab again.
+
 ### v2.6.262 — Work on a pushed branch from Start something new
 
 - [x] The chat's **Start something new** has a card, **Pushed to
