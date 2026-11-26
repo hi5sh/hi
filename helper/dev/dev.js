@@ -1106,11 +1106,15 @@
     $("stuck-agent").hidden = !agent;
     $("stuck-agent-title").textContent = "Ask " + agent + " to combine them";
     $("stuck-agent-text").textContent = agent + " gets the changes from the preview and makes both changes work together. If it cannot, it asks you. Then it adds the work again.";
+    if (space.pushed) {
+      $("stuck-agent-text").textContent = "hi starts new work in the dev box. " + agent + " brings in " + space.label + ", makes both changes work together, and adds them. If it cannot, it asks you. Or " + (space.pushed.author || "the person who pushed it") + " can rebase on dev and push again.";
+    }
     var last = conflict && data.last;
     $("stuck-replace").hidden = !last;
     if (last) {
       $("stuck-replace-title").textContent = "Take out “" + last.title + "” and add this one instead";
       $("stuck-replace-text").textContent = "“" + last.title + "” leaves the preview. Its workspace keeps it, so you can add it again later.";
+      if (space.pushed) $("stuck-replace-title").textContent = "Take out “" + last.title + "” and add " + space.label + " instead";
     }
     document.querySelectorAll("#stuck-options button").forEach(function (button) { button.disabled = false; });
     if (!$("stuck-dialog").open) $("stuck-dialog").showModal();
@@ -1129,6 +1133,20 @@
     var now = stuckNow;
     stuckBusy(true);
     stuckSay("Asking " + agentName(now.space.agent) + "…");
+    if (now.space.pushed) {
+      combinePushed(now.space, now.data).then(function (answer) {
+        $("stuck-dialog").close();
+        toast((answer.warning ? answer.warning + " " : "") + "Started " + answer.branch + ". " + agentName(now.space.agent) + " combines the changes, then adds them.");
+        refresh().then(function () {
+          renderSideTasks();
+          if (answer.workspace) chooseChatSpace(answer.workspace);
+        });
+      }).catch(function (error) {
+        stuckBusy(false);
+        stuckSay(error.message, true);
+      });
+      return;
+    }
     askToCombine(now.space, now.data).then(function () {
       $("stuck-dialog").close();
       if (chat.view !== "chat") setCodeView("chat");
@@ -1144,7 +1162,8 @@
     var now = stuckNow;
     stuckBusy(true);
     stuckSay("Taking out “" + now.data.last.title + "” and adding this one…");
-    addToPreview(now.space, now.data.last.id);
+    if (now.space.pushed) addPushed(now.space, now.data.last.id);
+    else addToPreview(now.space, now.data.last.id);
   });
   $("stuck-help").addEventListener("click", function () {
     var now = stuckNow;
@@ -1227,10 +1246,12 @@
       box.appendChild(el("section", { class: "flow-step " + cls }, [el("div", { class: "flow-head" }, [el("strong", { text: title }), url ? host(url) : null])].concat(body)));
     }
 
-    // 1. Work not on the preview yet.
+    // 1. Work not on the preview yet: the workspaces', then the branches
+    // people pushed to GitHub or GitLab from their own machines.
     var work = waitingWork();
+    var pushed = pushedWaiting();
     renderPreviewAct();
-    if (work.length) {
+    if (work.length || pushed.length) {
       // Merge changes into preview: each waiting one in turn, as Add to
       // Preview does, stopping at one that clashes (its dialog says why).
       // Not the ones taken out of it: they were, on purpose.
@@ -1238,7 +1259,7 @@
       var merge = mergeable.length > 1 ? el("button", { class: "primary flow-merge", busy: "merge-all", title: "Add each of these to the preview, one after another", onclick: function () { mergeAll(mergeable); } }, [
         mergeIcon(), el("span", { text: "Merge " + mergeable.length + " changes into preview" }),
       ]) : null;
-      step("flow-work", "Not on the preview yet", "", [el("ul", { class: "flow-list" }, work.map(function (space) {
+      step("flow-work", "Not on the preview yet", "", [work.length ? el("ul", { class: "flow-list" }, work.map(function (space) {
         var stage = workStage(space);
         return el("li", {}, [
           el("span", { class: "flow-name" }, [el("span", { text: workName(space) }), ticketOf(space) ? el("span", { class: "muted", text: " #" + ticketOf(space) }) : null,
@@ -1246,14 +1267,15 @@
             space.dirty ? el("span", { class: "small warn flow-sub", text: "Changes not committed. Ask the agent to commit them." }) : null]),
           stage.add ? addButton(space) : null,
         ]);
-      })), merge]);
+      })) : null, merge, pushed.length ? renderPushed(pushed) : null]);
     }
 
     // 2. The preview: the next version, or one change alone.
     var preview = [];
     if (s.preview_branch) {
       var alone = workSpaces().filter(function (space) { return space.branch === s.preview_branch; })[0];
-      preview.push(el("div", { class: "flow-what" }, [document.createTextNode("Shows only "), el("strong", { text: alone ? workName(alone) : s.preview_branch }), document.createTextNode(", not the next version. "), showNext()]));
+      var pushedAlone = /^pushed\//.test(s.preview_branch) ? s.preview_branch.slice(7) + " (pushed to " + pushedForge() + ")" : "";
+      preview.push(el("div", { class: "flow-what" }, [document.createTextNode("Shows only "), el("strong", { text: alone ? workName(alone) : pushedAlone || s.preview_branch }), document.createTextNode(", not the next version. "), showNext()]));
     } else if (s.preview_old) {
       preview.push(el("div", { class: "flow-what" }, [document.createTextNode("Shows an earlier state of the next version, without the newest changes. "), showNext()]));
     } else if (!s.preview) {
@@ -1284,6 +1306,78 @@
     step("flow-production", "Production", s.production_url || addr.production, [el("div", { class: "flow-what" }, [
       el("span", { class: "tag live", text: s.production ? "v" + s.production : "nothing published yet" }), document.createTextNode(s.production ? " the version that people use" : ""),
     ])]);
+  }
+  // ---- Branches pushed to the app's GitHub or GitLab project, from
+  // people's own machines (app_pushed.go): each with Try on Preview and
+  // Add to Preview, as a workspace has.
+  function pushedForge() { return (state.pushed || {}).forge || "the remote"; }
+  function pushedWaiting() {
+    return ((state.pushed || {}).branches || []).filter(function (b) { return b.ahead > 0 || b.out; });
+  }
+  // pushedSpace is a pushed branch in a workspace's shape, for the Stuck
+  // dialog; its agent is the one the page starts work with.
+  function pushedSpace(b) {
+    var agent = "claude";
+    try { agent = localStorage.getItem("hi-dev-agent") || "claude"; } catch (e) { /* private window */ }
+    if (agent === "shell") agent = "claude";
+    return { id: "pushed:" + b.name, label: b.name, branch: "pushed/" + b.name, pushed: b, agent: agent };
+  }
+  function renderPushed(branches) {
+    var p = state.pushed || {};
+    var fetched = p.fetched ? "Checked " + new Date(p.fetched).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + "." : "";
+    return el("div", { class: "flow-pushed" }, [
+      el("div", { class: "small muted flow-sub" }, [
+        document.createTextNode("Pushed to " + pushedForge() + ". " + fetched + " "),
+        el("button", { class: "link small", text: "Check now", busy: "pushed-fetch", title: "Look for new branches on " + pushedForge() + " now. hi looks every 2 minutes.", onclick: function () {
+          act("", "pushed", { fetch: true }, function (r) { return r.text; }, "pushed-fetch");
+        } }),
+      ]),
+      p.error ? el("div", { class: "small warn", text: "The last check failed: " + p.error }) : null,
+      el("ul", { class: "flow-list" }, branches.map(function (b) {
+        var space = pushedSpace(b);
+        var what = b.ahead > 0
+          ? b.ahead + (b.ahead === 1 ? " commit" : " commits") + ", " + (b.files || []).length + ((b.more || 0) ? "+" : "") + ((b.files || []).length === 1 ? " file" : " files")
+          : "Taken out of the preview";
+        var sub = (b.dev ? "Pushed straight to " + b.name + " by " : "By ") + (b.author || "someone") + ". " + what + ".";
+        var onPreview = (state.status || {}).preview_branch === "pushed/" + b.name;
+        return el("li", { title: [b.subject].concat(b.files || []).join("\n") }, [
+          el("span", { class: "flow-name" }, [el("span", { text: b.name }), el("span", { class: "small muted flow-sub", text: onPreview ? "Only this branch is on the preview. It is not added yet." : sub })]),
+          b.ahead > 0 && !onPreview ? el("button", { text: "Try", busy: "try:" + space.id, title: "Put only this branch on the preview, with a copy of production's data. It is not added yet.", onclick: function () {
+            toast("Putting only " + b.name + " on the preview…", true);
+            act("", "pushed", { branch: b.name, preview: true }, function (r) { return r.text; }, "try:" + space.id);
+          } }) : null,
+          el("button", { class: b.ahead > 0 ? "primary" : "", text: b.ahead > 0 ? "Add to Preview" : "Add again", busy: "ship:" + space.id,
+            title: "Add it to the next version on the preview, with the other changes. Publish sends the next version to production.", onclick: function () { addPushed(space, ""); } }),
+        ]);
+      })),
+    ]);
+  }
+  // addPushed adds a pushed branch to the preview, as addToPreview does a
+  // workspace; a clash opens the Stuck dialog.
+  function addPushed(space, takeOut) {
+    toast((takeOut ? "Swapping in " : "Adding ") + space.label + (takeOut ? " on the preview…" : " to the preview…"), true);
+    var body = { branch: space.pushed.name };
+    if (takeOut) body.take_out = takeOut;
+    return working("ship:" + space.id, api("POST", "pushed", body)).then(function (r) {
+      $("stuck-dialog").close();
+      toast(r.text);
+      refresh();
+      return true;
+    }).catch(function (error) {
+      refresh();
+      stuck(space, error.message, error.data || {});
+      return false;
+    });
+  }
+  // combinePushed starts new work in the dev box: an agent brings the
+  // pushed branch onto dev, makes both work together, and adds it.
+  function combinePushed(space, data) {
+    var b = space.pushed, dev = (data.conflict && data.conflict.dev) || "main";
+    var text = "Bring in the branch " + b.name + ", which " + (b.author || "someone") + " pushed to " + pushedForge() + " from their own machine. " +
+      "It conflicts with dev in " + ((data.conflict && data.conflict.files) || []).join(", ") + ". " +
+      "In this worktree: git fetch origin && git merge origin/pushed/" + b.name + ". Resolve the conflicts so both changes work together, and run the checks. " +
+      "If they can't both be kept, ask me which to keep. Then add it to the preview with hi dev ship, and tell me what you did.";
+    return api("POST", "start-new", { text: text, agent: space.agent });
   }
   function waitingWork() {
     return workSpaces().filter(function (space) { return workStage(space).add || (space.path && space.checked && space.dirty); });

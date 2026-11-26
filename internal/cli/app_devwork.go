@@ -91,6 +91,18 @@ type appDevShipRequest struct {
 	// same step: the dev page's, after a conflict, never the box's.
 	TakeOut string `json:"-"`
 	By      string `json:"-"` // who, for the record
+	// Pushed says Branch is one pushed to the app's remote (pushed/<branch>),
+	// not the dev box's; Author, who pushed it, for the record.
+	Pushed bool   `json:"pushed,omitempty"`
+	Author string `json:"-"`
+}
+
+// ref is the branch's ref in the team's repository.
+func (r appDevShipRequest) ref() string {
+	if r.Pushed {
+		return appPushedRef(r.Branch)
+	}
+	return appDevBranchRef(r.Branch)
 }
 
 // appDevConflictError is a branch that conflicts with dev: the files.
@@ -98,9 +110,14 @@ type appDevConflictError struct {
 	Branch string
 	Files  []string
 	Dev    string // dev's branch
+	Pushed bool   // a branch pushed to the remote, not the dev box's
 }
 
 func (e appDevConflictError) Error() string {
+	if e.Pushed {
+		return fmt.Sprintf("%s conflicts with dev in %s; on the machine it was pushed from: git fetch origin && git rebase origin/%s, then push it again",
+			e.Branch, strings.Join(e.Files, ", "), e.Dev)
+	}
 	return fmt.Sprintf("%s conflicts with dev in %s; in the box: git fetch origin && git rebase origin/%s, then ship again",
 		e.Branch, strings.Join(e.Files, ", "), e.Dev)
 }
@@ -110,7 +127,12 @@ func (e appDevConflictError) Error() string {
 // dev's history, so a merge would add nothing, and shipping it again puts
 // the change back.
 func appDevTakenOut(tasks []appTask, branch string) *appTask {
-	ref := appDevBranchRef(branch)
+	return appBranchTakenOut(tasks, appDevBranchRef(branch))
+}
+
+// appBranchTakenOut is appDevTakenOut for the team's repository's ref: a
+// branch of the dev box (box/<branch>) or one pushed (pushed/<branch>).
+func appBranchTakenOut(tasks []appTask, ref string) *appTask {
 	var last *appTask
 	for i := range tasks {
 		if tasks[i].Kind == "task" && tasks[i].Branch == ref {
@@ -126,7 +148,10 @@ func appDevTakenOut(tasks []appTask, branch string) *appTask {
 // appDevShipped says a branch's work is in dev: its last change was
 // merged, and not taken out since.
 func appDevShipped(tasks []appTask, branch string) bool {
-	ref := appDevBranchRef(branch)
+	return appBranchShipped(tasks, appDevBranchRef(branch))
+}
+
+func appBranchShipped(tasks []appTask, ref string) bool {
 	var last *appTask
 	for i := range tasks {
 		if tasks[i].Kind == "task" && tasks[i].Branch == ref {
@@ -185,7 +210,7 @@ func (b *appBroker) mergeDevBranch(request appDevShipRequest, head string) (appT
 	}
 	var again *appTask
 	if appIsAncestor(b.repo, head, config.Branch) {
-		if again = appDevTakenOut(loadTeamTasks(b.team), request.Branch); again == nil {
+		if again = appBranchTakenOut(loadTeamTasks(b.team), request.ref()); again == nil {
 			return appTask{}, fmt.Errorf("dev has everything on %s already", request.Branch)
 		}
 	}
@@ -238,16 +263,20 @@ func (b *appBroker) mergeDevBranch(request appDevShipRequest, head string) (appT
 		}
 		takenOut = &last
 	}
-	message := fmt.Sprintf("%s\n\nBuilt in the dev box, on its branch %s.", title, request.Branch)
+	from := fmt.Sprintf("Built in the dev box, on its branch %s", request.Branch)
+	if request.Pushed {
+		from = fmt.Sprintf("From %s, pushed to %s by %s", request.Branch, appForgeName(config.Remote), request.Author)
+	}
+	message := fmt.Sprintf("%s\n\n%s.", title, from)
 	var out string
 	if again != nil {
 		// Taken out before: its change again, as a commit of its own.
-		message = fmt.Sprintf("%s\n\nBuilt in the dev box, on its branch %s; added again after it was taken out.", title, request.Branch)
+		message = fmt.Sprintf("%s\n\n%s; added again after it was taken out.", title, from)
 		if out, err = appGit(b.repo, appGitParent1(b.repo, again.Merged, []string{"cherry-pick", "--no-commit"})...); err == nil {
 			out, err = appGit(b.repo, "commit", "-q", "-m", message)
 		}
 	} else {
-		out, err = appGit(b.repo, "merge", "--no-ff", "-m", message, "refs/heads/"+appDevBranchRef(request.Branch))
+		out, err = appGit(b.repo, "merge", "--no-ff", "-m", message, "refs/heads/"+request.ref())
 	}
 	if err != nil {
 		conflicted := boxGit(b.repo, "diff", "--name-only", "--diff-filter=U")
@@ -255,7 +284,7 @@ func (b *appBroker) mergeDevBranch(request appDevShipRequest, head string) (appT
 		if conflicted == "" {
 			return appTask{}, fmt.Errorf("%s doesn't merge into dev: %s", request.Branch, qFirstLine(out, err.Error()))
 		}
-		return appTask{}, appDevConflictError{Branch: request.Branch, Files: strings.Fields(conflicted), Dev: config.Branch}
+		return appTask{}, appDevConflictError{Branch: request.Branch, Files: strings.Fields(conflicted), Dev: config.Branch, Pushed: request.Pushed}
 	}
 	if takenOut != nil {
 		takenOut.Status = "discarded"
@@ -271,14 +300,21 @@ func (b *appBroker) mergeDevBranch(request appDevShipRequest, head string) (appT
 		n = appTaskNumber(tasks[len(tasks)-1].ID) + 1
 	}
 	now := time.Now().UTC()
-	task := appTask{ID: fmt.Sprintf("t-%d", n), Role: appDevRole, Agent: "dev box", Kind: "task", Title: title, Status: "merged",
-		Branch: appDevBranchRef(request.Branch), Merged: boxGit(b.repo, "rev-parse", "HEAD"), Created: now, Finished: now, Packages: appDependencyText(packages)}
+	agent := "dev box"
+	if request.Pushed {
+		agent = fmt.Sprintf("pushed to %s by %s", appForgeName(config.Remote), request.Author)
+	}
+	task := appTask{ID: fmt.Sprintf("t-%d", n), Role: appDevRole, Agent: agent, Kind: "task", Title: title, Status: "merged",
+		Branch: request.ref(), Merged: boxGit(b.repo, "rev-parse", "HEAD"), Created: now, Finished: now, Packages: appDependencyText(packages)}
 	if err := saveTeamTask(b.team, task); err != nil {
 		return task, err
 	}
 	if config.Remote != "" {
 		if out, err := appGit(b.repo, "push", "-q", "origin", config.Branch); err != nil {
 			task.Error = "merged, but git push failed: " + qFirstLine(out, err.Error())
+			if boxGit(b.repo, "rev-parse", "--verify", "-q", "refs/heads/"+appPushedRef(config.Branch)) != "" {
+				task.Error += fmt.Sprintf(". Someone pushed to %s on %s: add that branch too, then hi can push", config.Branch, appForgeName(config.Remote))
+			}
 			saveTeamTask(b.team, task)
 		}
 	}
@@ -352,6 +388,8 @@ func (b *appBroker) devStatus() (appDevStatusView, error) {
 			switch {
 			case strings.HasPrefix(slot.Source, appDevBranchRef("")):
 				status.PreviewBranch = strings.TrimPrefix(slot.Source, appDevBranchRef(""))
+			case strings.HasPrefix(slot.Source, appPushedPrefix):
+				status.PreviewBranch = slot.Source // pushed/<branch>
 			case slot.Source == config.Branch && slot.Commit != "" && boxGit(filepath.Join(appDir(b.team), "repo"), "rev-parse", config.Branch) == slot.Commit:
 				status.Preview = view.Dev
 			case slot.Source == config.Branch:
@@ -417,6 +455,11 @@ func (b *appBroker) devHandler() http.Handler {
 			reply(w, state, err)
 			return
 		}
+		if request.Pushed {
+			state, err := b.previewPushedBranch(request.Branch)
+			reply(w, state, err)
+			return
+		}
 		state, err := b.previewDevBranch(request.Branch)
 		reply(w, state, err)
 	})
@@ -426,8 +469,24 @@ func (b *appBroker) devHandler() http.Handler {
 			reply(w, nil, err)
 			return
 		}
+		if request.Pushed {
+			result, err := b.shipPushedBranch(request)
+			reply(w, result, err)
+			return
+		}
 		result, err := b.shipDevBranch(request)
 		reply(w, result, err)
+	})
+	mux.HandleFunc("GET /branches", func(w http.ResponseWriter, r *http.Request) {
+		config, err := loadTeam(b.team)
+		if err != nil {
+			reply(w, nil, err)
+			return
+		}
+		if r.URL.Query().Get("fetch") != "" && config.Remote != "" {
+			fetchTeamPushed(config, true)
+		}
+		reply(w, appPushedBranches(config), nil)
 	})
 	mux.HandleFunc("POST /say", func(w http.ResponseWriter, r *http.Request) {
 		var request appDevSayRequest
@@ -510,6 +569,12 @@ const appDevUsage = `hi dev is how the dev box works with the rest of the app. I
   hi dev preview --dev              dev on the preview again, after a branch was tried there
   hi dev ship [<branch>] [-m <title>]  merge the branch into dev, and put dev on the preview;
                                     production moves only when someone releases it
+  hi dev branches [--fetch]         the branches people pushed to the app's GitHub or GitLab
+                                    project from their own machines; git fetch origin brings
+                                    them into the clone as origin/pushed/<branch>
+  hi dev preview --pushed <branch>  a pushed branch on the preview, as it was pushed
+  hi dev ship --pushed <branch> [-m <title>]
+                                    merge a pushed branch into dev, as its author's work
   hi dev say [--thread <ts>] <text|->  post in the app's Slack channel
   hi dev note "<a line>" | --clear  where this workspace's work stands, on the dev page and in
                                     Needs you, until the next ("tests pass; waiting for the API key")
@@ -616,9 +681,37 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 		printTeamDevWeb(view, time.Now(), stdout)
 		return nil
+	case "branches":
+		path := "/branches"
+		switch {
+		case len(rest) == 1 && rest[0] == "--fetch":
+			path += "?fetch=1"
+		case len(rest) > 0:
+			return usageError{"usage: hi dev branches [--fetch]"}
+		}
+		var view appPushedView
+		if err := call("GET", path, nil, &view); err != nil {
+			return err
+		}
+		printPushedBranches(view, stdout)
+		if len(view.Branches) > 0 {
+			fmt.Fprintln(stdout, "git fetch origin brings them into the clone as origin/pushed/<branch>.")
+		}
+		return nil
 	case "preview":
+		if len(rest) == 2 && rest[0] == "--pushed" {
+			var state appPreview
+			if err := call("POST", "/preview", appDevShipRequest{Branch: rest[1], Pushed: true}, &state); err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "%s, as pushed, is on the preview: %s\n", rest[1], firstNonEmpty(state.URL, "(no address yet)"))
+			if state.Data != "" {
+				fmt.Fprintln(stdout, state.Data)
+			}
+			return nil
+		}
 		if len(rest) > 1 {
-			return usageError{"usage: hi dev preview [<branch> | --dev]"}
+			return usageError{"usage: hi dev preview [<branch> | --dev | --pushed <branch>]"}
 		}
 		if len(rest) == 1 && rest[0] == "--dev" {
 			var state appPreview
@@ -653,13 +746,18 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 			case (rest[i] == "-m" || rest[i] == "--title") && i+1 < len(rest):
 				i++
 				request.Title = rest[i]
+			case rest[i] == "--pushed":
+				request.Pushed = true
 			case strings.HasPrefix(rest[i], "-"):
-				return usageError{"usage: hi dev ship [<branch>] [-m <title>]"}
+				return usageError{"usage: hi dev ship [<branch> | --pushed <branch>] [-m <title>]"}
 			case request.Branch == "":
 				request.Branch = rest[i]
 			default:
 				return usageError{"usage: hi dev ship [<branch>] [-m <title>]"}
 			}
+		}
+		if request.Pushed && request.Branch == "" {
+			return usageError{"usage: hi dev ship --pushed <branch> [-m <title>]"}
 		}
 		if request.Branch == "" {
 			var err error
@@ -681,6 +779,9 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 			}
 		}
 		fmt.Fprintln(stdout, "Production moves when an owner or a developer releases dev. In the box, git fetch origin brings dev into the clone.")
+		if request.Pushed {
+			return nil
+		}
 		fmt.Fprintln(stdout, "Done with this branch? Done ✓ beside its workspace on the dev page (in Workspaces) removes its worktree, workspace, and branch, and closes its task.")
 		return nil
 	case "say":

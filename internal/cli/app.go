@@ -527,6 +527,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = appLogs(rest, stdout, stderr)
 	case "upstream":
 		err = appUpstreamCommand(rest, stdout)
+	case "branches":
+		err = appBranchesCommand(rest, stdout)
 	case "jobs":
 		err = appJobsCommand(rest, stdout)
 	case "incidents":
@@ -849,6 +851,8 @@ usage:
                                    (--rules: the decisions the people made about the app's jobs)
   hi app upstream <name>           for an adopted project: fetch the project it came from, and say
                                    where dev stands against it and what's new there
+  hi app branches <name> [--fetch] the branches people pushed to the app's GitHub or GitLab project
+                                   from their own machines; the dev page adds them to the preview
 
 An app is its folder. hi finds it by name through `+appsDir()+`.`)
 }

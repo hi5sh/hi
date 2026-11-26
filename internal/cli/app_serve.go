@@ -261,6 +261,7 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	}
 	go broker.startPreview(stderr)
 	go broker.keepUpstream(ctx.Done(), stderr)
+	go broker.keepPushed(ctx.Done(), stderr)
 	go broker.watchJobs(ctx.Done(), stderr)
 	go broker.keepWatched(ctx.Done(), stderr)
 	go broker.keepSubscriptions(ctx.Done(), stderr)

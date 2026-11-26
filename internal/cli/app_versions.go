@@ -555,6 +555,8 @@ func appReleaseAnnouncement(result appReleaseResult, approval appApproval, notes
 // appTaskAskedBy says who asked for one piece of work, and where.
 func appTaskAskedBy(task appTask) string {
 	switch {
+	case task.Role == appDevRole && strings.HasPrefix(task.Branch, appPushedPrefix):
+		return task.Agent // pushed to GitLab by …
 	case task.Role == appDevRole:
 		return "built in the dev box"
 	case task.Approval == nil || task.Approval.Name == "":

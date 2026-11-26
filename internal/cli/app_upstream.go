@@ -75,8 +75,9 @@ func saveTeamUpstreamState(team string, state appUpstreamState) error {
 var appUpstreamFetch = func(config appConfig, repo string) error {
 	args := append([]string{}, reviewCloneArgs...)
 	if config.Adopted.Private {
-		// Through gh's sign-in, which keeps the token out of the address.
-		args = append(args, "-c", "credential.https://github.com.helper=!gh auth git-credential")
+		// Through the machine's sign-in for its host, gh's or glab's,
+		// which keeps the token out of the address.
+		args = appForgeGitArgs(config.Adopted.From)
 	}
 	args = append(args, "-C", repo, "fetch", "--quiet", "--prune", "--no-recurse-submodules", appUpstream)
 	command := exec.Command("git", args...)

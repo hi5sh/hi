@@ -32,6 +32,25 @@ repository is `origin`, read-only.
 After a ship, `git fetch origin` brings dev into the clone; start the next
 work from `origin/<the app's branch>`.
 
+## Branches people push from their own machines
+
+Developers may also work on their own computers and push branches to the
+app's GitHub or GitLab project. hi fetches them every 2 minutes on the
+machine; you never reach GitHub or GitLab from the box, and don't need
+to (don't ask to allow gitlab.com or github.com for this).
+
+- `hi dev branches` lists them: who pushed, the commits dev hasn't, the
+  files. `--fetch` makes hi look again now.
+- `git fetch origin` brings them into the clone as
+  `origin/pushed/<branch>`: read, test, or review them there.
+- `hi dev preview --pushed <branch>` puts one on the preview as pushed;
+  `hi dev ship --pushed <branch> -m "<title>"` adds it to dev as its
+  author's work. Only when the user says so. People usually do both from
+  the dev page.
+- Asked to combine one that conflicts with dev: in your worktree,
+  `git fetch origin && git merge origin/pushed/<branch>`, resolve, test,
+  and `hi dev ship` your branch.
+
 ## When the work is done
 
 Once a branch is shipped and the user is happy with it, it's finished on

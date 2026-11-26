@@ -259,6 +259,9 @@ type appDevPageView struct {
 	Shared     []string      `json:"shared,omitempty"`
 	Box        string        `json:"box"` // running, or why not
 	Workspaces []appDevSpace `json:"workspaces,omitempty"`
+	// Pushed are the branches people pushed to the app's GitHub or GitLab
+	// project (app_pushed.go).
+	Pushed *appPushedView `json:"pushed,omitempty"`
 	// What took an owner's yes in Slack before release 4.
 	Releases  []appDevRelease `json:"releases,omitempty"`
 	Helper    map[string]bool `json:"helper"`
@@ -719,6 +722,10 @@ func (b *appBroker) devPageView(person appPersonKey, level string) appDevPageVie
 	}
 	if config, err := loadTeam(b.team); err == nil {
 		view.Addresses = b.devPageAddresses(config)
+		if config.Remote != "" {
+			pushed := appPushedBranches(config)
+			view.Pushed = &pushed
+		}
 	}
 	_, files, _ := appDataUsage(appSlotDataDir(b.team, appSlotPreview))
 	view.PreviewData = files > 0 || appPreviewOverlay(b.team)
@@ -1626,26 +1633,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return
 		}
 		result, err := b.shipDevBranch(appDevShipRequest{Branch: space.Branch, Title: request.Title, TakeOut: request.TakeOut, By: person.Name})
-		var conflict appDevConflictError
-		if errors.As(err, &conflict) {
-			// The page asks what to do: which changes on the preview touch
-			// the same files, and the last one, which can be taken out.
-			answer := map[string]any{"error": err.Error(), "conflict": map[string]any{"files": conflict.Files, "dev": conflict.Dev}}
-			changes := appDevChanges(b.repo, loadTeamTasks(b.team))
-			var with []map[string]string
-			for i, change := range changes {
-				touches := false
-				for _, file := range appDevChangeFiles(b.repo, change) {
-					touches = touches || slices.Contains(conflict.Files, file)
-				}
-				if touches {
-					with = append(with, map[string]string{"id": change.ID, "title": change.Title})
-					if i == len(changes)-1 {
-						answer["last"] = map[string]string{"id": change.ID, "title": change.Title}
-					}
-				}
-			}
-			answer["with"] = with
+		if answer, ok := b.devConflictAnswer(err); ok {
 			reply(w, http.StatusConflict, answer)
 			return
 		}
@@ -1667,6 +1655,74 @@ func (b *appBroker) devPageHandler() http.Handler {
 			}
 		}
 		reply(w, http.StatusOK, map[string]string{"text": text + left})
+	})
+	// Try on Preview and Add to Preview, beside a branch pushed to the app's
+	// GitHub or GitLab project: as for a workspace's.
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/pushed", func(w http.ResponseWriter, r *http.Request) {
+		person, ok := builder(w, r)
+		if !ok {
+			return
+		}
+		var request struct {
+			Branch  string `json:"branch"`
+			Title   string `json:"title,omitempty"`
+			Preview bool   `json:"preview,omitempty"`
+			TakeOut string `json:"take_out,omitempty"`
+			Fetch   bool   `json:"fetch,omitempty"` // only fetch again
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		config, err := loadTeam(b.team)
+		if err != nil {
+			failure(w, http.StatusInternalServerError, err)
+			return
+		}
+		if request.Fetch {
+			if _, _, err := fetchTeamPushed(config, true); err != nil {
+				failure(w, http.StatusBadGateway, err)
+				return
+			}
+			reply(w, http.StatusOK, map[string]string{"text": "Fetched from " + appForgeName(config.Remote) + "."})
+			return
+		}
+		branch, err := appPushedFind(config, request.Branch)
+		if err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		if branch.Ahead == 0 && (request.Preview || !branch.Out) {
+			failure(w, http.StatusBadRequest, fmt.Errorf("dev has everything on %s already", branch.Name))
+			return
+		}
+		if request.Preview {
+			state, err := b.previewPushedBranch(branch.Name)
+			if err != nil {
+				failure(w, http.StatusBadGateway, err)
+				return
+			}
+			reply(w, http.StatusOK, map[string]string{"text": fmt.Sprintf("%s is on the preview: %s", branch.Name, state.URL)})
+			return
+		}
+		result, err := b.shipPushedBranch(appDevShipRequest{Branch: branch.Name, Title: request.Title, TakeOut: request.TakeOut, By: person.Name})
+		if answer, ok := b.devConflictAnswer(err); ok {
+			reply(w, http.StatusConflict, answer)
+			return
+		}
+		if err != nil {
+			failure(w, http.StatusBadGateway, err)
+			return
+		}
+		text := fmt.Sprintf("“%s” is in the next version (%s).", result.Task.Title, result.Task.ID)
+		if result.Preview.URL != "" {
+			text = fmt.Sprintf("“%s” is on the preview, in the next version (%s).", result.Task.Title, result.Task.ID)
+		}
+		for _, line := range []string{result.Warning, result.Task.Error} {
+			if line != "" {
+				text += " " + line
+			}
+		}
+		reply(w, http.StatusOK, map[string]string{"text": text})
 	})
 	// Help: someone stuck on the dev page asks the app's developers (else its
 	// owners) in the app's channel, with what went wrong.
@@ -2256,4 +2312,31 @@ func appResizePTY(master *os.File, cols, rows int) {
 		return
 	}
 	unix.IoctlSetWinsize(int(master.Fd()), unix.TIOCSWINSZ, &unix.Winsize{Col: uint16(cols), Row: uint16(rows)})
+}
+
+// devConflictAnswer is what the page needs to ask what to do about a
+// clash with dev: the files, the changes on the preview that touch them,
+// and the last one, which can be taken out.
+func (b *appBroker) devConflictAnswer(err error) (map[string]any, bool) {
+	var conflict appDevConflictError
+	if !errors.As(err, &conflict) {
+		return nil, false
+	}
+	answer := map[string]any{"error": err.Error(), "conflict": map[string]any{"files": conflict.Files, "dev": conflict.Dev}}
+	changes := appDevChanges(b.repo, loadTeamTasks(b.team))
+	var with []map[string]string
+	for i, change := range changes {
+		touches := false
+		for _, file := range appDevChangeFiles(b.repo, change) {
+			touches = touches || slices.Contains(conflict.Files, file)
+		}
+		if touches {
+			with = append(with, map[string]string{"id": change.ID, "title": change.Title})
+			if i == len(changes)-1 {
+				answer["last"] = map[string]string{"id": change.ID, "title": change.Title}
+			}
+		}
+	}
+	answer["with"] = with
+	return answer, true
 }

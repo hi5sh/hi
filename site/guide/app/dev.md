@@ -54,6 +54,38 @@ hi dev task list          # the app's tasks
   from the dev page. The box can't release, roll back, restore, or change production's settings: those
   aren't on its connection to the app's service at all.
 
+### Work from your own machine
+
+Developers don't have to use the dev box. Clone the app's GitHub or
+GitLab project, work in your own editor with your own agent, and push a
+branch:
+
+```bash
+git clone https://gitlab.com/acme/billing.git && cd billing
+git switch -c better-chart origin/main
+# … commit …
+git push -u origin better-chart
+```
+
+- hi looks at the project every 2 minutes. The branch then shows on the
+  dev page, in Publish, under **Not on the preview yet**: who pushed it,
+  the commits dev hasn't, and the files.
+- **Try** puts only that branch on Stage, with a copy of production's
+  data. **Add to Preview** merges it into dev, with the same checks as
+  `hi dev ship`. **Publish** sends dev to production.
+- A merge request or pull request for the branch shows as merged by
+  itself once hi pushes dev.
+- When it conflicts with dev, rebase and push again
+  (`git fetch && git rebase origin/main`, then `git push -f`), or let an
+  agent in the dev box combine the two.
+- A push straight to `main` shows as the branch `main`, and is added the
+  same way. hi never takes a push to `production`: production moves only
+  by Publish, and the next one overwrites it. Protect `production` on
+  GitHub or GitLab, so only hi's account pushes there.
+- In the dev box, `hi dev branches` lists the pushed branches, and
+  `git fetch origin` brings them in as `origin/pushed/<branch>`. On the
+  machine, `hi app branches <app> [--fetch]`.
+
 ### Tasks
 
 Ideas, suggestions, and bug reports become tasks where the app's
@@ -921,6 +953,9 @@ ssh then warns once that it changed.
 | `hi app task <app> [list\|show\|add\|comment\|close]` | The app's tasks, on the machine |
 | `hi dev preview [<branch>\|--dev]` | In the box: a branch on Stage; `--dev` puts dev back on it |
 | `hi dev ship [<branch>] [-m <title>]` | In the box: a branch into dev |
+| `hi dev branches [--fetch]` | In the box: the branches people pushed to GitHub or GitLab from their own machines (`origin/pushed/<branch>` after `git fetch origin`) |
+| `hi dev preview --pushed <branch>`, `hi dev ship --pushed <branch>` | In the box: a pushed branch on Stage, or into dev as its author's work |
+| `hi app branches <app> [--fetch]` | On the machine: the branches pushed to the app's project |
 | `hi dev status` | In the box: what runs where |
 | `hi dev web` | In the box: where the people see the agent (the dev page and its Preview), the addresses, what each name points at and answers the machine, and what the Preview couldn't show |
 | `hi dev say [--thread <ts>] <text\|->` | In the box: a message in the app's channel |

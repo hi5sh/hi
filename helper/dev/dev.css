@@ -833,6 +833,9 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .flow-sub { margin-top: 1px; }
 .flow-list li .flow-name { flex-direction: row; flex-wrap: wrap; column-gap: 4px; }
 .flow-list li .flow-sub { flex-basis: 100%; }
+.flow-pushed { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.flow-pushed > .flow-sub { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.flow-pushed .flow-list li { border-left-color: var(--muted, #888); }
 .flow-changes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; color: var(--text); }
 .flow-act { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
 /* A piece of work's ⋯: the rarer actions. */
