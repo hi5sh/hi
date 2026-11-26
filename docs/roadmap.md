@@ -6989,6 +6989,18 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.262 — Work on a pushed branch from Start something new
+
+- [x] The chat's **Start something new** has a card, **Pushed to
+  GitLab** (or GitHub): the 5 newest branches pushed from people's own
+  machines that dev hasn't, with who and when, each with **Work on it**.
+  It makes a workspace whose branch has the same name and starts where
+  the pushed one is, with the agent picked below. The agent first says
+  what the branch does and whether it looks ready, and changes nothing
+  until told. A workspace on that branch already shows **Open**.
+- [x] In Publish, a pushed branch's **Try** sits beside **Add to
+  Preview**, not in the middle of a wide row.
+
 ### v2.6.261 — Work from your own machine, in the guide
 
 - [x] A guide page, **Work from your own machine**: the workflow for
