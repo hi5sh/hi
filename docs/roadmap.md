@@ -6989,6 +6989,14 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.267 — An offsite address needs its bucket
+
+- [x] `hi app backups --offsite` and **Copy offsite…** refuse an address
+  with no bucket after the host, before anything is saved: restic said
+  only "bucket name not found", and hi had kept the address.
+- [x] Keys piped into hi (as the admin page does) print no prompt, so
+  the page's error is the error alone.
+
 ### v2.6.266 — Backblaze backups, with their region
 
 - [x] **Copy offsite…** on the admin page asks for the bucket's region,
