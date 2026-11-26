@@ -982,7 +982,7 @@ func appDevInspectPrompt(config appConfig, branch appPushedBranch) string {
 		"2. Check it against dev: whether it merges cleanly (git merge-tree --write-tree %s HEAD), new or changed dependencies, keys or settings it needs that the app hasn't, database changes, and the tests (run them if they are quick). "+
 		"3. Say whether it looks ready to add to the preview, and what you would fix first. "+
 		"Then offer me the next steps, and take one only when I say: hi dev preview --pushed %s puts it alone on Stage, with a copy of production's data, to try; "+
-		"hi dev ship --pushed %s adds it to the preview as %s's work; to change it first, Work on it on the dev page makes a workspace for that.",
+		"hi dev ship --pushed %s adds it to the preview as %s's work; to change it first, Change it, in Start something new on the dev page, makes a workspace for that.",
 		from, firstNonEmpty(branch.Author, "someone"), forge, appPlural(branch.Ahead, "commit"), branch.Subject,
 		dev, dev, dev, branch.Name, branch.Name, firstNonEmpty(branch.Author, "its author"))
 }

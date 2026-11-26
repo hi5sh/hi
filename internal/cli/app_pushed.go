@@ -256,7 +256,7 @@ type appPushedBranch struct {
 	Shipped bool `json:"shipped,omitempty"`
 	// Out says its change was taken out of dev since.
 	Out bool `json:"out,omitempty"`
-	// Workspace is the branch of the workspace Work on it makes: its own
+	// Workspace is the branch of the workspace Change it makes: its own
 	// name, or for dev's own branch, which no workspace can have, the
 	// name and the commit (main-2b3f2cd).
 	Workspace string `json:"workspace"`

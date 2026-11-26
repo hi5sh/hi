@@ -58,11 +58,12 @@ hi dev task list          # the app's tasks
 
 Developers can also work on their own laptop, with their own editor and
 agent, and push branches to the app's GitHub or GitLab project. hi
-lists them on the dev page within 2 minutes, with **Try** and **Add to
-Preview**, and Start something new offers **Work on it**, a workspace on
-the branch. In the box, `hi dev branches` lists them, and
+lists them on the dev page within 2 minutes, with **Try on Stage** and
+**Add to Preview** in Publish. Start something new offers **Inspect**,
+an agent that explains the push, and **Change it**, a workspace for an
+agent to change it in. In the box, `hi dev branches` lists them, and
 `git fetch origin` brings them in as `origin/pushed/<branch>`. See
-[Work from your own machine](/guide/app/own-machine/) for the whole
+[Work from your own machine](/guide/app/work-from-your-own-machine/) for the whole
 workflow.
 
 ### Tasks

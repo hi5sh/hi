@@ -1345,21 +1345,20 @@
         var onPreview = (state.status || {}).preview_branch === "pushed/" + b.name;
         // Pushed again since Try: the preview shows the commits before.
         var stale = onPreview && (state.status || {}).preview_commit && (state.status || {}).preview_commit !== b.commit;
-        return el("li", { title: [b.subject].concat(b.files || []).join("\n") }, [
-          el("span", { class: "flow-name" }, [el("span", { text: b.name }), el("span", { class: "small muted flow-sub", text: stale ? "On the preview as it was before the last push. Try again shows the new commits." : onPreview ? "Only this branch is on the preview. It is not added yet." : sub })]),
-          b.ahead > 0 ? inspectButton(b, "") : null,
-          b.ahead > 0 && (!onPreview || stale) ? el("button", { text: stale ? "Try again" : "Try", busy: "try:" + space.id, title: "Put only this branch on the preview, with a copy of production's data. It is not added yet.", onclick: function () {
+        return el("li", { title: [b.subject].concat(b.files || []).join("\n") + "\n\nTo have an agent explain it: Inspect, in Start something new." }, [
+          el("span", { class: "flow-name" }, [el("span", { text: b.name }), el("span", { class: "small muted flow-sub", text: stale ? "On the preview as it was before the last push. Try on Stage again shows the new commits." : onPreview ? "Only this branch is on the preview. It is not added yet." : sub })]),
+          b.ahead > 0 && (!onPreview || stale) ? el("button", { text: stale ? "Try on Stage again" : "Try on Stage", busy: "try:" + space.id, title: "Put only this branch on Stage now, with a copy of production's data. No agent. It is not added yet.", onclick: function () {
             toast("Putting only " + b.name + " on the preview…", true);
             act("", "pushed", { branch: b.name, preview: true }, function (r) { return r.text; }, "try:" + space.id);
           } }) : null,
           el("button", { class: b.ahead > 0 ? "primary" : "", text: b.ahead > 0 ? "Add to Preview" : "Add again", busy: "ship:" + space.id,
-            title: "Add it to the next version on the preview, with the other changes. Publish sends the next version to production.", onclick: function () { addPushed(space, ""); } }),
+            title: "Add it to the next version on the preview, as " + (b.author || "its author") + "'s work. No agent. Publish sends the next version to production.", onclick: function () { addPushed(space, ""); } }),
         ]);
       })),
     ]);
   }
   // renderStartPushed is Start something new's card: the branches people
-  // pushed that dev hasn't, newest first, each with Work on it, which
+  // pushed that dev hasn't, newest first, each with Change it, which
   // makes a workspace on it with the agent picked below; Open, when one
   // is there already.
   function renderStartPushed() {
@@ -1381,7 +1380,7 @@
         el("span", { class: "start-pushed-acts" }, [inspectButton(b, "small"),
           space
             ? el("button", { class: "small", text: "Open", title: "Open the workspace that works on this branch", onclick: function () { chat.composing = false; chooseChatSpace(space.id); } })
-            : el("button", { class: "small", text: "Work on it", busy: "start-pushed:" + b.name, title: (b.dev ? "Make a workspace " + name + " from this push" : "Make a workspace on this branch") + " with the agent picked below, to change it. The agent reads the branch and says what it does. It changes nothing until you say.", onclick: function () { startPushed(b); } })]),
+            : el("button", { class: "small", text: "Change it", busy: "start-pushed:" + b.name, title: "Starts an agent. " + (b.dev ? "It gets a workspace " + name + " from this push" : "It gets a workspace on this branch") + ", to change it as you ask. You add the result from that workspace. The agent reads the branch first, and changes nothing until you say.", onclick: function () { startPushed(b); } })]),
       ]);
     })));
   }
@@ -1391,7 +1390,7 @@
     var space = workSpaces().filter(function (s) { return s.branch === b.inspect; })[0];
     if (space) return el("button", { class: cls, text: "Inspection", title: "Open the agent that inspects this push", onclick: function () { chat.composing = false; chooseChatSpace(space.id); } });
     return el("button", { class: cls, text: "Inspect", busy: "inspect-pushed:" + b.name,
-      title: "An agent reads this push and tells you what it changes and what it is for, how it fits with dev, and whether it looks ready. Then it says how to try it on the preview and add it. It changes nothing.",
+      title: "Starts an agent. It reads this push and tells you what it changes and why, how it fits with dev, and whether it looks ready. Then it offers to try it on Stage and add it, when you say. It changes nothing.",
       onclick: function () { startPushed(b, true); } });
   }
   function startPushed(b, inspect) {

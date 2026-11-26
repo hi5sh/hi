@@ -415,7 +415,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the app pushes every merge there |
 | `hi app gitlab <name> <group/project>`   | The same on GitLab, gitlab.com or `host/group/project` on your own, with `glab` |
 | `hi app upstream <name>`                 | For an adopted project: fetch the project it came from, and say which of its versions dev has, how many commits are the app's own, and what it has added since, with its new tags |
-| `hi app branches <name> [--fetch]`       | The branches people pushed to the app's GitHub or GitLab project from their own machines, with who pushed and what dev hasn't; `--fetch` looks at once. See [Work from your own machine](/guide/app/own-machine/) |
+| `hi app branches <name> [--fetch]`       | The branches people pushed to the app's GitHub or GitLab project from their own machines, with who pushed and what dev hasn't; `--fetch` looks at once. See [Work from your own machine](/guide/app/work-from-your-own-machine/) |
 
 In its box, the lead runs `task [list|show|add|comment|edit]` (it files what
 people ask for; the owners close tasks), `versions` (production's

@@ -9,13 +9,38 @@ with your own editor and coding agent, and push a branch. hi handles
 that branch the way it handles work from the dev box:
 
 1. The branch shows on the dev page within 2 minutes.
-2. **Try** puts it on Stage, on a copy of production's data.
+2. **Try on Stage** puts it on Stage, on a copy of production's data.
 3. **Add to Preview** puts it in the next version.
 4. **Publish** sends the next version to production.
 
 The one rule: **push branches, and let hi merge them.** hi owns the
 app's branch (dev, `main` unless the app was set up with another) and
 `production`. It pushes both to GitHub or GitLab itself.
+
+## How hi handles a push
+
+The dev page has four buttons for a pushed branch. Two start an agent,
+in the chat's **Start something new**. Two act at once, with no agent,
+in **Publish**.
+
+| Button | Where | Starts an agent? | What happens | Changes anything? | Use it when |
+|---|---|---|---|---|---|
+| **Inspect** | Start something new | Yes | An agent opens a copy of the push, reads the code and runs the tests. It says what the push changes, why, whether it fits with dev, and whether it looks ready. Then it offers to try it or add it, and does so only when you say. | No | You don't know yet what was pushed. |
+| **Change it** | Start something new | Yes | An agent gets a workspace that starts from the push, and changes it as you ask. You add the result from that workspace. | Yes: the agent's commits go into dev, not back to GitLab | The push needs fixing or finishing before it goes in. |
+| **Try on Stage** | Publish | No | Puts only this branch on Stage at once, on a copy of production's data. Nothing is added to the next version. | No | You want to click through it before adding it. |
+| **Add to Preview** | Publish | No | Merges the branch into dev, as the work of whoever pushed it. It goes into the next version on Stage, and hi pushes `main` to GitLab, where the merge request shows as merged. | Yes: dev gets the branch | It's good as it was pushed. |
+
+The usual path for a push:
+
+1. **Inspect** it, if you don't know what it is.
+2. **Try on Stage**, to see it running.
+3. **Add to Preview**, to put it in the next version.
+4. **Publish**, to send the next version to production.
+
+If the push needs work on the way, use **Change it** instead, and add
+the workspace, not the push. See [Have an agent inspect
+it](#have-an-agent-inspect-it) and [Change it in the dev
+box](#change-it-in-the-dev-box).
 
 ## How the branches fit
 
@@ -29,7 +54,7 @@ app's branch (dev, `main` unless the app was set up with another) and
 your laptop ── git push ──▶ GitLab: better-chart
                                   │  hi looks every 2 minutes
                                   ▼
-dev page, Publish:  Try ─────────────▶ Stage shows only better-chart
+dev page, Publish:  Try on Stage ───▶ Stage shows only better-chart
                     Add to Preview ──▶ main (dev) ──▶ Stage shows the next version
                     Publish ─────────▶ production
 ```
@@ -46,7 +71,7 @@ You do these once.
    [Owners, developers, and contributors](/guide/app/dev/#owners-developers-and-contributors)).
    Then `/hi-<app> dev` in the app's Slack channel sends you the link.
    You can push without this, but then an owner or a developer must
-   click Try and Add for you.
+   click Try on Stage and Add to Preview for you.
 3. **Clone the project and run it.** Its README says how. A project
    that hi set up has `make run`, which listens on `$PORT` and keeps
    its data in `$HI_DATA_DIR`. Locally, set both yourself:
@@ -97,14 +122,15 @@ You do these once.
 
    Hover over the row to see the commit message and the files.
 
-6. **Try it on Stage.** **Try** puts only your branch on Stage. When the
+6. **Try it on Stage.** **Try on Stage** puts only your branch on Stage. When the
    branch is new there, Stage first gets a fresh copy of production's
    data. Stage is one address for the whole team: while your branch is
    on it, nobody sees the next version there. **Show the next version**,
    under Preview in the same panel, puts that back.
 
-   If you push again after Try, the row says "On the preview as it was
-   before the last push". Click **Try again** to see the new commits.
+   If you push again after that, the row says "On the preview as it was
+   before the last push". Click **Try on Stage again** to see the new
+   commits.
 
 7. **Add it to the next version.** **Add to Preview** does all of this:
    - merges your branch into `main`, with the message "From
@@ -177,10 +203,10 @@ developers can add work and publish, on the dev page.
 
 - **A new setting:** if your branch needs a key or setting the app
   doesn't have yet, ask an owner to add it in the dev page's **Keys**,
-  **Env variables**, before you click Try. Never commit keys.
+  **Env variables**, before you click Try on Stage. Never commit keys.
 - **Stage's data is a copy:** Stage runs on a fork of production's data,
   and nothing done on Stage reaches production. A branch that changes
-  the database's shape runs on that copy first, so Try is the place to
+  the database's shape runs on that copy first, so Try on Stage is the place to
   test a migration. **Publish** then runs it on production's data. See
   [Stage and production data](/guide/app/data/).
 
@@ -216,9 +242,10 @@ on its bypass list.
 
 ## Have an agent inspect it
 
-**Inspect** is beside each pushed branch, in **Start something new**'s
-card and in **Publish**. It is the quickest way to know what a push is
-before anyone tries it:
+**Inspect** is beside each pushed branch in the card **Pushed to
+GitLab**, in the chat's **Start something new** (**+ New** in
+Workspaces). It is the quickest way to know what a push is before anyone
+tries it:
 
 1. Pick the agent at the bottom of **Start something new**, and click
    **Inspect**. hi makes a workspace that is a copy of the push
@@ -233,21 +260,21 @@ before anyone tries it:
    - **try it**: it puts the branch alone on Stage (`hi dev preview --pushed`)
    - **add it**: it adds the branch to the preview as its author's work
      (`hi dev ship --pushed`)
-   - **change it first**: click **Work on it** (see below)
+   - **change it first**: click **Change it** (see below)
 
 The agent changes nothing in an inspection, and its workspace has no
 **Add to Preview**. Click **Inspect** again (now **Inspection**) to go
 back to it. A new push to the branch gets a new inspection.
 
-## Carry on in the dev box
+## Change it in the dev box
 
-A branch pushed from a laptop can be continued in the dev box, by you or
-by someone else, with an agent:
+A branch pushed from a laptop can be changed or finished in the dev box,
+by you or by someone else, with an agent:
 
 1. Open the chat's **Start something new** (**+ New** in Workspaces).
    Under the text, the card **Pushed to GitLab** lists the newest pushed
    branches that dev doesn't have yet, with who pushed them and when.
-2. Pick the agent at the bottom, and click **Work on it** beside the
+2. Pick the agent at the bottom, and click **Change it** beside the
    branch. hi makes a workspace whose branch has the same name and
    starts where the pushed branch is.
 3. The agent reads the branch first and says what it does and whether
@@ -259,7 +286,7 @@ by someone else, with an agent:
 If a workspace on that branch exists already, the button says **Open**.
 
 A push straight to `main` is in the card too. A workspace can't have
-`main` as its branch, so **Work on it** names it after the push, such as
+`main` as its branch, so **Change it** names it after the push, such as
 `main-2b3f2cd`. Adding that workspace adds the push, and hi can push
 `main` to GitLab again.
 

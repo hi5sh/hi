@@ -234,7 +234,7 @@ func TestAppForgeGitArgs(t *testing.T) {
 	}
 }
 
-// Start something new's Work on it: a workspace on a pushed branch, from
+// Start something new's Change it: a workspace on a pushed branch, from
 // where it is, with an agent that reads it first; one there already opens.
 func TestTeamPushedStart(t *testing.T) {
 	b, ran := appTestDevPage(t)
