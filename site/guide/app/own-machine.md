@@ -214,6 +214,31 @@ On GitHub, add a ruleset for `main` and `production` that restricts
 updates. Put hi's account (the one `gh` is signed in as on the machine)
 on its bypass list.
 
+## Have an agent inspect it
+
+**Inspect** is beside each pushed branch, in **Start something new**'s
+card and in **Publish**. It is the quickest way to know what a push is
+before anyone tries it:
+
+1. Pick the agent at the bottom of **Start something new**, and click
+   **Inspect**. hi makes a workspace that is a copy of the push
+   (`inspect/better-chart-2b3f2cd`) and starts the agent there.
+2. The agent reads the commits and the code. It tells you:
+   - what the push changes and what it seems meant to do
+   - whether it merges cleanly with dev
+   - new dependencies, keys or settings it needs, and database changes
+   - what the tests say, when they are quick to run
+   - whether it looks ready, and what to fix first
+3. Then it offers the next steps, and takes one only when you say:
+   - **try it**: it puts the branch alone on Stage (`hi dev preview --pushed`)
+   - **add it**: it adds the branch to the preview as its author's work
+     (`hi dev ship --pushed`)
+   - **change it first**: click **Work on it** (see below)
+
+The agent changes nothing in an inspection, and its workspace has no
+**Add to Preview**. Click **Inspect** again (now **Inspection**) to go
+back to it. A new push to the branch gets a new inspection.
+
 ## Carry on in the dev box
 
 A branch pushed from a laptop can be continued in the dev box, by you or

@@ -47,6 +47,10 @@ to (don't ask to allow gitlab.com or github.com for this).
   `hi dev ship --pushed <branch> -m "<title>"` adds it to dev as its
   author's work. Only when the user says so. People usually do both from
   the dev page.
+- A workspace whose branch starts with `inspect/` is the dev page's
+  **Inspect**: a checkout of a pushed branch to read, run, and explain.
+  Don't commit there, and `hi dev ship` refuses it. Add the pushed branch
+  itself with `hi dev ship --pushed <branch>`, once the user says so.
 - Asked to combine one that conflicts with dev: in your worktree,
   `git fetch origin && git merge origin/pushed/<branch>`, resolve, test,
   and `hi dev ship` your branch.

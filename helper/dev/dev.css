@@ -484,8 +484,10 @@ button.side-toggle[aria-pressed="true"] { color: var(--bright); }
 .start-pushed-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .start-pushed-name { display: flex; flex-direction: column; min-width: 0; }
 .start-pushed-name > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.start-pushed-list li > button { flex: none; white-space: nowrap; }
-.flow-pushed .flow-list li > .flow-name { flex: 1; }
+.start-pushed-list li > button, .start-pushed-acts button { flex: none; white-space: nowrap; }
+.start-pushed-acts { display: flex; gap: 6px; flex: none; }
+.flow-pushed .flow-list li { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
+.flow-pushed .flow-list li > .flow-name { flex: 1 1 160px; min-width: 160px; }
 .start-composer .pic-box { min-height: 46px; border: 0; border-radius: 0; background: transparent; }
 .start-composer .pic-box:focus-within { border: 0; }
 .start-composer .pic-edit { max-height: 240px; padding: 2px 4px 6px 0; color: var(--bright); font-size: 15px; line-height: 1.5; }

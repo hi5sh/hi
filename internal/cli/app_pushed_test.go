@@ -283,4 +283,19 @@ func TestTeamPushedStart(t *testing.T) {
 		!strings.Contains(all, "--branch "+pushed.Workspace+" --base origin/pushed/main") || !strings.Contains(all, "what was pushed straight to main") {
 		t.Fatalf("%d %s\n%s", code, body, all)
 	}
+
+	// Inspect: a checkout of the push for an agent to explain, with the
+	// next steps as the author's work; never added itself.
+	*ran = nil
+	code, body = appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/pushed", map[string]any{"branch": "local-dev", "start": true, "inspect": true, "agent": "claude"})
+	all = strings.Join(*ran, "\n")
+	local, _ := appPushedFind(config, "local-dev")
+	if code != 200 || local.Inspect != "inspect/local-dev-"+local.Commit[:7] || !strings.Contains(body, `"branch":"`+local.Inspect+`"`) ||
+		!strings.Contains(all, "--branch "+local.Inspect+" --base origin/pushed/local-dev") ||
+		!strings.Contains(all, "Inspect the branch local-dev, which Ada Dev pushed to GitLab") || !strings.Contains(all, "hi dev ship --pushed local-dev adds it to the preview as Ada Dev") {
+		t.Fatalf("%d %s\n%s", code, body, all)
+	}
+	if _, err := b.mergeDevBranch(appDevShipRequest{Branch: local.Inspect}, local.Commit); err == nil || !strings.Contains(err.Error(), "hi dev ship --pushed") {
+		t.Fatalf("an inspection was added: %v", err)
+	}
 }

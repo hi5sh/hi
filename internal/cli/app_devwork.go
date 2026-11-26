@@ -208,6 +208,9 @@ func (b *appBroker) mergeDevBranch(request appDevShipRequest, head string) (appT
 	if err != nil {
 		return appTask{}, err
 	}
+	if !request.Pushed && strings.HasPrefix(request.Branch, appDevInspectPrefix) {
+		return appTask{}, fmt.Errorf("%s is an inspection of a pushed branch: add the pushed branch itself (hi dev ship --pushed <branch>), or change it in a workspace of its own (Work on it)", request.Branch)
+	}
 	var again *appTask
 	if appIsAncestor(b.repo, head, config.Branch) {
 		if again = appBranchTakenOut(loadTeamTasks(b.team), request.ref()); again == nil {

@@ -260,7 +260,15 @@ type appPushedBranch struct {
 	// name, or for dev's own branch, which no workspace can have, the
 	// name and the commit (main-2b3f2cd).
 	Workspace string `json:"workspace"`
+	// Inspect is the branch of the workspace Inspect makes: a checkout of
+	// this push for an agent to read and explain, never to add from
+	// (inspect/local-dev-2b3f2cd).
+	Inspect string `json:"inspect"`
 }
+
+// appDevInspectPrefix starts the branches of Inspect's workspaces, which
+// hi doesn't add to dev: the pushed branch is added, as its author's.
+const appDevInspectPrefix = "inspect/"
 
 // appPushedView is what the page and hi app branches show.
 type appPushedView struct {
@@ -294,8 +302,10 @@ func appPushedBranches(config appConfig) appPushedView {
 			Author: parts[2], Email: strings.Trim(parts[3], "<>"), Subject: parts[5], Dev: strings.TrimPrefix(parts[0], "refs/heads/"+appPushedPrefix) == config.Branch}
 		branch.At, _ = time.Parse(time.RFC3339, parts[4])
 		branch.Workspace = branch.Name
+		short := branch.Commit[:min(7, len(branch.Commit))]
+		branch.Inspect = appDevInspectPrefix + branch.Name + "-" + short
 		if branch.Dev {
-			branch.Workspace = branch.Name + "-" + branch.Commit[:min(7, len(branch.Commit))]
+			branch.Workspace = branch.Name + "-" + short
 		}
 		count := func(spec string) int {
 			n := 0

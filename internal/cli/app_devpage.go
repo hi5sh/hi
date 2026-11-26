@@ -923,11 +923,16 @@ func appDevStartAgent(config appConfig, branch, pane, agent, prompt string) erro
 // to the app's remote: a workspace whose branch, of the same name, starts
 // where theirs is, with an agent that first says what it does. A
 // workspace on that branch already is opened instead.
-func appDevStartPushed(config appConfig, branch appPushedBranch, agent, by string) (string, string, error) {
+// Inspect, its workspace a checkout of the push, has the agent explain it
+// and say how to try and add it, as the author's work.
+func appDevStartPushed(config appConfig, branch appPushedBranch, agent, by string, inspect bool) (string, string, error) {
 	if err := appDevAgentOK(config.Name, agent, true); err != nil {
 		return "", "", err
 	}
 	name := firstNonEmpty(branch.Workspace, branch.Name)
+	if inspect {
+		name = branch.Inspect
+	}
 	for _, space := range appDevSpacesNow(config.Name) {
 		if space.Branch == name && space.ID != "" {
 			return name, space.ID, nil
@@ -956,7 +961,30 @@ func appDevStartPushed(config appConfig, branch appPushedBranch, agent, by strin
 		"Read what it changes (git log --oneline origin/%s..HEAD, and git diff --stat origin/%s...HEAD, then the code), "+
 		"and tell me in a few lines what it does, and whether it looks ready to add to the preview. Change nothing until I say what to do.",
 		from, firstNonEmpty(branch.Author, "someone"), appForgeName(config.Remote), appPlural(branch.Ahead, "commit"), branch.Subject, config.Branch, config.Branch)
+	if inspect {
+		prompt = appDevInspectPrompt(config, branch)
+	}
 	return name, workspace, appDevStartAgent(config, name, created.Pane.ID, agent, prompt)
+}
+
+// appDevInspectPrompt is what Inspect asks of its agent: what the push
+// changes and is for, how it sits with dev, whether it looks ready, and
+// then the next steps, taken only when the person says.
+func appDevInspectPrompt(config appConfig, branch appPushedBranch) string {
+	from := "the branch " + branch.Name
+	if branch.Dev {
+		from = "a push straight to " + branch.Name
+	}
+	dev, forge := "origin/"+config.Branch, appForgeName(config.Remote)
+	return fmt.Sprintf("Inspect %s, which %s pushed to %s from their own machine: %s dev hasn't, the last %q. "+
+		"This workspace is a checkout of it, to read and to run, not to commit to. "+
+		"1. Read it: git log --oneline %s..HEAD, git diff --stat %s...HEAD, then the code. Say in plain words what it changes and what it seems meant to do. "+
+		"2. Check it against dev: whether it merges cleanly (git merge-tree --write-tree %s HEAD), new or changed dependencies, keys or settings it needs that the app hasn't, database changes, and the tests (run them if they are quick). "+
+		"3. Say whether it looks ready to add to the preview, and what you would fix first. "+
+		"Then offer me the next steps, and take one only when I say: hi dev preview --pushed %s puts it alone on Stage, with a copy of production's data, to try; "+
+		"hi dev ship --pushed %s adds it to the preview as %s's work; to change it first, Work on it on the dev page makes a workspace for that.",
+		from, firstNonEmpty(branch.Author, "someone"), forge, appPlural(branch.Ahead, "commit"), branch.Subject,
+		dev, dev, dev, branch.Name, branch.Name, firstNonEmpty(branch.Author, "its author"))
 }
 
 // appDevStartNew is Start something new: the words, and the pictures
@@ -1721,6 +1749,9 @@ func (b *appBroker) devPageHandler() http.Handler {
 			// with Agent.
 			Start bool   `json:"start,omitempty"`
 			Agent string `json:"agent,omitempty"`
+			// Inspect, with Start: a workspace for the agent to read it
+			// and explain it, not to change it.
+			Inspect bool `json:"inspect,omitempty"`
 		}
 		if !decode(w, r, &request) {
 			return
@@ -1744,7 +1775,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return
 		}
 		if request.Start {
-			name, workspace, err := appDevStartPushed(config, branch, request.Agent, person.Name)
+			name, workspace, err := appDevStartPushed(config, branch, request.Agent, person.Name, request.Inspect)
 			appDevStartedUser(b.team, name, person.User)
 			if err != nil && name == "" {
 				failure(w, http.StatusBadRequest, err)

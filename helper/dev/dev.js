@@ -1012,6 +1012,9 @@
   // workStage says where a workspace's work is, and its next step.
   function workStage(space) {
     if (!space.path || !space.checked) return { text: "" };
+    // Inspect's: a checkout of a pushed branch, to read; the pushed branch
+    // is what gets added, from Publish or by its agent.
+    if ((space.branch || "").indexOf("inspect/") === 0) return { text: "Inspecting a pushed branch", tone: "muted" };
     var unsaved = space.dirty ? "Changes not committed. Ask the agent to commit them." : "";
     if (space.out && !space.ahead) {
       // Taken out of the preview: its workspace keeps it, to add again.
@@ -1344,6 +1347,7 @@
         var stale = onPreview && (state.status || {}).preview_commit && (state.status || {}).preview_commit !== b.commit;
         return el("li", { title: [b.subject].concat(b.files || []).join("\n") }, [
           el("span", { class: "flow-name" }, [el("span", { text: b.name }), el("span", { class: "small muted flow-sub", text: stale ? "On the preview as it was before the last push. Try again shows the new commits." : onPreview ? "Only this branch is on the preview. It is not added yet." : sub })]),
+          b.ahead > 0 ? inspectButton(b, "") : null,
           b.ahead > 0 && (!onPreview || stale) ? el("button", { text: stale ? "Try again" : "Try", busy: "try:" + space.id, title: "Put only this branch on the preview, with a copy of production's data. It is not added yet.", onclick: function () {
             toast("Putting only " + b.name + " on the preview…", true);
             act("", "pushed", { branch: b.name, preview: true }, function (r) { return r.text; }, "try:" + space.id);
@@ -1374,18 +1378,29 @@
       var what = (b.dev ? "pushed straight to " + b.name + " by " : "") + (b.author || "someone") + " · " + (b.ahead > 0 ? b.ahead + (b.ahead === 1 ? " commit" : " commits") : "taken out") + (b.at ? " · " + ago(b.at) : "");
       return el("li", { title: [b.subject].concat(b.files || []).join("\n") }, [
         el("span", { class: "start-pushed-name" }, [el("span", { text: b.name }), el("span", { class: "muted small", text: what })]),
-        space
-          ? el("button", { class: "small", text: "Open", title: "Open the workspace that works on this branch", onclick: function () { chat.composing = false; chooseChatSpace(space.id); } })
-          : el("button", { class: "small", text: "Work on it", busy: "start-pushed:" + b.name, title: (b.dev ? "Make a workspace " + name + " from this push" : "Make a workspace on this branch") + " with the agent picked below. The agent reads the branch and says what it does. It changes nothing until you say.", onclick: function () { startPushed(b); } }),
+        el("span", { class: "start-pushed-acts" }, [inspectButton(b, "small"),
+          space
+            ? el("button", { class: "small", text: "Open", title: "Open the workspace that works on this branch", onclick: function () { chat.composing = false; chooseChatSpace(space.id); } })
+            : el("button", { class: "small", text: "Work on it", busy: "start-pushed:" + b.name, title: (b.dev ? "Make a workspace " + name + " from this push" : "Make a workspace on this branch") + " with the agent picked below, to change it. The agent reads the branch and says what it does. It changes nothing until you say.", onclick: function () { startPushed(b); } })]),
       ]);
     })));
   }
-  function startPushed(b) {
-    var agent = $("adhoc-agent").value || "claude";
-    toast("Making a workspace on " + b.name + "…", true);
-    working("start-pushed:" + b.name, api("POST", "pushed", { branch: b.name, start: true, agent: agent })).then(function (answer) {
+  // inspectButton is Inspect: an agent reads the push and explains it,
+  // then says how to try it and add it; Inspection opens one there already.
+  function inspectButton(b, cls) {
+    var space = workSpaces().filter(function (s) { return s.branch === b.inspect; })[0];
+    if (space) return el("button", { class: cls, text: "Inspection", title: "Open the agent that inspects this push", onclick: function () { chat.composing = false; chooseChatSpace(space.id); } });
+    return el("button", { class: cls, text: "Inspect", busy: "inspect-pushed:" + b.name,
+      title: "An agent reads this push and tells you what it changes and what it is for, how it fits with dev, and whether it looks ready. Then it says how to try it on the preview and add it. It changes nothing.",
+      onclick: function () { startPushed(b, true); } });
+  }
+  function startPushed(b, inspect) {
+    var agent = ($("adhoc-agent") || {}).value || "claude";
+    if (agent === "shell") agent = "claude";
+    toast((inspect ? "Starting an agent to inspect " : "Making a workspace on ") + b.name + "…", true);
+    working((inspect ? "inspect-pushed:" : "start-pushed:") + b.name, api("POST", "pushed", { branch: b.name, start: true, inspect: !!inspect, agent: agent })).then(function (answer) {
       chat.composing = false;
-      toast((answer.warning ? answer.warning + " " : "") + "Started " + answer.branch + " with " + agentName(agent) + ". It reads the branch first.");
+      toast((answer.warning ? answer.warning + " " : "") + (inspect ? agentName(agent) + " is inspecting " + b.name + "." : "Started " + answer.branch + " with " + agentName(agent) + ". It reads the branch first."));
       return refresh().then(function () {
         if (answer.workspace) chooseChatSpace(answer.workspace);
         if (!narrow) $("chat-input").focus();
