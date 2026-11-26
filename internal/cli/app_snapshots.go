@@ -268,6 +268,23 @@ func appOffsiteEnv(team string, backups appBackups, secrets appSecrets) []string
 
 const appDefaultRegion = "us-east-1"
 
+// appBucketHostRegion finds the region in the hosts that name it:
+// s3.<region>.backblazeb2.com, s3.<region>.wasabisys.com, and
+// s3.<region>.amazonaws.com.
+var appBucketHostRegion = regexp.MustCompile(`^s3[.-]([a-z0-9-]+)\.(?:backblazeb2|wasabisys|amazonaws)\.com$`)
+
+// appBucketRegion is the region in a bucket's address, or "" when the
+// host doesn't say it.
+func appBucketRegion(offsite string) string {
+	rest, _ := strings.CutPrefix(offsite, "s3:")
+	rest = strings.TrimPrefix(strings.TrimPrefix(rest, "https://"), "http://")
+	host, _, _ := strings.Cut(rest, "/")
+	if m := appBucketHostRegion.FindStringSubmatch(strings.ToLower(host)); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
 // appSnapshotRepo makes the team's repository and its key the first time.
 func appSnapshotRepo(team string) error {
 	dir := appSnapshotsDir(team)
@@ -1050,7 +1067,7 @@ func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if len(words) == 2 {
 			which = words[1]
 		}
-		return appRestoreFrom(words[0], from, region, folder, which, stdin, stdout)
+		return appRestoreFrom(words[0], from, firstNonEmpty(region, appBucketRegion(from)), folder, which, stdin, stdout)
 	}
 	if len(words) != 2 {
 		return usageError{"usage: hi app restore <name> <snapshot ID | latest | v3 | 2026-10-12> [--code] [--yes]"}
@@ -1281,6 +1298,9 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 		backups.Daily, backups.Weekly, backups.Monthly = counts[0], counts[1], counts[2]
 		changed = true
+	}
+	if region == "" && offsite != "" && offsite != "off" {
+		region = appBucketRegion(offsite)
 	}
 	if region != "" {
 		if offsite == "" && backups.Offsite == "" {

@@ -38,6 +38,7 @@ func TestAdminNetworkAndDataChanges(t *testing.T) {
 		{map[string]any{"what": "stagedata", "on": true}, "app data payments preview empty", ""},
 		{map[string]any{"what": "keep", "keep": "7,4,6"}, "app backups payments --keep 7,4,6", ""},
 		{map[string]any{"what": "offsite", "offsite": "s3:https://s3.example.com/b", "key_id": "AKID", "secret": "SECRET"}, "app backups payments --offsite s3:https://s3.example.com/b", "AKID\nSECRET\n"},
+		{map[string]any{"what": "offsite", "offsite": "s3:https://s3.eu-central-003.backblazeb2.com/b", "region": "eu-central-003", "key_id": "AKID", "secret": "SECRET"}, "app backups payments --offsite s3:https://s3.eu-central-003.backblazeb2.com/b --region eu-central-003", "AKID\nSECRET\n"},
 		{map[string]any{"what": "advisory", "id": "GHSA-1", "because": "not reachable", "package": "lodash"}, "app advisory payments ignore GHSA-1 --because not reachable --package lodash", ""},
 	} {
 		runs = nil

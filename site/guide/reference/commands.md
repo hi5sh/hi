@@ -407,7 +407,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app limit <name> [stage <usd> \| stage off]` | What Stage's model calls may cost a day ($5 unless set), and spent today |
 | `hi app limit <name> memory [dev\|app <size>\|default]` | The boxes' memory: the dev box 16g and Stage's and production's boxes 4g, unless the app has its own; running boxes get a new limit at once, without a restart |
 | `hi app rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
-| `hi app backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
+| `hi app backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too (for Backblaze, `s3:https://s3.<region>.backblazeb2.com/<bucket>/<app>`: hi reads the region from the host); print the key they are encrypted with |
 | `hi app bom <name> [v<n>|stage]`         | Production's bill of materials (CycloneDX), or a release's, or Stage's |
 | `hi app advisories <name>`               | Known advisories for what production runs, as the server last matched them; the lead has it too |
 | `hi app advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |

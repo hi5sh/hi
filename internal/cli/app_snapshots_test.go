@@ -482,6 +482,13 @@ func TestTeamBackupsCommand(t *testing.T) {
 	if err := appBackupsCommand([]string{"payments", "--show-key"}, strings.NewReader(""), &out); err != nil || len(strings.TrimSpace(out.String())) < 40 {
 		t.Fatal(err, out.String())
 	}
+	// Backblaze's host names its region, which the bucket signs with.
+	if err := appBackupsCommand([]string{"payments", "--offsite", "s3:https://s3.eu-central-003.backblazeb2.com/bucket/payments"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if config, _ = loadTeam("payments"); config.backups().Region != "eu-central-003" {
+		t.Fatal(config.backups())
+	}
 	if err := appBackupsCommand([]string{"payments", "--offsite", "off"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
@@ -489,6 +496,20 @@ func TestTeamBackupsCommand(t *testing.T) {
 	secrets, _ = loadTeamSecrets("payments")
 	if config.backups().Offsite != "" || secrets.BackupSecret != "" || config.backups().Daily != 14 {
 		t.Fatal(config.backups(), secrets)
+	}
+}
+
+func TestAppBucketRegion(t *testing.T) {
+	for address, want := range map[string]string{
+		"s3:https://s3.eu-central-003.backblazeb2.com/b/app": "eu-central-003",
+		"s3:s3.us-west-004.backblazeb2.com/b":                "us-west-004",
+		"s3:https://s3.eu-west-1.amazonaws.com/b":            "eu-west-1",
+		"s3:https://s3.example.com/b":                        "",
+		"s3:https://minio.corp.example:9000/b":               "",
+	} {
+		if got := appBucketRegion(address); got != want {
+			t.Errorf("%s: %q, want %q", address, got, want)
+		}
 	}
 }
 

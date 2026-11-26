@@ -817,7 +817,8 @@ usage:
   hi app backups <name>            where snapshots are kept, and for how long
       [--offsite s3:https://<host>/<bucket>]  copy them to an S3-compatible bucket too (asks for
                                    its keys); --offsite off stops
-      [--region <region>]          the bucket's region, if it isn't us-east-1
+      [--region <region>]          the bucket's region, if it isn't us-east-1; hi reads it
+                                   from a Backblaze, Wasabi, or AWS host itself
       [--keep 7,4,6]               how many daily, weekly, and monthly snapshots to keep
       [--show-key]                 the key they are encrypted with; keep a copy elsewhere
   hi app helper <name>             whether the app's pages have the helper, help and feedback

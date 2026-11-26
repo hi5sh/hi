@@ -854,7 +854,7 @@ async function act(action, extra) {
 }
 
 // ask is the dialog for a yes: it answers false, true, or the why typed.
-function ask({ title, text, ok, why, whyOptional, typed, field, fieldCheck, check, checked }) {
+function ask({ title, text, ok, why, whyOptional, typed, field, fieldValue, fieldCheck, check, checked }) {
   return new Promise((resolve) => {
     const dialog = $("ask");
     $("ask-title").textContent = title;
@@ -871,7 +871,7 @@ function ask({ title, text, ok, why, whyOptional, typed, field, fieldCheck, chec
     typedBox.placeholder = typed ? "Type " + typed : "";
     const fieldBox = $("ask-field");
     fieldBox.hidden = !field;
-    fieldBox.value = "";
+    fieldBox.value = fieldValue || "";
     fieldBox.placeholder = field || "";
     $("ask-check-label").hidden = !check;
     $("ask-check-text").textContent = check || "";
@@ -897,7 +897,10 @@ function ask({ title, text, ok, why, whyOptional, typed, field, fieldCheck, chec
       } else done(true);
     };
     $("ask-cancel").onclick = () => done(false);
-    dialog.onclose = () => resolve(false);
+    // A closed ask's close event comes a moment later, when the next ask
+    // may already be open: only a close that leaves the dialog shut
+    // (Escape) cancels this one.
+    dialog.onclose = () => { if (!dialog.open) resolve(false); };
     dialog.showModal();
     (field ? fieldBox : typed ? typedBox : why ? reason : $("ask-ok")).focus();
   });
@@ -4371,13 +4374,21 @@ async function rollback(app, version) {
   if (answer) change("rollback", { version, code: answer.checked, confirm: app }, "Rolling " + app + " back");
 }
 async function offsite() {
-  const answer = await ask({ title: "Copy the snapshots offsite", text: "Give an S3-compatible bucket, as s3:https://<host>/<bucket>. Then give its keys.", ok: "Next", field: "s3:https://s3.example.com/backups", fieldCheck: (v) => (v.startsWith("s3:") ? "" : "The address must start with s3:") });
+  const answer = await ask({ title: "Copy the snapshots offsite", text: "Give an S3-compatible bucket, as s3:https://<host>/<bucket>. Then give its region and keys.", ok: "Next", field: "s3:https://s3.example.com/backups", fieldCheck: (v) => (v.startsWith("s3:") ? "" : "The address must start with s3:") });
   if (!answer) return;
+  const region = await ask({ title: "Region of the bucket", text: "For example eu-central-003 for Backblaze, from the host s3.eu-central-003.backblazeb2.com. Leave it empty to use us-east-1.", ok: "Next", field: "us-east-1", fieldValue: bucketRegion(answer.field), fieldCheck: (v) => (/^[a-z0-9-]*$/.test(v) ? "" : "Use only small letters, digits, and -.") });
+  if (!region) return;
   const id = await ask({ title: "Access key ID of the bucket", text: "hi keeps it on the machine and never shows it again.", ok: "Next", field: "Access key ID" });
   if (!id) return;
   const secret = await ask({ title: "Secret access key of the bucket", text: "hi keeps it on the machine and never shows it again.", ok: "Save", field: "Secret access key" });
   if (!secret) return;
-  change("offsite", { offsite: answer.field, key_id: id.field, secret: secret.field }, "hi now also copies the snapshots offsite.");
+  change("offsite", { offsite: answer.field, region: region.field, key_id: id.field, secret: secret.field }, "hi now also copies the snapshots offsite.");
+}
+// bucketRegion is the region in a bucket's host, when the host names it.
+function bucketRegion(address) {
+  const host = address.replace(/^s3:/, "").replace(/^https?:\/\//, "").split("/")[0].toLowerCase();
+  const m = host.match(/^s3[.-]([a-z0-9-]+)\.(?:backblazeb2|wasabisys|amazonaws)\.com$/);
+  return m ? m[1] : "";
 }
 
 // The machine's Network.

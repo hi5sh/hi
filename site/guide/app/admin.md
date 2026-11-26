@@ -198,7 +198,7 @@ only whether one is set, and whose.
   its releases, with **Roll back…** and each one's bill of materials;
   Stage's data: a new fork, starting empty at every release, or **Copy
   Stage's to production…**; its backups, how many are kept, and copying
-  them offsite to an S3 bucket; its jobs. A restore, a rollback, and a
+  them offsite to an S3 bucket (its address, region, and keys); its jobs. A restore, a rollback, and a
   copy to production each need the app's name typed, and say what they do
   first. `hi app snapshots`, `restore`, `rollback`, `data`, `backups`,
   `jobs`, `bom`.
