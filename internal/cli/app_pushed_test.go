@@ -233,3 +233,39 @@ func TestAppForgeGitArgs(t *testing.T) {
 		t.Fatal("forge names")
 	}
 }
+
+// Start something new's Work on it: a workspace on a pushed branch, from
+// where it is, with an agent that reads it first; one there already opens.
+func TestTeamPushedStart(t *testing.T) {
+	b, ran := appTestDevPage(t)
+	_, laptop := appTestRemote(t, b)
+	config, _ := loadTeam("payments")
+	appTestPush(t, laptop, "local-dev", "src/chart.ts", "export const days = 31\n", "Show the last day on the chart")
+	fetchTeamPushed(config, false)
+	handler := b.devPageHandler()
+
+	code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/pushed", map[string]any{"branch": "local-dev", "start": true, "agent": "claude"})
+	if code != 200 || !strings.Contains(body, `"workspace":"w3"`) || !strings.Contains(body, `"branch":"local-dev"`) {
+		t.Fatalf("%d %s", code, body)
+	}
+	all := strings.Join(*ran, "\n")
+	if !strings.Contains(all, "herdr worktree create --cwd /box/repo --branch local-dev --base origin/pushed/local-dev") ||
+		!strings.Contains(all, "which Ada Dev pushed to GitLab from their own machine") || !strings.Contains(all, "Change nothing until I say") {
+		t.Fatal(all)
+	}
+	if code, _ := appTestDevPageCall(t, handler, appTestAskerKey, "POST", "api/pushed", map[string]any{"branch": "local-dev", "start": true, "agent": "claude"}); code == 200 {
+		t.Fatal("someone who isn't a builder started work")
+	}
+	if code, _ := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/pushed", map[string]any{"branch": "local-dev", "start": true, "agent": "gemini"}); code == 200 {
+		t.Fatal("an agent that isn't one")
+	}
+
+	// A workspace on that branch already is opened, not made again.
+	appTestPush(t, laptop, "1-chart", "chart.txt", "7\n", "A week")
+	fetchTeamPushed(config, false)
+	*ran = nil
+	code, body = appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/pushed", map[string]any{"branch": "1-chart", "start": true, "agent": "claude"})
+	if code != 200 || !strings.Contains(body, `"workspace":"w2"`) || strings.Contains(strings.Join(*ran, "\n"), "worktree create") {
+		t.Fatalf("%d %s %v", code, body, *ran)
+	}
+}

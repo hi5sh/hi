@@ -1354,6 +1354,43 @@
       })),
     ]);
   }
+  // renderStartPushed is Start something new's card: the branches people
+  // pushed that dev hasn't, newest first, each with Work on it, which
+  // makes a workspace on it with the agent picked below; Open, when one
+  // is there already.
+  function renderStartPushed() {
+    var box = $("start-pushed");
+    var branches = pushedWaiting().filter(function (b) { return !b.dev; }).slice(0, 5);
+    box.hidden = !branches.length;
+    box.textContent = "";
+    if (!branches.length) return;
+    box.appendChild(el("div", { class: "start-pushed-head" }, [
+      el("strong", { text: "Pushed to " + pushedForge() }),
+      el("span", { class: "muted small", text: "Branches that came from other places. Dev does not have them yet." }),
+    ]));
+    box.appendChild(el("ul", { class: "start-pushed-list" }, branches.map(function (b) {
+      var space = workSpaces().filter(function (s) { return s.branch === b.name; })[0];
+      var what = (b.author || "someone") + " · " + (b.ahead > 0 ? b.ahead + (b.ahead === 1 ? " commit" : " commits") : "taken out") + (b.at ? " · " + ago(b.at) : "");
+      return el("li", { title: [b.subject].concat(b.files || []).join("\n") }, [
+        el("span", { class: "start-pushed-name" }, [el("span", { text: b.name }), el("span", { class: "muted small", text: what })]),
+        space
+          ? el("button", { class: "small", text: "Open", title: "Open the workspace that works on this branch", onclick: function () { chat.composing = false; chooseChatSpace(space.id); } })
+          : el("button", { class: "small", text: "Work on it", busy: "start-pushed:" + b.name, title: "Make a workspace on this branch with the agent picked below. The agent reads the branch and says what it does. It changes nothing until you say.", onclick: function () { startPushed(b); } }),
+      ]);
+    })));
+  }
+  function startPushed(b) {
+    var agent = $("adhoc-agent").value || "claude";
+    toast("Making a workspace on " + b.name + "…", true);
+    working("start-pushed:" + b.name, api("POST", "pushed", { branch: b.name, start: true, agent: agent })).then(function (answer) {
+      chat.composing = false;
+      toast((answer.warning ? answer.warning + " " : "") + "Started " + answer.branch + " with " + agentName(agent) + ". It reads the branch first.");
+      return refresh().then(function () {
+        if (answer.workspace) chooseChatSpace(answer.workspace);
+        if (!narrow) $("chat-input").focus();
+      });
+    }).catch(function (error) { toast(error.message); });
+  }
   // addPushed adds a pushed branch to the preview, as addToPreview does a
   // workspace; a clash opens the Stuck dialog.
   function addPushed(space, takeOut) {
@@ -1511,6 +1548,7 @@
     // The way to production, top to bottom: the work not on the preview
     // yet, the preview (the next version), and production.
     renderFlow();
+    renderStartPushed();
 
     // Addresses, the owners': each one's, internal by default, public by
     // their choice.

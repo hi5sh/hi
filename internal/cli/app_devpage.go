@@ -886,29 +886,72 @@ func appDevStartIn(config appConfig, number int, agent, by string) (string, stri
 	appDevStarted(config.Name, branch, by)
 	appDevSpacesForget()
 	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
-	if agent != "" {
-		// Each agent asks to trust a folder on its first start there, in
-		// the terminal, where Chat can't answer: trusted first.
-		path := "/box/home/.herdr/worktrees/repo/" + branch
-		for _, space := range appDevSpacesNow(config.Name) {
-			if space.Branch == branch && space.Path != "" {
-				path = space.Path
-			}
-		}
-		if err := appDevTrust(config.Name, agent, path); err != nil {
-			return branch, workspace, fmt.Errorf("the workspace is there, but %s's settings: %w", agent, err)
+	prompt := fmt.Sprintf("Work on task #%d: %s. Read it first with hi dev task show %d, and ask me what isn't clear before you start.", number, result.Ticket.Title, number)
+	if len(result.Ticket.Files) > 0 {
+		prompt += fmt.Sprintf(" It has files (%s): hi dev task files %d puts them in ~/hi/tasks/%d/.", strings.Join(result.Ticket.Files, ", "), number, number)
+	}
+	return branch, workspace, appDevStartAgent(config, branch, created.Pane.ID, agent, prompt)
+}
+
+// appDevStartAgent starts an agent in a new workspace's pane, with its
+// first message.
+func appDevStartAgent(config appConfig, branch, pane, agent, prompt string) error {
+	if agent == "" {
+		return nil
+	}
+	// Each agent asks to trust a folder on its first start there, in the
+	// terminal, where Chat can't answer: trusted first.
+	path := "/box/home/.herdr/worktrees/repo/" + branch
+	for _, space := range appDevSpacesNow(config.Name) {
+		if space.Branch == branch && space.Path != "" {
+			path = space.Path
 		}
 	}
-	if agent != "" && created.Pane.ID != "" {
-		prompt := fmt.Sprintf("Work on task #%d: %s. Read it first with hi dev task show %d, and ask me what isn't clear before you start.", number, result.Ticket.Title, number)
-		if len(result.Ticket.Files) > 0 {
-			prompt += fmt.Sprintf(" It has files (%s): hi dev task files %d puts them in ~/hi/tasks/%d/.", strings.Join(result.Ticket.Files, ", "), number, number)
-		}
-		if err := appDevHerdrDo(config.Name, "pane", "run", created.Pane.ID, appDevAgentCommand(agent, prompt)); err != nil {
-			return branch, workspace, fmt.Errorf("the workspace is there, but %s didn't start: %w", agent, err)
+	if err := appDevTrust(config.Name, agent, path); err != nil {
+		return fmt.Errorf("the workspace is there, but %s's settings: %w", agent, err)
+	}
+	if pane == "" {
+		return nil
+	}
+	if err := appDevHerdrDo(config.Name, "pane", "run", pane, appDevAgentCommand(agent, prompt)); err != nil {
+		return fmt.Errorf("the workspace is there, but %s didn't start: %w", agent, err)
+	}
+	return nil
+}
+
+// appDevStartPushed starts work in the dev box on a branch someone pushed
+// to the app's remote: a workspace whose branch, of the same name, starts
+// where theirs is, with an agent that first says what it does. A
+// workspace on that branch already is opened instead.
+func appDevStartPushed(config appConfig, branch appPushedBranch, agent, by string) (string, string, error) {
+	if err := appDevAgentOK(config.Name, agent, true); err != nil {
+		return "", "", err
+	}
+	for _, space := range appDevSpacesNow(config.Name) {
+		if space.Branch == branch.Name && space.ID != "" {
+			return branch.Name, space.ID, nil
 		}
 	}
-	return branch, workspace, nil
+	if branch.Dev || !appDevBranchPattern.MatchString(branch.Name) {
+		return "", "", fmt.Errorf("%s can't be a workspace's branch: add it from Publish, or start new work and ask the agent to bring in origin/%s", branch.Name, appPushedRef(branch.Name))
+	}
+	appDevBoxExec(config.Name, "git", "-C", "/box/repo", "fetch", "-q", "origin")
+	var created struct {
+		Pane struct {
+			ID string `json:"pane_id"`
+		} `json:"root_pane"`
+	}
+	if err := appDevHerdr(config.Name, &created, "worktree", "create", "--cwd", "/box/repo", "--branch", branch.Name, "--base", "origin/"+appPushedRef(branch.Name), "--focus"); err != nil {
+		return "", "", err
+	}
+	appDevStarted(config.Name, branch.Name, by)
+	appDevSpacesForget()
+	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
+	prompt := fmt.Sprintf("This workspace starts from the branch %s, which %s pushed to %s from their own machine: %s dev hasn't, the last %q. "+
+		"Read what it changes (git log --oneline origin/%s..HEAD, and git diff --stat origin/%s...HEAD, then the code), "+
+		"and tell me in a few lines what it does, and whether it looks ready to add to the preview. Change nothing until I say what to do.",
+		branch.Name, firstNonEmpty(branch.Author, "someone"), appForgeName(config.Remote), appPlural(branch.Ahead, "commit"), branch.Subject, config.Branch, config.Branch)
+	return branch.Name, workspace, appDevStartAgent(config, branch.Name, created.Pane.ID, agent, prompt)
 }
 
 // appDevStartNew is Start something new: the words, and the pictures
@@ -1669,6 +1712,10 @@ func (b *appBroker) devPageHandler() http.Handler {
 			Preview bool   `json:"preview,omitempty"`
 			TakeOut string `json:"take_out,omitempty"`
 			Fetch   bool   `json:"fetch,omitempty"` // only fetch again
+			// Start: work on it in the dev box, in a workspace of its own,
+			// with Agent.
+			Start bool   `json:"start,omitempty"`
+			Agent string `json:"agent,omitempty"`
 		}
 		if !decode(w, r, &request) {
 			return
@@ -1689,6 +1736,20 @@ func (b *appBroker) devPageHandler() http.Handler {
 		branch, err := appPushedFind(config, request.Branch)
 		if err != nil {
 			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		if request.Start {
+			name, workspace, err := appDevStartPushed(config, branch, request.Agent, person.Name)
+			appDevStartedUser(b.team, name, person.User)
+			if err != nil && name == "" {
+				failure(w, http.StatusBadRequest, err)
+				return
+			}
+			answer := map[string]string{"branch": name, "workspace": workspace}
+			if err != nil {
+				answer["warning"] = err.Error()
+			}
+			reply(w, http.StatusOK, answer)
 			return
 		}
 		if branch.Ahead == 0 && (request.Preview || !branch.Out) {

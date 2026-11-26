@@ -214,17 +214,36 @@ On GitHub, add a ruleset for `main` and `production` that restricts
 updates. Put hi's account (the one `gh` is signed in as on the machine)
 on its bypass list.
 
-## In the dev box
+## Carry on in the dev box
 
-The dev box's agents see pushed branches too, so the two ways of working
-mix:
+A branch pushed from a laptop can be continued in the dev box, by you or
+by someone else, with an agent:
+
+1. Open the chat's **Start something new** (**+ New** in Workspaces).
+   Under the text, the card **Pushed to GitLab** lists the newest pushed
+   branches that dev doesn't have yet, with who pushed them and when.
+2. Pick the agent at the bottom, and click **Work on it** beside the
+   branch. hi makes a workspace whose branch has the same name and
+   starts where the pushed branch is.
+3. The agent reads the branch first and says what it does and whether
+   it looks ready. It changes nothing until you say what to do.
+4. When the work is done, **Add to Preview** on the workspace adds it,
+   as for any workspace. The pushed branch's row then goes, because dev
+   has its commits.
+
+If a workspace on that branch exists already, the button says **Open**.
+
+The workspace's commits don't go back to the branch on GitLab. If the
+author keeps working on their laptop after that, they start again from
+`origin/main` (`git fetch origin && git rebase origin/main`).
+
+The agents see pushed branches without the card too:
 
 - `hi dev branches` lists them.
 - `git fetch origin` brings them into the box's clone as
   `origin/pushed/<branch>`.
-- You can ask an agent to "review better-chart" or "make the tests pass
-  on better-chart". It works on a branch of its own and adds that
-  branch, so that work counts as built in the dev box.
+- You can ask any agent to "review better-chart" or "make the tests
+  pass on better-chart".
 
 ## Commands
 
