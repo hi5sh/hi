@@ -407,7 +407,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app limit <name> [stage <usd> \| stage off]` | What Stage's model calls may cost a day ($5 unless set), and spent today |
 | `hi app limit <name> memory [dev\|app <size>\|default]` | The boxes' memory: the dev box 16g and Stage's and production's boxes 4g, unless the app has its own; running boxes get a new limit at once, without a restart |
 | `hi app rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
-| `hi app backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too (for Backblaze, `s3:https://s3.<region>.backblazeb2.com/<bucket>/<app>`: hi reads the region from the host); print the key they are encrypted with |
+| `hi app backups <name> [--offsite server \| off \| s3:https://<host>/<bucket> [--region <r>]] [--keep d,w,m \| default] [--show-key]` | Where snapshots are kept and for how long. `server` (the default for an app that hasn't chosen) copies them to the server's bucket (`hi server backups`); an `s3:` address is a bucket of this app's own (for Backblaze, `s3:https://s3.<region>.backblazeb2.com/<bucket>/<app>`: hi reads the region from the host); `--show-key` prints the key they are encrypted with |
 | `hi app bom <name> [v<n>|stage]`         | Production's bill of materials (CycloneDX), or a release's, or Stage's |
 | `hi app advisories <name>`               | Known advisories for what production runs, as the server last matched them; the lead has it too |
 | `hi app advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |
@@ -544,6 +544,21 @@ See [hi_people.md](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_
 | `hi server mail off` | Send none: people sign in with Slack links |
 
 With email set up, the dev page, the helper, and the admin page each take an email to sign in with: a link and a six-digit code, each good once, for 15 minutes.
+
+## hi server backups
+
+One S3-compatible bucket for every app's snapshots, set once on the server. Each server has a folder of its own in the bucket, so several servers can share one. The admin page has the same, in the server's Backups tab.
+
+| Command | What it does |
+|---|---|
+| `hi server backups` | The bucket, the plan, and each app: where it copies, its last snapshot, its last copy, how many it keeps |
+| `hi server backups --bucket s3:https://<host>/<bucket> [--region <r>] [--name <server>] [--take-over]` | Set the bucket; the keys are asked without echo (or `HI_S3_ACCESS_KEY_ID`, `HI_S3_SECRET_ACCESS_KEY`) and kept in the vault at `hi/server/backups`. hi writes `<name>/hi-server.json` there first, which checks the keys; `<name>` is the machine's short hostname by default. A folder another server wrote is refused, unless `--take-over` (this machine takes that server's place) |
+| `hi server backups --bucket off` | Stop copying to it; what is in it stays |
+| `hi server backups --at HH:MM --keep d,w,m --apps-default on\|off` | The plan: when each app's daily snapshot is taken (up to an hour after), how many daily, weekly, and monthly snapshots every app keeps (an app's own `--keep` wins), and whether apps that haven't chosen are copied (on by default) |
+| `hi server backups on\|off <app>... \| --all` | Copy these apps to the server's bucket, or not; snapshots on the machine go on either way |
+| `hi server backups now [<app>...]` | A snapshot of each app now (every app that is copied, by default), and wait until it is in the bucket |
+
+Each app's copy is a restic repository at `<bucket>/<name>/apps/<app>/`, encrypted with the app's own key, with that key beside it sealed to the vault's recovery key. For Backblaze, a key per server limited to its folder (**File name prefix** `<name>/`) keeps one machine from deleting another's copies, and the bucket's lifecycle should keep prior versions for 30 days, or snapshots hi deletes keep costing space.
 
 ## hi server vault
 

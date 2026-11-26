@@ -815,11 +815,14 @@ usage:
   hi app data <name> stage empty   Stage starts empty at every release, for an app whose
                                    people's data Stage shouldn't show; stage fork undoes it
   hi app backups <name>            where snapshots are kept, and for how long
-      [--offsite s3:https://<host>/<bucket>]  copy them to an S3-compatible bucket too (asks for
-                                   its keys); --offsite off stops
-      [--region <region>]          the bucket's region, if it isn't us-east-1; hi reads it
+      [--offsite server]           copy them to the server's bucket (hi server backups), the
+                                   default for an app that hasn't chosen; --offsite off stops
+      [--offsite s3:https://<host>/<bucket>]  a bucket of this app's own instead (asks for
+                                   its keys)
+      [--region <region>]          that bucket's region, if it isn't us-east-1; hi reads it
                                    from a Backblaze, Wasabi, or AWS host itself
-      [--keep 7,4,6]               how many daily, weekly, and monthly snapshots to keep
+      [--keep 7,4,6]               how many daily, weekly, and monthly snapshots to keep;
+                                   --keep default follows the server's plan
       [--show-key]                 the key they are encrypted with; keep a copy elsewhere
   hi app helper <name>             whether the app's pages have the helper, help and feedback
       [stage|production on|off]    turn it on or off for an address, from the next page load

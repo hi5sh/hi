@@ -1645,7 +1645,7 @@ function plus(title, form) { return el("button", { class: "side-icon", title, "a
 // the server, opened: its sections in the middle and on the bar, as an app's.
 // Someone who isn't one of the server's admins sees them, and changes nothing.
 
-const orgSectionNames = { overview: "Overview", vault: "Vault", users: "Users", admins: "Admins", policy: "Budgets and approval", keys: "Keys", templates: "Templates", data: "Data", models: "Models", slack: "Slack", walls: "Wall screens" };
+const orgSectionNames = { overview: "Overview", vault: "Vault", backups: "Backups", users: "Users", admins: "Admins", policy: "Budgets and approval", keys: "Keys", templates: "Templates", data: "Data", models: "Models", slack: "Slack", walls: "Wall screens" };
 for (const chip of document.querySelectorAll("#org-sections [data-org-section]")) {
   chip.addEventListener("click", () => openOrg(chip.dataset.orgSection));
 }
@@ -1661,6 +1661,7 @@ function openOrg(section) {
   if (!was) moved();
   if (orgSection === "policy") renderPolicy(); else renderOrgSection();
   if (orgSection === "vault") { vaultHistory = null; refreshVault(); }
+  else if (orgSection === "backups") refreshBackups();
   else if (orgSection !== "overview" || !orgSettings) refreshOrgSettings();
 }
 
@@ -1684,6 +1685,7 @@ function renderOrgSection() {
   const s = orgSettings;
   if (orgSection === "overview") parts.push(...orgOverview(s));
   else if (orgSection === "vault") parts.push(vaultBlock(true));
+  else if (orgSection === "backups") parts.push(...backupsBlock());
   else if (!s) parts.push(el("p", { class: "muted" }, "…"));
   else {
     const build = { users: orgUsers, admins: orgAdmins, keys: orgKeys, templates: orgTemplates, data: orgData, models: orgModels, slack: orgSlack, walls: orgWalls }[orgSection];
@@ -3664,6 +3666,142 @@ async function refreshVault(force) {
   if (orgOpen() && orgSection === "vault" && (force || !typing)) renderOrgSection();
 }
 
+// ---------------------------------------------------------------------------
+// the server's Backups: one bucket for every app on this machine
+
+let backupsView = null;
+const backupsPicked = new Set();
+const canBackups = () => !!(state && state.me && state.me.machine);
+
+async function refreshBackups() {
+  try { backupsView = await api("/api/backups"); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return; }
+  const typing = document.activeElement && $("orgview").contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (orgOpen() && orgSection === "backups" && !typing) renderOrgSection();
+}
+
+// backupsDo sends a change; a failure is toasted, unless handled says it
+// took care of it.
+async function backupsDo(body, done, handled) {
+  try {
+    const answer = await api("/api/backups", body);
+    if (answer.job) { toast((done || "Started") + ". See the output in Jobs.", true); followJob(answer.job); }
+    else toast(done || firstLine(answer.text) || "Done.", true);
+    if (answer.view) backupsView = answer.view;
+    if (orgOpen() && orgSection === "backups") renderOrgSection();
+    return true;
+  } catch (e) {
+    if (!(e instanceof SignIn) && !(handled && await handled(e))) toast(e.message, true);
+    return false;
+  }
+}
+
+function backupsWhen(t) {
+  if (!t) return "—";
+  return new Date(t).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+async function backupsSetBucket() {
+  const v = backupsView || {};
+  const address = await ask({ title: "The bucket for every app", text: "Give an S3-compatible bucket, as s3:https://<host>/<bucket>. Each app goes in its own folder in it.", ok: "Next",
+    field: "s3:https://s3.eu-central-003.backblazeb2.com/my-bucket", fieldValue: v.bucket || "",
+    fieldCheck: (x) => (!x.startsWith("s3:") ? "The address must start with s3:" : /^s3:(https?:\/\/)?[^/]+\/[^/]+/.test(x) ? "" : "Add the bucket name after the host: s3:https://<host>/<bucket>") });
+  if (!address) return;
+  const region = await ask({ title: "Region of the bucket", text: "For example eu-central-003 for Backblaze. Leave it empty to use us-east-1.", ok: "Next", field: "us-east-1",
+    fieldValue: bucketRegion(address.field) || v.region || "", fieldCheck: (x) => (/^[a-z0-9-]*$/.test(x) ? "" : "Use only small letters, digits, and -.") });
+  if (!region) return;
+  const name = await ask({ title: "This server's folder", text: "The folder of this server in the bucket. Each server that uses the bucket needs its own folder. You cannot easily change it later.", ok: "Next", field: v.name || "server",
+    fieldValue: v.name || "", fieldCheck: (x) => (/^[a-z0-9][a-z0-9-]{0,62}$/.test(x) ? "" : "Use only small letters, digits, and -.") });
+  if (!name) return;
+  const id = await ask({ title: "Access key ID of the bucket", text: "hi keeps it in the vault and never shows it again.", ok: "Next", field: "Access key ID" });
+  if (!id) return;
+  const secret = await ask({ title: "Secret access key of the bucket", text: "hi keeps it in the vault and never shows it again.", ok: "Save", field: "Secret access key" });
+  if (!secret) return;
+  const body = { what: "bucket", bucket: address.field, region: region.field, name: name.field, key_id: id.field, secret: secret.field };
+  const done = "The bucket is set. hi copies each app after its next snapshot.";
+  // A folder another server claims: offer to take it over.
+  await backupsDo(body, done, async (e) => {
+    if (!/belongs to another server/.test(e.message)) return false;
+    const take = await ask({ title: "Take over the folder " + name.field + "?", text: e.message + " Take it over only if this machine replaces that server. Otherwise use another folder name.", ok: "Take over", typed: name.field });
+    if (take) await backupsDo(Object.assign(body, { take_over: true }), done);
+    return true;
+  });
+}
+
+function backupsBlock() {
+  const v = backupsView;
+  if (!v) return [el("p", { class: "muted" }, "…")];
+  const can = canBackups();
+  const parts = [el("p", { class: "purpose" }, "Copies of the apps' snapshots in one S3 bucket, off this machine.")];
+  // The bucket.
+  const bucket = el("div", { class: "machine-block" });
+  if (v.on) {
+    bucket.append(el("p", { class: "small" }, "Bucket: ", el("code", {}, v.folder), v.region ? " (region " + v.region + ")" : ""));
+  } else {
+    bucket.append(el("p", { class: "warn small" }, "No bucket. The apps' snapshots are only on this machine."));
+  }
+  bucket.append(el("ul", { class: "bullets small muted" },
+    el("li", {}, "One bucket for all apps on this machine."),
+    el("li", {}, "Each app goes to " + v.name + "/apps/<app>/ in the bucket."),
+    el("li", {}, "Several servers can use one bucket. Each server has its own folder."),
+    el("li", {}, "Safer: one key for each server, limited to its folder (Backblaze: File name prefix " + v.name + "/)."),
+    el("li", {}, "Backblaze: set the bucket's lifecycle to keep prior versions for 30 days. Otherwise deleted snapshots still cost space.")));
+  if (can) bucket.append(el("div", { class: "data-actions" },
+    el("button", { class: "small" + (v.on ? "" : " primary"), onclick: backupsSetBucket }, v.on ? "Change the bucket or keys…" : "Set the bucket…"),
+    v.on ? el("button", { class: "small danger", onclick: async () => {
+      if (await ask({ title: "Stop copying to the bucket?", text: "Apps that use the server's bucket are no longer copied offsite. What is in the bucket stays there.", ok: "Stop" })) backupsDo({ what: "off" }, "The server's bucket is off.");
+    } }, "Stop using the bucket…") : null));
+  parts.push(card("Bucket", bucket));
+  // The plan.
+  const plan = el("div", { class: "machine-block" });
+  const at = input({ type: "time", value: v.at, class: "small-input", "aria-label": "Daily snapshot at" });
+  const keep = input({ value: v.keep, class: "small-input", placeholder: "7,4,6", "aria-label": "Keep daily, weekly, monthly" });
+  const follow = el("input", { type: "checkbox" });
+  follow.checked = !v.apps_off;
+  plan.append(el("ul", { class: "bullets small muted" },
+    el("li", {}, "hi takes a snapshot of each app every day, up to an hour after this time."),
+    el("li", {}, "hi copies each snapshot to the bucket, and before each release."),
+    el("li", {}, "Keep: how many daily, weekly and monthly snapshots stay. An app can keep its own number.")),
+    el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "Daily at"), at, el("span", { class: "muted small" }, "Keep daily, weekly, monthly"), keep),
+    el("label", { class: "check small" }, follow, " Copy new apps, and apps that did not choose"),
+    can ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => backupsDo({ what: "plan", at: at.value, keep: keep.value.trim(), apps_default: follow.checked ? "on" : "off" }, "The plan is saved.") }, "Save the plan")) : null);
+  parts.push(card("Plan", plan));
+  // The apps.
+  const apps = v.apps || [];
+  for (const name of [...backupsPicked]) if (!apps.some((a) => a.name === name)) backupsPicked.delete(name);
+  const where = { server: "Server's bucket", own: "Own bucket", off: "Off", none: "—" };
+  const t = el("table", { class: "people-matrix backups-table" });
+  t.append(el("tr", {}, el("th", {}, ""), el("th", {}, "App"), el("th", {}, "Offsite"), el("th", {}, "Last snapshot"), el("th", {}, "Last copy"), el("th", {}, "Keep"), el("th", {}, "")));
+  for (const a of apps) {
+    const pick = el("input", { type: "checkbox", "aria-label": "Pick " + a.name, disabled: !can });
+    pick.checked = backupsPicked.has(a.name);
+    pick.addEventListener("change", () => { if (pick.checked) backupsPicked.add(a.name); else backupsPicked.delete(a.name); renderOrgSection(); });
+    const snap = a.failed && (!a.last || a.failed_at > a.last) ? el("span", { class: "warn", title: a.failed }, "Failed " + backupsWhen(a.failed_at)) : backupsWhen(a.last);
+    let copy = a.offsite ? backupsWhen(a.copied) : "—";
+    if (a.offsite && a.copy_failed) copy = el("span", { class: "warn", title: a.copy_failed }, "Failed " + backupsWhen(a.copy_failed_at));
+    else if (a.offsite && !a.copied) copy = el("span", { class: "muted" }, "Not yet");
+    t.append(el("tr", {}, el("td", {}, pick), el("th", { scope: "row" }, a.name),
+      el("td", { title: a.offsite || "" }, where[a.use] || a.use), el("td", {}, snap), el("td", {}, copy),
+      el("td", { title: a.own_keep ? "The app's own number" : "The plan's number" }, a.keep + (a.own_keep ? " *" : "")),
+      el("td", {}, can && a.offsite ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", apps: [a.name] }, "Backing up " + a.name) }, "Back up now") : "")));
+  }
+  const picked = [...backupsPicked];
+  const appsBox = el("div", { class: "machine-block" });
+  if (!apps.length) appsBox.append(el("p", { class: "muted small" }, "This machine has no apps."));
+  else appsBox.append(t);
+  for (const a of apps) if (a.offsite && a.copy_failed) appsBox.append(el("p", { class: "warn small" }, a.name + ": " + a.copy_failed));
+  if (can && apps.length) appsBox.append(el("div", { class: "data-actions" },
+    el("span", { class: "muted small" }, picked.length ? picked.length + " picked:" : "Pick apps to change them together."),
+    el("button", { class: "small", disabled: !picked.length || !v.on, onclick: () => backupsDo({ what: "apps", apps: picked, on: true }, "Copies to the bucket are on for " + picked.join(", ")) }, "Copy to the bucket"),
+    el("button", { class: "small", disabled: !picked.length, onclick: () => backupsDo({ what: "apps", apps: picked, on: false }, "Copies offsite are off for " + picked.join(", ")) }, "Do not copy"),
+    el("button", { class: "small", disabled: !apps.some((a) => a.offsite), onclick: () => backupsDo({ what: "now", apps: picked }, picked.length ? "Backing up " + picked.join(", ") : "Backing up every app") }, picked.length ? "Back up picked now" : "Back up all now")));
+  appsBox.append(el("ul", { class: "bullets small muted" },
+    el("li", {}, "Do not copy: the snapshots stay on this machine. Rollback still works."),
+    el("li", {}, "Own bucket: the app uses its own bucket (hi app backups <app> --offsite). Copy to the bucket moves it to the server's bucket. Its old copies stay where they are."),
+    el("li", {}, "The snapshot key of each app is in the bucket too, sealed to the vault's recovery key. Keep the recovery key off this machine.")));
+  parts.push(card("Apps", appsBox));
+  return parts;
+}
+
 // openVault opens the server's Vault in the middle.
 function openVault() {
   if (state && state.org) openOrg("vault");
@@ -4358,8 +4496,15 @@ function sectionData(s) {
   const keep = el("input", { placeholder: "7,4,6", class: "small-input", "aria-label": "Daily, weekly, monthly" });
   parts.push(el("h2", {}, "Backups"), el("pre", { class: "job-output short" }, s.backups),
     el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "Keep daily, weekly, monthly"), keep, el("button", { class: "small", onclick: () => change("keep", { keep: keep.value.trim() }) }, "Save")),
-    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: offsite }, "Copy offsite…"), el("button", { class: "small", onclick: () => change("offsite", { offsite: "off" }) }, "Stop copying offsite")),
-    el("p", { class: "muted small" }, "The encryption key of the backups stays on the machine. To see it, run hi app backups " + s.name + " --show-key."));
+    el("div", { class: "data-actions" },
+      state && state.org ? el("button", { class: "small", onclick: () => openOrg("backups") }, "The server's Backups") : null,
+      el("button", { class: "small", onclick: () => change("offsite", { offsite: "server" }, "The app now uses the server's bucket. hi copies it after its next snapshot.") }, "Use the server's bucket"),
+      el("button", { class: "small", onclick: offsite }, "Use another bucket…"),
+      el("button", { class: "small", onclick: () => change("offsite", { offsite: "off" }) }, "Do not copy offsite")),
+    el("ul", { class: "bullets small muted" },
+      el("li", {}, "The server's Backups sets one bucket for all apps."),
+      el("li", {}, "Use another bucket only if this app must go somewhere else."),
+      el("li", {}, "To see the encryption key of the backups, run hi app backups " + s.name + " --show-key.")));
   parts.push(el("h2", {}, "Jobs"), el("pre", { class: "job-output short" }, s.jobs),
     el("div", { class: "data-actions" }, el("a", { class: "button-like small", href: "/api/app/bom?name=" + encodeURIComponent(s.name) }, "Production bill of materials (CycloneDX)")));
   return parts;
@@ -4374,7 +4519,7 @@ async function rollback(app, version) {
   if (answer) change("rollback", { version, code: answer.checked, confirm: app }, "Rolling " + app + " back");
 }
 async function offsite() {
-  const answer = await ask({ title: "Copy the snapshots offsite", text: "Give an S3-compatible bucket, as s3:https://<host>/<bucket>. Add /<app> to keep each app in its own folder. Then give its region and keys.", ok: "Next", field: "s3:https://s3.eu-central-003.backblazeb2.com/my-bucket/app", fieldCheck: (v) => (!v.startsWith("s3:") ? "The address must start with s3:" : /^s3:(https?:\/\/)?[^/]+\/[^/]+/.test(v) ? "" : "Add the bucket name after the host: s3:https://<host>/<bucket>") });
+  const answer = await ask({ title: "Another bucket for this app", text: "Only for an app that must not use the server's bucket. Give an S3-compatible bucket, as s3:https://<host>/<bucket>. Add /<app> to keep each app in its own folder. Then give its region and keys.", ok: "Next", field: "s3:https://s3.eu-central-003.backblazeb2.com/my-bucket/app", fieldCheck: (v) => (!v.startsWith("s3:") ? "The address must start with s3:" : /^s3:(https?:\/\/)?[^/]+\/[^/]+/.test(v) ? "" : "Add the bucket name after the host: s3:https://<host>/<bucket>") });
   if (!answer) return;
   const region = await ask({ title: "Region of the bucket", text: "For example eu-central-003 for Backblaze, from the host s3.eu-central-003.backblazeb2.com. Leave it empty to use us-east-1.", ok: "Next", field: "us-east-1", fieldValue: bucketRegion(answer.field), fieldCheck: (v) => (/^[a-z0-9-]*$/.test(v) ? "" : "Use only small letters, digits, and -.") });
   if (!region) return;

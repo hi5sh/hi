@@ -487,6 +487,9 @@ func (s *adminServer) adminChangeNetworkData(admin adminPerson, change adminSett
 		if target == "" || target == "off" {
 			return true, []string{"app", "backups", app, "--offsite", "off"}, "", "stopped copying the app's snapshots offsite", "", nil
 		}
+		if target == "server" {
+			return true, []string{"app", "backups", app, "--offsite", "server"}, "", "made the app use the server's bucket", "", nil
+		}
 		args = []string{"app", "backups", app, "--offsite", target}
 		if region := strings.TrimSpace(n.Region); region != "" {
 			args = append(args, "--region", region)

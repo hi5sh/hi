@@ -530,7 +530,7 @@ func adminVaultPathHow(path string) string {
 		case "hi":
 			return "hi's own for the app: its Slack tokens (the app's Slack), its OpenRouter key (hi app key " + app + " openrouter), and its sign-ins (the app's Agents)"
 		case "offsite":
-			return "hi app backups " + app + " --offsite"
+			return "hi app backups " + app + " --offsite (an app with a bucket of its own; the others use the server's Backups)"
 		case "snapshots":
 			return "never by hand: it opens the app's snapshots"
 		}
@@ -538,6 +538,8 @@ func adminVaultPathHow(path string) string {
 		return "Shared keys, below: Change value"
 	case path == "hi/server/keys":
 		return "the server's Keys (its providers, AI, data, and templates)"
+	case path == "hi/server/backups":
+		return "the server's Backups (its bucket's keys)"
 	case path == "hi/server/slack":
 		return "the server's Slack"
 	case path == "hi/machine/dns":

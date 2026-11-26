@@ -54,6 +54,11 @@ var appSnapshotKeep = appBackups{Daily: 7, Weekly: 4, Monthly: 6}
 // appBackups is app.json's "backups": how long snapshots are kept, and
 // where they are copied. The bucket's keys are in secrets.json.
 type appBackups struct {
+	// Use is where the snapshots are copied: "server" (the server's
+	// bucket), "own" (Offsite, with the app's own keys), or "off". Unset,
+	// an app with an Offsite of its own uses it, and any other follows the
+	// server (hi_server_backups.md).
+	Use     string `json:"use,omitempty"`
 	Offsite string `json:"offsite,omitempty"` // a restic repository, s3:https://<host>/<bucket>[/<path>]
 	// Region is the bucket's; restic hangs looking it up from most
 	// S3-compatible services, which take us-east-1.
@@ -61,17 +66,89 @@ type appBackups struct {
 	Daily   int    `json:"keep_daily,omitempty"`
 	Weekly  int    `json:"keep_weekly,omitempty"`
 	Monthly int    `json:"keep_monthly,omitempty"`
+	// Server says Offsite is the app's folder in the server's bucket,
+	// reached with the server's keys; backups() sets it, app.json never.
+	Server bool `json:"-"`
 }
 
 func (config appConfig) backups() appBackups {
+	return config.backupsWith(loadServerBackups())
+}
+
+// backupsWith is the app's backups as it keeps them, with the server's
+// bucket and plan filling in what the app doesn't set.
+func (config appConfig) backupsWith(server serverBackups) appBackups {
 	backups := appSnapshotKeep
+	if server.Daily+server.Weekly+server.Monthly > 0 {
+		backups.Daily, backups.Weekly, backups.Monthly = server.Daily, server.Weekly, server.Monthly
+	}
+	own := appBackups{}
 	if config.Backups != nil {
-		backups.Offsite, backups.Region = config.Backups.Offsite, config.Backups.Region
-		if config.Backups.Daily+config.Backups.Weekly+config.Backups.Monthly > 0 {
-			backups.Daily, backups.Weekly, backups.Monthly = config.Backups.Daily, config.Backups.Weekly, config.Backups.Monthly
-		}
+		own = *config.Backups
+	}
+	if own.Daily+own.Weekly+own.Monthly > 0 {
+		backups.Daily, backups.Weekly, backups.Monthly = own.Daily, own.Weekly, own.Monthly
+	}
+	backups.Use = own.Use
+	switch config.offsiteUse(server) {
+	case appOffsiteOwn:
+		backups.Offsite, backups.Region = own.Offsite, own.Region
+	case appOffsiteServer:
+		backups.Offsite, backups.Region, backups.Server = server.appAddress(config.Name), server.region(), true
 	}
 	return backups
+}
+
+// Where an app's snapshots are copied (offsiteUse).
+const (
+	appOffsiteServer = "server" // the server's bucket
+	appOffsiteOwn    = "own"    // a bucket of its own
+	appOffsiteOff    = "off"    // turned off
+	appOffsiteNone   = "none"   // nowhere: the server has no bucket, or doesn't copy apps that haven't chosen
+)
+
+// offsiteUse says where the app's snapshots are copied. An own address
+// with no bucket in it (hi before v2.6.267 saved one) counts as unset.
+func (config appConfig) offsiteUse(server serverBackups) string {
+	use, offsite := "", ""
+	if config.Backups != nil {
+		use, offsite = config.Backups.Use, config.Backups.Offsite
+	}
+	ownOK := strings.HasPrefix(offsite, "/") || offsite != "" && appCheckBucket(offsite) == nil
+	switch use {
+	case appOffsiteOff:
+		return appOffsiteOff
+	case appOffsiteOwn:
+		if ownOK {
+			return appOffsiteOwn
+		}
+	case appOffsiteServer:
+		if server.on() {
+			return appOffsiteServer
+		}
+		return appOffsiteNone
+	case "":
+		if ownOK {
+			return appOffsiteOwn
+		}
+	}
+	if server.on() && !server.AppsOff {
+		return appOffsiteServer
+	}
+	return appOffsiteNone
+}
+
+// appOffsiteBucket is the keys an app's copies are signed with: the
+// server's, or its own.
+func appOffsiteBucket(team string, backups appBackups) (appBucket, error) {
+	if backups.Server {
+		return loadServerBucket(loadServerBackups())
+	}
+	secrets, err := loadTeamSecrets(team)
+	if err != nil {
+		return appBucket{}, err
+	}
+	return appBucket{KeyID: secrets.BackupKeyID, Secret: secrets.BackupSecret, Region: backups.Region}, nil
 }
 
 // appSnapshot is one snapshot, as hi shows it.
@@ -259,10 +336,10 @@ func appSnapshotKeyCommand(args []string, stdout io.Writer) error {
 
 // appOffsiteEnv reaches the bucket, with the local repository as the one
 // restic copy reads from.
-func appOffsiteEnv(team string, backups appBackups, secrets appSecrets) []string {
+func appOffsiteEnv(team string, backups appBackups, bucket appBucket) []string {
 	return slices.Concat([]string{"RESTIC_REPOSITORY=" + backups.Offsite}, appResticKeyEnv(team, "RESTIC_PASSWORD"),
 		[]string{"RESTIC_FROM_REPOSITORY=" + filepath.Join(appSnapshotsDir(team), "repo")}, appResticKeyEnv(team, "RESTIC_FROM_PASSWORD"),
-		[]string{"AWS_ACCESS_KEY_ID=" + secrets.BackupKeyID, "AWS_SECRET_ACCESS_KEY=" + secrets.BackupSecret,
+		[]string{"AWS_ACCESS_KEY_ID=" + bucket.KeyID, "AWS_SECRET_ACCESS_KEY=" + bucket.Secret,
 			"AWS_DEFAULT_REGION=" + firstNonEmpty(backups.Region, appDefaultRegion)})
 }
 
@@ -557,11 +634,11 @@ func appCopyOffsite(team string, forget bool) (err error) {
 			}
 		})
 	}()
-	secrets, err := loadTeamSecrets(team)
+	bucket, err := appOffsiteBucket(team, backups)
 	if err != nil {
 		return err
 	}
-	env, dir := appOffsiteEnv(team, backups, secrets), appSnapshotsDir(team)
+	env, dir := appOffsiteEnv(team, backups, bucket), appSnapshotsDir(team)
 	if _, err := appRestic(env, dir, "cat", "config"); err != nil {
 		var failure appResticError
 		if !errors.As(err, &failure) || failure.code != appResticMissingRepo {
@@ -1274,7 +1351,7 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		case arg == "--show-key":
 			showKey = true
 		case strings.HasPrefix(arg, "-"):
-			return usageError{"usage: hi app backups <name> [--offsite s3:https://<host>/<bucket>[/<path>] [--region <region>] | --offsite off] [--keep <daily>,<weekly>,<monthly>] [--show-key]"}
+			return usageError{"usage: hi app backups <name> [--offsite s3:https://<host>/<bucket>[/<path>] [--region <region>] | --offsite server | --offsite off] [--keep <daily>,<weekly>,<monthly> | --keep default] [--show-key]"}
 		case name == "":
 			name = arg
 		default:
@@ -1296,45 +1373,46 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintln(stdout, strings.TrimSpace(string(key)))
 		return nil
 	}
-	backups := config.backups()
-	changed := false
-	if keep != "" {
-		parts := strings.Split(keep, ",")
-		var counts []int
-		for _, part := range parts {
-			n, err := strconv.Atoi(strings.TrimSpace(part))
-			if err != nil || n < 0 || n > 1000 {
-				counts = nil
-				break
-			}
-			counts = append(counts, n)
-		}
-		if len(counts) != 3 || counts[0]+counts[1]+counts[2] == 0 {
-			return usageError{"--keep takes three counts, daily, weekly, and monthly: --keep 7,4,6"}
-		}
-		backups.Daily, backups.Weekly, backups.Monthly = counts[0], counts[1], counts[2]
-		changed = true
+	own := appBackups{}
+	if config.Backups != nil {
+		own = *config.Backups
 	}
-	if region == "" && offsite != "" && offsite != "off" {
+	changed := false
+	if keep == "default" {
+		own.Daily, own.Weekly, own.Monthly, changed = 0, 0, 0, true
+	} else if keep != "" {
+		counts, err := appParseKeep(keep)
+		if err != nil {
+			return err
+		}
+		own.Daily, own.Weekly, own.Monthly, changed = counts[0], counts[1], counts[2], true
+	}
+	bucketWord := offsite == appOffsiteOff || offsite == appOffsiteServer
+	if region == "" && offsite != "" && !bucketWord {
 		region = appBucketRegion(offsite)
 	}
 	if region != "" {
-		if offsite == "" && backups.Offsite == "" {
-			return usageError{"--region is the bucket's: give it with --offsite"}
+		if bucketWord || offsite == "" && own.Offsite == "" {
+			return usageError{"--region is the app's own bucket's: give it with --offsite s3:https://<host>/<bucket>"}
 		}
-		backups.Region, changed = region, true
+		own.Region, changed = region, true
 	}
-	if offsite == "off" {
-		backups.Offsite, backups.Region, changed = "", "", true
-		if secrets, err := loadTeamSecrets(name); err == nil {
+	switch {
+	case offsite == "":
+	case bucketWord:
+		if offsite == appOffsiteServer && !loadServerBackups().on() {
+			return errors.New("the server has no bucket yet: an admin sets it on the admin page's Backups, or with hi server backups --bucket s3:https://<host>/<bucket>")
+		}
+		own.Use, own.Offsite, own.Region, changed = offsite, "", "", true
+		if secrets, err := loadTeamSecrets(name); err == nil && (secrets.BackupKeyID != "" || secrets.BackupSecret != "") {
 			secrets.BackupKeyID, secrets.BackupSecret = "", ""
 			if err := saveTeamSecrets(name, secrets); err != nil {
 				return err
 			}
 		}
-	} else if offsite != "" {
+	default:
 		if !strings.HasPrefix(offsite, "s3:https://") && !strings.HasPrefix(offsite, "s3:http://") {
-			return usageError{"--offsite takes an S3-compatible bucket as restic names it: s3:https://<host>/<bucket>[/<path>]"}
+			return usageError{"--offsite takes an S3-compatible bucket as restic names it: s3:https://<host>/<bucket>[/<path>], or server, or off"}
 		}
 		if err := appCheckBucket(offsite); err != nil {
 			return usageError{err.Error()}
@@ -1343,30 +1421,27 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		id, secret := os.Getenv("HI_APP_S3_ACCESS_KEY_ID"), os.Getenv("HI_APP_S3_SECRET_ACCESS_KEY")
-		if id == "" {
-			if id, err = appAskSecret(stdin, stdout, "The bucket's access key ID"); err != nil {
-				return err
-			}
-		}
-		if secret == "" {
-			if secret, err = appAskSecret(stdin, stdout, "Its secret access key"); err != nil {
-				return err
-			}
+		id, secret, err := appAskBucketKeys(stdin, stdout, "HI_APP_S3_ACCESS_KEY_ID", "HI_APP_S3_SECRET_ACCESS_KEY")
+		if err != nil {
+			return err
 		}
 		secrets.BackupKeyID, secrets.BackupSecret = id, secret
 		if err := saveTeamSecrets(name, secrets); err != nil {
 			return err
 		}
-		backups.Offsite, changed = offsite, true
+		own.Use, own.Offsite, changed = appOffsiteOwn, offsite, true
 	}
 	if changed {
-		config.Backups = &backups
+		config.Backups = &own
 		if err := saveTeam(config); err != nil {
 			return err
 		}
 	}
-	if offsite != "" && offsite != "off" || region != "" && backups.Offsite != "" {
+	server := loadServerBackups()
+	backups := config.backupsWith(server)
+	if offsite == appOffsiteServer {
+		fmt.Fprintf(stdout, "App %s uses the server's bucket: hi copies it after its next snapshot, or now with hi server backups now %s.\n", name, name)
+	} else if backups.Offsite != "" && (offsite != "" && offsite != appOffsiteOff || region != "") {
 		if err := appSnapshotRepo(name); err != nil {
 			return err
 		}
@@ -1377,17 +1452,62 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "App %s's snapshots are in %s.\n", name, appSnapshotsDir(name))
 	fmt.Fprintf(stdout, "hi keeps the last %d days, %d weeks, and %d months, everything from the last week, and every snapshot taken before a release.\n", backups.Daily, backups.Weekly, backups.Monthly)
-	if backups.Offsite != "" {
-		fmt.Fprintf(stdout, "Each one is copied to %s.\n", backups.Offsite)
+	switch use := config.offsiteUse(server); {
+	case backups.Offsite != "":
+		which := "the app's own bucket"
+		if use == appOffsiteServer {
+			which = "the server's bucket"
+		}
+		fmt.Fprintf(stdout, "Each one is copied to %s, %s.\n", which, backups.Offsite)
 		where := appSnapshotKey(name)
 		if appSnapshotKeySecret(name).inVault() {
 			where = "the server's vault"
 		}
 		fmt.Fprintf(stdout, "They are encrypted with the key in %s; keep a copy somewhere other than this machine (hi app backups %s --show-key), or the bucket can't be read if the machine is lost.\n", where, name)
-	} else {
-		fmt.Fprintf(stdout, "They are only on this machine: hi app backups %s --offsite s3:https://<host>/<bucket> copies them to a bucket too.\n", name)
+	case use == appOffsiteOff && server.on():
+		fmt.Fprintf(stdout, "They are only on this machine: copies to the server's bucket are off for this app (hi app backups %s --offsite server turns them on).\n", name)
+	default:
+		fmt.Fprintf(stdout, "They are only on this machine: an admin sets the server's bucket (Backups, on the admin page), or hi app backups %s --offsite s3:https://<host>/<bucket> copies this app's to a bucket of its own.\n", name)
 	}
 	return nil
+}
+
+// appParseKeep is --keep's daily, weekly, and monthly counts.
+func appParseKeep(keep string) ([3]int, error) {
+	var counts [3]int
+	bad := usageError{"--keep takes three counts, daily, weekly, and monthly: --keep 7,4,6"}
+	parts := strings.Split(keep, ",")
+	if len(parts) != 3 {
+		return counts, bad
+	}
+	for i, part := range parts {
+		n, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil || n < 0 || n > 1000 {
+			return counts, bad
+		}
+		counts[i] = n
+	}
+	if counts[0]+counts[1]+counts[2] == 0 {
+		return counts, bad
+	}
+	return counts, nil
+}
+
+// appAskBucketKeys is a bucket's key ID and secret, from the environment
+// or asked without echo.
+func appAskBucketKeys(stdin io.Reader, stdout io.Writer, idEnv, secretEnv string) (id, secret string, err error) {
+	id, secret = os.Getenv(idEnv), os.Getenv(secretEnv)
+	if id == "" {
+		if id, err = appAskSecret(stdin, stdout, "The bucket's access key ID"); err != nil {
+			return "", "", err
+		}
+	}
+	if secret == "" {
+		if secret, err = appAskSecret(stdin, stdout, "Its secret access key"); err != nil {
+			return "", "", err
+		}
+	}
+	return id, secret, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1412,13 +1532,13 @@ Type=oneshot
 Description=hi app %[1]s: a snapshot every day
 
 [Timer]
-OnCalendar=*-*-* 03:00:00
+OnCalendar=*-*-* %[2]s:00
 RandomizedDelaySec=1h
 Persistent=true
 
 [Install]
 WantedBy=timers.target
-`, config.Name)
+`, config.Name, loadServerBackups().at())
 	return service, timer
 }
 

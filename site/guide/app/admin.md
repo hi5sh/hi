@@ -198,7 +198,8 @@ only whether one is set, and whose.
   its releases, with **Roll back…** and each one's bill of materials;
   Stage's data: a new fork, starting empty at every release, or **Copy
   Stage's to production…**; its backups, how many are kept, and copying
-  them offsite to an S3 bucket (its address, region, and keys); its jobs. A restore, a rollback, and a
+  them offsite: the server's bucket, another bucket of its own (its address,
+  region, and keys), or none; its jobs. A restore, a rollback, and a
   copy to production each need the app's name typed, and say what they do
   first. `hi app snapshots`, `restore`, `rollback`, `data`, `backups`,
   `jobs`, `bom`.
@@ -269,6 +270,12 @@ server and no apps.
   - **Vault:** [the server's vault](/guide/reference/vault/#on-the-admin-page):
     open or locked, the ways it opens, each secret's versions, shared
     keys, and team stores.
+  - **Backups:** one S3 bucket for every app's snapshots
+    (`hi server backups`): **Set the bucket…** (its address, region,
+    this server's folder in it, and its keys), the plan (when, how many
+    to keep, and whether new apps are copied), and each app with where
+    it copies, its last snapshot and copy, **Back up now**, and, for the
+    apps picked, **Copy to the bucket** and **Do not copy**.
   - **Users:** the server's users, by their hi user name, their groups and
     devices; **Add**, and **Remove** with their name typed.
   - **Admins:** the owner, and **Hand it on…** for the owner; the admins,

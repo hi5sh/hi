@@ -1,0 +1,750 @@
+package cli
+
+// One bucket for every app on the machine, set on the server
+// (docs/specs/approved/hi_server_backups.md, release 1). The server keeps the
+// bucket's address, its name in the bucket, and the plan in backups.json
+// beside its config, and the bucket's keys in the vault at
+// hi/server/backups. An app that follows the server copies its snapshots
+// to <bucket>/<name>/apps/<app>, a restic repository of its own as before.
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"text/tabwriter"
+	"time"
+)
+
+const (
+	serverBackupsFile = "backups.json"
+	serverClaimName   = "hi-server.json"
+)
+
+// serverBackups is the server's backups.json.
+type serverBackups struct {
+	Bucket string `json:"bucket,omitempty"` // s3:https://<host>/<bucket>[/<path>]
+	Region string `json:"region,omitempty"` // the bucket's; from its host when unset
+	Name   string `json:"name,omitempty"`   // this server's folder in the bucket
+	Claim  string `json:"claim,omitempty"`  // the ID in <name>/hi-server.json
+	// At is the daily snapshot's time, HH:MM (03:00), with up to an hour
+	// at random after it.
+	At      string `json:"at,omitempty"`
+	Daily   int    `json:"keep_daily,omitempty"`
+	Weekly  int    `json:"keep_weekly,omitempty"`
+	Monthly int    `json:"keep_monthly,omitempty"`
+	// AppsOff: apps that haven't chosen aren't copied (on by default).
+	AppsOff bool `json:"apps_off,omitempty"`
+}
+
+func (b serverBackups) on() bool       { return b.Bucket != "" && b.Name != "" }
+func (b serverBackups) region() string { return firstNonEmpty(b.Region, appBucketRegion(b.Bucket)) }
+func (b serverBackups) at() string     { return firstNonEmpty(b.At, "03:00") }
+
+// folder is this server's folder in the bucket.
+func (b serverBackups) folder() string { return strings.TrimRight(b.Bucket, "/") + "/" + b.Name }
+
+// appAddress is an app's restic repository in the bucket.
+func (b serverBackups) appAddress(app string) string { return b.folder() + "/apps/" + app }
+
+func (b serverBackups) keep() appBackups {
+	keep := appSnapshotKeep
+	if b.Daily+b.Weekly+b.Monthly > 0 {
+		keep.Daily, keep.Weekly, keep.Monthly = b.Daily, b.Weekly, b.Monthly
+	}
+	return keep
+}
+
+// serverBackupsDir is the machine's server folder, where backups.json is.
+func serverBackupsDir() string {
+	dir, err := orgDirectory("")
+	if err != nil {
+		return ""
+	}
+	return dir
+}
+
+func loadServerBackups() serverBackups {
+	var b serverBackups
+	if dir := serverBackupsDir(); dir != "" {
+		if data, err := os.ReadFile(filepath.Join(dir, serverBackupsFile)); err == nil {
+			json.Unmarshal(data, &b)
+		}
+	}
+	return b
+}
+
+func saveServerBackups(b serverBackups) error {
+	dir := serverBackupsDir()
+	if _, err := loadServerConfig(dir); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(b, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(filepath.Join(dir, serverBackupsFile), append(data, '\n'), 0o600)
+}
+
+// serverBucketSecret is the bucket's keys: in the vault at
+// hi/server/backups, or backups-keys.json without one.
+func serverBucketSecret(dir string) secretFile {
+	return secretFile{disk: filepath.Join(dir, "backups-keys.json"), path: machineServerPath(dir, "hi/server/backups"), kind: secretJSON, what: "the server's bucket keys"}
+}
+
+type serverBucketKeys struct {
+	KeyID  string `json:"key_id"`
+	Secret string `json:"secret"`
+}
+
+// loadServerBucket is the server's bucket keys, with its region.
+func loadServerBucket(b serverBackups) (appBucket, error) {
+	data, err := readSecretFile(serverBucketSecret(serverBackupsDir()))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return appBucket{}, errors.New("the server's bucket has no keys: hi server backups --bucket sets them")
+		}
+		return appBucket{}, err
+	}
+	var keys serverBucketKeys
+	if err := json.Unmarshal(data, &keys); err != nil {
+		return appBucket{}, err
+	}
+	return appBucket{KeyID: keys.KeyID, Secret: keys.Secret, Region: b.region()}, nil
+}
+
+// ---------------------------------------------------------------------------
+// the folder's claim
+
+// serverClaim is <name>/hi-server.json: which server writes there, so two
+// machines with one name don't write over each other.
+type serverClaim struct {
+	Kind     string    `json:"kind"` // "hi server backups"
+	Claim    string    `json:"claim"`
+	Hostname string    `json:"hostname"`
+	Since    time.Time `json:"since"`
+}
+
+// serverClaimFolder makes sure the folder is this server's, and says the
+// claim's ID. Reading the claim also checks the bucket and its keys.
+func serverClaimFolder(b serverBackups, bucket appBucket, takeOver bool) (string, error) {
+	data, found, err := appBucketGetObject(b.folder(), serverClaimName, bucket)
+	if err != nil {
+		return "", fmt.Errorf("reaching %s: %w", b.folder(), err)
+	}
+	if found {
+		var there serverClaim
+		json.Unmarshal(data, &there)
+		if b.Claim != "" && there.Claim == b.Claim {
+			return b.Claim, nil
+		}
+		if !takeOver {
+			return "", fmt.Errorf("%s/ in this bucket belongs to another server (%s, since %s): give this one another name with --name, or --take-over if this machine takes that one's place",
+				b.Name, firstNonEmpty(there.Hostname, "unknown"), there.Since.Local().Format("Jan 2, 2006"))
+		}
+	}
+	id := make([]byte, 8)
+	rand.Read(id)
+	host, _ := os.Hostname()
+	claim := serverClaim{Kind: "hi server backups", Claim: hex.EncodeToString(id), Hostname: host, Since: time.Now().UTC()}
+	encoded, _ := json.MarshalIndent(claim, "", "  ")
+	if err := appBucketPutObject(b.folder(), serverClaimName, bucket, append(encoded, '\n')); err != nil {
+		return "", fmt.Errorf("writing %s/%s: %w", b.folder(), serverClaimName, err)
+	}
+	return claim.Claim, nil
+}
+
+var serverBackupsNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
+
+// serverDefaultName is the machine's short hostname, as a folder name.
+func serverDefaultName() string {
+	host, _ := os.Hostname()
+	host, _, _ = strings.Cut(strings.ToLower(host), ".")
+	name := strings.Trim(regexp.MustCompile(`[^a-z0-9-]+`).ReplaceAllString(host, "-"), "-")
+	if !serverBackupsNamePattern.MatchString(name) {
+		return "server"
+	}
+	return name
+}
+
+// ---------------------------------------------------------------------------
+// each app's state
+
+// serverBackupsApp is one app's line: where it copies, and how it went.
+type serverBackupsApp struct {
+	Name         string    `json:"name"`
+	Use          string    `json:"use"` // server, own, off, or none
+	Offsite      string    `json:"offsite,omitempty"`
+	Keep         string    `json:"keep"` // daily,weekly,monthly
+	OwnKeep      bool      `json:"own_keep,omitempty"`
+	Last         time.Time `json:"last,omitzero"`
+	Failed       string    `json:"failed,omitempty"`
+	FailedAt     time.Time `json:"failed_at,omitzero"`
+	Copied       time.Time `json:"copied,omitzero"` // the last copy to Offsite
+	CopyFailed   string    `json:"copy_failed,omitempty"`
+	CopyFailedAt time.Time `json:"copy_failed_at,omitzero"`
+}
+
+func serverBackupsApps(server serverBackups) []serverBackupsApp {
+	names := machineAppNames()
+	sort.Strings(names)
+	apps := []serverBackupsApp{}
+	for _, name := range names {
+		config, err := loadTeam(name)
+		if err != nil {
+			continue
+		}
+		backups := config.backupsWith(server)
+		status := loadTeamSnapshotStatus(name)
+		line := serverBackupsApp{Name: name, Use: config.offsiteUse(server), Offsite: backups.Offsite,
+			Keep:    fmt.Sprintf("%d,%d,%d", backups.Daily, backups.Weekly, backups.Monthly),
+			OwnKeep: config.Backups != nil && config.Backups.Daily+config.Backups.Weekly+config.Backups.Monthly > 0,
+			Failed:  status.Failed, FailedAt: status.FailedAt}
+		if status.Last != nil {
+			line.Last = status.Last.Time
+		}
+		if backups.Offsite != "" {
+			if status.CopiedOffsite == backups.Offsite {
+				line.Copied = status.Copied
+			}
+			if status.CopyFailed != "" && status.CopyFailedAt.After(line.Copied) {
+				line.CopyFailed, line.CopyFailedAt = status.CopyFailed, status.CopyFailedAt
+			}
+		}
+		apps = append(apps, line)
+	}
+	return apps
+}
+
+// ---------------------------------------------------------------------------
+// hi server backups
+
+const serverBackupsUsage = `usage: hi server backups                       the bucket, the plan, and each app
+       hi server backups --bucket s3:https://<host>/<bucket> [--region <r>] [--name <server>] [--take-over]
+       hi server backups --bucket off
+       hi server backups [--at HH:MM] [--keep <daily>,<weekly>,<monthly>] [--apps-default on|off]
+       hi server backups on|off <app>... | --all
+       hi server backups now [<app>...]`
+
+func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
+	var bucket, region, name, at, keep, appsDefault, verb string
+	var takeOver, all bool
+	var apps []string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		value := func() (string, error) {
+			if i+1 >= len(args) {
+				return "", usageError{arg + " takes a value\n" + serverBackupsUsage}
+			}
+			i++
+			return args[i], nil
+		}
+		var err error
+		switch {
+		case arg == "--bucket":
+			bucket, err = value()
+		case arg == "--region":
+			region, err = value()
+		case arg == "--name":
+			name, err = value()
+		case arg == "--at":
+			at, err = value()
+		case arg == "--keep":
+			keep, err = value()
+		case arg == "--apps-default":
+			appsDefault, err = value()
+		case arg == "--take-over":
+			takeOver = true
+		case arg == "--all":
+			all = true
+		case strings.HasPrefix(arg, "-"):
+			return usageError{"unknown option " + arg + "\n" + serverBackupsUsage}
+		case verb == "" && (arg == "on" || arg == "off" || arg == "now"):
+			verb = arg
+		case verb != "":
+			apps = append(apps, arg)
+		default:
+			return usageError{serverBackupsUsage}
+		}
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := loadServerConfig(serverBackupsDir()); err != nil {
+		return errors.New("this machine runs no server: hi server init makes one, and its backups are set there")
+	}
+	settings := bucket != "" || region != "" || name != "" || at != "" || keep != "" || appsDefault != "" || takeOver
+	if verb != "" && settings || verb == "" && (all || len(apps) > 0) {
+		return usageError{serverBackupsUsage}
+	}
+	switch verb {
+	case "on", "off":
+		return serverBackupsTurn(verb == "on", apps, all, stdout)
+	case "now":
+		return serverBackupsNow(apps, stdout)
+	}
+	if bucket != "" {
+		if err := serverBackupsSetBucket(bucket, region, name, takeOver, stdin, stdout); err != nil {
+			return err
+		}
+	} else if region != "" || name != "" || takeOver {
+		return usageError{"--region, --name, and --take-over go with --bucket"}
+	}
+	if at != "" || keep != "" || appsDefault != "" {
+		if err := serverBackupsSetPlan(at, keep, appsDefault, stdout); err != nil {
+			return err
+		}
+	}
+	return serverBackupsShow(stdout)
+}
+
+func serverBackupsSetBucket(address, region, name string, takeOver bool, stdin io.Reader, stdout io.Writer) error {
+	b := loadServerBackups()
+	if address == "off" {
+		if region != "" || name != "" || takeOver {
+			return usageError{"--bucket off takes nothing else"}
+		}
+		if err := removeSecretFile(serverBucketSecret(serverBackupsDir())); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		b.Bucket, b.Region, b.Claim = "", "", ""
+		if err := saveServerBackups(b); err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, "The server's bucket is off: apps that followed it are no longer copied offsite. What is in the bucket stays there.")
+		return nil
+	}
+	if !strings.HasPrefix(address, "s3:https://") && !strings.HasPrefix(address, "s3:http://") {
+		return usageError{"--bucket takes an S3-compatible bucket as restic names it: s3:https://<host>/<bucket>[/<path>]"}
+	}
+	if err := appCheckBucket(address); err != nil {
+		return usageError{err.Error()}
+	}
+	name = firstNonEmpty(name, b.Name, serverDefaultName())
+	if !serverBackupsNamePattern.MatchString(name) {
+		return usageError{"--name is a folder name: small letters, digits, and -"}
+	}
+	next := b
+	if strings.TrimRight(address, "/") != strings.TrimRight(b.Bucket, "/") || name != b.Name {
+		next.Claim = ""
+	}
+	next.Bucket, next.Name = strings.TrimRight(address, "/"), name
+	next.Region = firstNonEmpty(region, appBucketRegion(address))
+	id, secret, err := appAskBucketKeys(stdin, stdout, "HI_S3_ACCESS_KEY_ID", "HI_S3_SECRET_ACCESS_KEY")
+	if err != nil {
+		return err
+	}
+	keys := appBucket{KeyID: id, Secret: secret, Region: next.region()}
+	claim, err := serverClaimFolder(next, keys, takeOver)
+	if err != nil {
+		return err
+	}
+	next.Claim = claim
+	encoded, _ := json.Marshal(serverBucketKeys{KeyID: id, Secret: secret})
+	if err := writeSecretFile(serverBucketSecret(serverBackupsDir()), append(encoded, '\n'), 0o600); err != nil {
+		return err
+	}
+	if err := saveServerBackups(next); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "The server's bucket is %s/: hi reached it and wrote %s there.\n", next.folder(), serverClaimName)
+	fmt.Fprintf(stdout, "Each app's snapshots are copied after its daily snapshot (around %s) and before each release; hi server backups now copies them at once.\n", next.at())
+	return nil
+}
+
+func serverBackupsSetPlan(at, keep, appsDefault string, stdout io.Writer) error {
+	b := loadServerBackups()
+	timers := false
+	if at != "" {
+		parsed, err := time.Parse("15:04", at)
+		if err != nil {
+			return usageError{"--at takes a time of day, HH:MM: --at 03:00"}
+		}
+		if formatted := parsed.Format("15:04"); formatted != b.at() {
+			b.At, timers = formatted, true
+		}
+	}
+	if keep != "" {
+		counts, err := appParseKeep(keep)
+		if err != nil {
+			return err
+		}
+		b.Daily, b.Weekly, b.Monthly = counts[0], counts[1], counts[2]
+	}
+	switch appsDefault {
+	case "":
+	case "on":
+		b.AppsOff = false
+	case "off":
+		b.AppsOff = true
+	default:
+		return usageError{"--apps-default is on or off"}
+	}
+	if err := saveServerBackups(b); err != nil {
+		return err
+	}
+	if timers {
+		serverRewriteSnapshotTimers(stdout)
+	}
+	return nil
+}
+
+// serverRewriteSnapshotTimers writes each app's daily timer again, for a
+// new time, and restarts those that run.
+func serverRewriteSnapshotTimers(stdout io.Writer) {
+	changed := []string{}
+	for _, name := range machineAppNames() {
+		config, err := loadTeam(name)
+		if err != nil {
+			continue
+		}
+		path := filepath.Join(filepath.Dir(appUnitPath(name)), appSnapshotUnitName(name)+".timer")
+		if !fileExists(path) {
+			continue
+		}
+		_, timer := appSnapshotUnits(config, "")
+		if err := os.WriteFile(path, []byte(timer), 0o644); err != nil {
+			fmt.Fprintf(stdout, "hi: app %s's timer: %v\n", name, err)
+			continue
+		}
+		changed = append(changed, name)
+	}
+	if len(changed) == 0 {
+		return
+	}
+	appSystemctl("daemon-reload")
+	for _, name := range changed {
+		timer := appSnapshotUnitName(name) + ".timer"
+		if out, _ := appSystemctl("is-enabled", timer); strings.TrimSpace(out) == "enabled" {
+			appSystemctl("restart", timer)
+		}
+	}
+}
+
+func serverBackupsTurn(on bool, apps []string, all bool, stdout io.Writer) error {
+	server := loadServerBackups()
+	if on && !server.on() {
+		return errors.New("the server has no bucket yet: hi server backups --bucket s3:https://<host>/<bucket> sets it")
+	}
+	if all {
+		if len(apps) > 0 {
+			return usageError{"name apps, or --all"}
+		}
+		apps = machineAppNames()
+		sort.Strings(apps)
+	}
+	if len(apps) == 0 {
+		return usageError{serverBackupsUsage}
+	}
+	for _, name := range apps {
+		if _, err := loadTeam(name); err != nil {
+			return err
+		}
+	}
+	for _, name := range apps {
+		config, _ := loadTeam(name)
+		own := appBackups{}
+		if config.Backups != nil {
+			own = *config.Backups
+		}
+		before := config.offsiteUse(server)
+		if on {
+			own.Use = appOffsiteServer
+		} else {
+			own.Use = appOffsiteOff
+		}
+		if on && own.Offsite != "" {
+			fmt.Fprintf(stdout, "App %s copied to a bucket of its own, %s; what is there stays.\n", name, own.Offsite)
+		}
+		if on || before != appOffsiteOwn {
+			own.Offsite, own.Region = "", ""
+			if secrets, err := loadTeamSecrets(name); err == nil && (secrets.BackupKeyID != "" || secrets.BackupSecret != "") {
+				secrets.BackupKeyID, secrets.BackupSecret = "", ""
+				if err := saveTeamSecrets(name, secrets); err != nil {
+					return err
+				}
+			}
+		} else {
+			// Off for an app with its own bucket: its address stays, for
+			// hi app backups --offsite to turn on again.
+			own.Use = appOffsiteOff
+		}
+		config.Backups = &own
+		if err := saveTeam(config); err != nil {
+			return err
+		}
+		if on {
+			fmt.Fprintf(stdout, "App %s: copied to %s after each snapshot.\n", name, server.appAddress(name))
+		} else {
+			fmt.Fprintf(stdout, "App %s: not copied offsite. Its snapshots on this machine go on.\n", name)
+		}
+	}
+	return nil
+}
+
+// serverBackupsWait is how long now waits for an app's service to copy.
+var serverBackupsWait = 3 * time.Hour
+
+// serverBackupsNow takes a snapshot of each app that is copied offsite,
+// and waits until it is in the bucket.
+func serverBackupsNow(apps []string, stdout io.Writer) error {
+	server := loadServerBackups()
+	if len(apps) == 0 {
+		for _, line := range serverBackupsApps(server) {
+			if line.Offsite != "" {
+				apps = append(apps, line.Name)
+			}
+		}
+		if len(apps) == 0 {
+			return errors.New("no app is copied offsite: set the server's bucket (hi server backups --bucket), or turn apps on")
+		}
+	}
+	var failed []string
+	for _, name := range apps {
+		config, err := loadTeam(name)
+		if err != nil {
+			return err
+		}
+		if config.backupsWith(server).Offsite == "" {
+			fmt.Fprintf(stdout, "App %s isn't copied offsite; skipped.\n", name)
+			continue
+		}
+		if err := serverBackupsNowOne(name, stdout); err != nil {
+			fmt.Fprintf(stdout, "App %s: %v\n", name, err)
+			failed = append(failed, name)
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("not copied: %s", strings.Join(failed, ", "))
+	}
+	return nil
+}
+
+func serverBackupsNowOne(name string, stdout io.Writer) error {
+	if err := appSnapshotCommand([]string{name}, stdout); err != nil {
+		return err
+	}
+	status := loadTeamSnapshotStatus(name)
+	if status.Last == nil {
+		return errors.New("the snapshot isn't in its status")
+	}
+	taken := status.Last.Time
+	deadline := time.Now().Add(serverBackupsWait)
+	for {
+		status = loadTeamSnapshotStatus(name)
+		if !status.Copied.Before(taken) {
+			fmt.Fprintf(stdout, "App %s is in the bucket, %s.\n", name, status.CopiedOffsite)
+			return nil
+		}
+		if status.CopyFailed != "" && !status.CopyFailedAt.Before(taken) {
+			return errors.New(status.CopyFailed)
+		}
+		if time.Now().After(deadline) {
+			return errors.New("the copy hasn't ended yet; hi server backups shows when it does")
+		}
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func serverBackupsShow(stdout io.Writer) error {
+	b := loadServerBackups()
+	if b.on() {
+		fmt.Fprintf(stdout, "Bucket: %s/ (region %s)\n", b.folder(), firstNonEmpty(b.region(), appDefaultRegion))
+	} else {
+		fmt.Fprintln(stdout, "Bucket: none. hi server backups --bucket s3:https://<host>/<bucket> sets one for every app.")
+	}
+	keep := b.keep()
+	fmt.Fprintf(stdout, "Plan: a snapshot of each app daily around %s, copied offsite after it; keep %d days, %d weeks, %d months.\n", b.at(), keep.Daily, keep.Weekly, keep.Monthly)
+	if b.AppsOff {
+		fmt.Fprintln(stdout, "Apps are copied only when turned on (hi server backups on <app>).")
+	} else {
+		fmt.Fprintln(stdout, "Every app is copied unless turned off (hi server backups off <app>).")
+	}
+	apps := serverBackupsApps(b)
+	if len(apps) == 0 {
+		return nil
+	}
+	fmt.Fprintln(stdout)
+	table := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(table, "APP\tOFFSITE\tLAST SNAPSHOT\tLAST COPY\tKEEP")
+	when := func(t time.Time) string {
+		if t.IsZero() {
+			return "-"
+		}
+		return t.Local().Format("Jan 2 15:04")
+	}
+	for _, app := range apps {
+		use := map[string]string{appOffsiteServer: "server's bucket", appOffsiteOwn: "own bucket", appOffsiteOff: "off", appOffsiteNone: "-"}[app.Use]
+		copied := when(app.Copied)
+		if app.CopyFailed != "" {
+			copied = "failed " + when(app.CopyFailedAt)
+		}
+		if app.Offsite == "" {
+			copied = "-"
+		}
+		snapshot := when(app.Last)
+		if app.Failed != "" && app.FailedAt.After(app.Last) {
+			snapshot = "failed " + when(app.FailedAt)
+		}
+		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", app.Name, use, snapshot, copied, app.Keep)
+	}
+	table.Flush()
+	for _, app := range apps {
+		if app.CopyFailed != "" && app.Offsite != "" {
+			fmt.Fprintf(stdout, "%s: %s\n", app.Name, app.CopyFailed)
+		}
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// the admin page's Backups
+
+// serverBackupsView is what the page's Backups shows.
+type serverBackupsView struct {
+	On      bool               `json:"on"`
+	Bucket  string             `json:"bucket,omitempty"`
+	Region  string             `json:"region,omitempty"`
+	Name    string             `json:"name"` // the folder's name, or the one it would get
+	Folder  string             `json:"folder,omitempty"`
+	At      string             `json:"at"`
+	Keep    string             `json:"keep"`
+	AppsOff bool               `json:"apps_off,omitempty"`
+	Apps    []serverBackupsApp `json:"apps"`
+}
+
+func serverBackupsViewOf() serverBackupsView {
+	b := loadServerBackups()
+	keep := b.keep()
+	view := serverBackupsView{On: b.on(), Name: firstNonEmpty(b.Name, serverDefaultName()), At: b.at(),
+		Keep: fmt.Sprintf("%d,%d,%d", keep.Daily, keep.Weekly, keep.Monthly), AppsOff: b.AppsOff, Apps: serverBackupsApps(b)}
+	if b.on() {
+		view.Bucket, view.Region, view.Folder = b.Bucket, b.region(), b.folder()+"/"
+	}
+	return view
+}
+
+// serverBackupsChange is a change from the page.
+type serverBackupsChange struct {
+	What        string   `json:"what"` // bucket, off, plan, apps, or now
+	Bucket      string   `json:"bucket"`
+	Region      string   `json:"region"`
+	Name        string   `json:"name"`
+	KeyID       string   `json:"key_id"`
+	Secret      string   `json:"secret"`
+	TakeOver    bool     `json:"take_over"`
+	At          string   `json:"at"`
+	Keep        string   `json:"keep"`
+	AppsDefault string   `json:"apps_default"`
+	Apps        []string `json:"apps"`
+	On          bool     `json:"on"`
+}
+
+// serverBackupsArgs is the hi server backups command a change runs, what
+// goes on its stdin, and what the activity log says.
+func serverBackupsArgs(c serverBackupsChange) (args []string, stdin, said string, err error) {
+	for _, app := range c.Apps {
+		if !appNamePattern.MatchString(app) {
+			return nil, "", "", fmt.Errorf("%q isn't an app's name", app)
+		}
+	}
+	clean := func(s string) string { return strings.TrimSpace(s) }
+	switch c.What {
+	case "bucket":
+		if clean(c.Bucket) == "" || clean(c.KeyID) == "" || clean(c.Secret) == "" {
+			return nil, "", "", errors.New("give the bucket's address and both keys")
+		}
+		args = []string{"server", "backups", "--bucket", clean(c.Bucket)}
+		if clean(c.Region) != "" {
+			args = append(args, "--region", clean(c.Region))
+		}
+		if clean(c.Name) != "" {
+			args = append(args, "--name", clean(c.Name))
+		}
+		if c.TakeOver {
+			args = append(args, "--take-over")
+		}
+		return args, clean(c.KeyID) + "\n" + clean(c.Secret) + "\n", "set the server's bucket: " + clean(c.Bucket), nil
+	case "off":
+		return []string{"server", "backups", "--bucket", "off"}, "", "turned the server's bucket off", nil
+	case "plan":
+		args = []string{"server", "backups"}
+		if clean(c.At) != "" {
+			args = append(args, "--at", clean(c.At))
+		}
+		if clean(c.Keep) != "" {
+			args = append(args, "--keep", clean(c.Keep))
+		}
+		if c.AppsDefault == "on" || c.AppsDefault == "off" {
+			args = append(args, "--apps-default", c.AppsDefault)
+		}
+		return args, "", "changed the backup plan: " + strings.Join(args[2:], " "), nil
+	case "apps":
+		if len(c.Apps) == 0 {
+			return nil, "", "", errors.New("pick the apps")
+		}
+		verb := map[bool]string{true: "on", false: "off"}[c.On]
+		return append([]string{"server", "backups", verb}, c.Apps...), "", "turned offsite copies " + verb + " for " + strings.Join(c.Apps, ", "), nil
+	case "now":
+		return append([]string{"server", "backups", "now"}, c.Apps...), "", "", nil
+	}
+	return nil, "", "", errors.New("bucket, off, plan, apps, or now")
+}
+
+func (s *adminServer) backupsRoutes(mux *http.ServeMux, reply func(http.ResponseWriter, int, any),
+	decode func(http.ResponseWriter, *http.Request, any) bool,
+	signedIn func(func(http.ResponseWriter, *http.Request, adminPerson)) http.HandlerFunc) {
+	failure := func(w http.ResponseWriter, status int, err error) {
+		reply(w, status, map[string]string{"error": err.Error()})
+	}
+	mux.HandleFunc("GET /api/backups", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		if adminOrgDir() == "" {
+			failure(w, http.StatusNotFound, errors.New("this machine runs no server"))
+			return
+		}
+		reply(w, http.StatusOK, serverBackupsViewOf())
+	}))
+	mux.HandleFunc("POST /api/backups", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		if adminOrgDir() == "" {
+			failure(w, http.StatusNotFound, errors.New("this machine runs no server"))
+			return
+		}
+		var change serverBackupsChange
+		if !decode(w, r, &change) {
+			return
+		}
+		args, stdin, said, err := serverBackupsArgs(change)
+		if err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		if change.What == "now" {
+			title := "Back up every app now"
+			if len(change.Apps) > 0 {
+				title = "Back up " + strings.Join(change.Apps, ", ") + " now"
+			}
+			job, err := s.startJob(adminJob{Title: title, By: admin.Name, Args: args})
+			if err != nil {
+				failure(w, http.StatusInternalServerError, err)
+				return
+			}
+			reply(w, http.StatusOK, map[string]any{"job": job})
+			return
+		}
+		text, err := adminRunHi(s.hi, admin.Name, stdin, args...)
+		if err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		adminRecord(admin.Name, "", said)
+		reply(w, http.StatusOK, map[string]any{"text": text, "view": serverBackupsViewOf()})
+	}))
+}

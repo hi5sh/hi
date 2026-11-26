@@ -422,7 +422,7 @@ func (b *appBroker) heartbeat(state *appWatchState, probe appWatchProbe, now tim
 	if snapshots.Last != nil {
 		beat.Snapshot.Last = snapshots.Last.Time
 	}
-	if config, err := loadTeam(b.team); err == nil && config.Backups != nil && config.Backups.Offsite != "" {
+	if config, err := loadTeam(b.team); err == nil && config.backups().Offsite != "" {
 		beat.Snapshot.OffsiteSet, beat.Snapshot.Offsite = true, snapshots.Copied
 	}
 	for _, incident := range loadTeamIncidents(b.team) {
@@ -611,10 +611,14 @@ func appWatchLogs(team string) [][2]string {
 // providers and GitHub: the snapshots' offsite bucket.
 func appWatchExempt(team string) []string {
 	config, err := loadTeam(team)
-	if err != nil || config.Backups == nil || config.Backups.Offsite == "" {
+	if err != nil {
 		return nil
 	}
-	if parsed, err := url.Parse(strings.TrimPrefix(config.Backups.Offsite, "s3:")); err == nil && parsed.Hostname() != "" {
+	offsite := config.backups().Offsite
+	if offsite == "" {
+		return nil
+	}
+	if parsed, err := url.Parse(strings.TrimPrefix(offsite, "s3:")); err == nil && parsed.Hostname() != "" {
 		return []string{parsed.Hostname()}
 	}
 	return nil

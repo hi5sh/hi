@@ -86,11 +86,27 @@ var appBucketCall = func(method, url string, bucket appBucket, body []byte) ([]b
 }
 
 func appBucketPut(offsite string, bucket appBucket, data []byte) error {
-	url, path, err := appOffsiteObject(offsite, appSealedKeyName)
+	return appBucketPutObject(offsite, appSealedKeyName, bucket, data)
+}
+
+func appBucketGet(offsite string, bucket appBucket) ([]byte, error) {
+	data, found, err := appBucketGetObject(offsite, appSealedKeyName, bucket)
+	if err == nil && !found {
+		err = fmt.Errorf("the bucket has no %s beside the snapshots: it was made by hi before the vault, or the bucket's path is another", appSealedKeyName)
+	}
+	return data, err
+}
+
+// appBucketPutObject writes one file under offsite, the bucket's path.
+func appBucketPutObject(offsite, name string, bucket appBucket, data []byte) error {
+	url, path, err := appOffsiteObject(offsite, name)
 	if err != nil {
 		return err
 	}
 	if path != "" {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			return err
+		}
 		return writeFileAtomic(path, data, 0o600)
 	}
 	answer, status, err := appBucketCall("PUT", url, bucket, data)
@@ -103,25 +119,31 @@ func appBucketPut(offsite string, bucket appBucket, data []byte) error {
 	return nil
 }
 
-func appBucketGet(offsite string, bucket appBucket) ([]byte, error) {
-	url, path, err := appOffsiteObject(offsite, appSealedKeyName)
+// appBucketGetObject reads one file under offsite; found is false when
+// the bucket answers that it isn't there.
+func appBucketGetObject(offsite, name string, bucket appBucket) (data []byte, found bool, err error) {
+	url, path, err := appOffsiteObject(offsite, name)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if path != "" {
-		return os.ReadFile(path)
+		data, err := os.ReadFile(path)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, false, nil
+		}
+		return data, err == nil, err
 	}
 	data, status, err := appBucketCall("GET", url, bucket, nil)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	if status == http.StatusNotFound {
-		return nil, fmt.Errorf("the bucket has no %s beside the snapshots: it was made by hi before the vault, or the bucket's path is another", appSealedKeyName)
+	if status == http.StatusNotFound && !strings.Contains(string(data), "NoSuchBucket") {
+		return nil, false, nil
 	}
 	if status/100 != 2 {
-		return nil, fmt.Errorf("the bucket answered %d: %s", status, qFirstLine(strings.TrimSpace(string(data)), ""))
+		return nil, false, fmt.Errorf("the bucket answered %d: %s", status, qFirstLine(strings.TrimSpace(string(data)), ""))
 	}
-	return data, nil
+	return data, true, nil
 }
 
 // appSealOffsiteKey puts hi-key.sealed beside the app's offsite
@@ -155,11 +177,11 @@ func appSealOffsiteKey(team string) error {
 	if err != nil {
 		return err
 	}
-	secrets, err := loadTeamSecrets(team)
+	bucket, err := appOffsiteBucket(team, backups)
 	if err != nil {
 		return err
 	}
-	err = appBucketPut(backups.Offsite, appBucket{KeyID: secrets.BackupKeyID, Secret: secrets.BackupSecret, Region: backups.Region}, sealed)
+	err = appBucketPut(backups.Offsite, bucket, sealed)
 	updateTeamSnapshotStatus(team, func(s *appSnapshotStatus) {
 		if err != nil {
 			s.KeySealFailed = err.Error()

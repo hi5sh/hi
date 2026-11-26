@@ -136,17 +136,25 @@ log; that is `hi app restore`.
 
 ## Offsite copies
 
-A copy on the same disk doesn't survive the disk. Give the
-app an S3-compatible bucket (Hetzner, Cloudflare R2, Backblaze B2, AWS,
-and others), and every snapshot is copied there too:
+A copy on the same disk doesn't survive the disk. An admin gives the
+server an S3-compatible bucket (Hetzner, Cloudflare R2, Backblaze B2, AWS,
+and others) once, on the admin page's **Backups** or with:
+
+```sh
+hi server backups --bucket s3:https://s3.eu-central-003.backblazeb2.com/acme-backups
+```
+
+and every app's snapshots are copied there too, each app to
+`<server>/apps/<app>/`, after its daily snapshot and before each release.
+hi asks for the bucket's keys without echoing them. An app that must go
+elsewhere gets a bucket of its own:
 
 ```sh
 hi app backups payments --offsite s3:https://fsn1.your-objectstorage.com/acme-backups/payments
 ```
 
-hi asks for the bucket's access key without echoing it, copies the
-snapshots taken so far, and copies each new one in the background. Add
-`--region` for a bucket outside `us-east-1`, and `--keep 14,8,12` to keep
+Add `--region` for a bucket outside `us-east-1` (hi reads it from a
+Backblaze, Wasabi, or AWS host itself), and `--keep 14,8,12` to keep
 more daily, weekly, and monthly snapshots. The bucket can only be read with
 the snapshots' key, so keep a copy of it somewhere other than this machine:
 

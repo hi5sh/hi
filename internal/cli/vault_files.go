@@ -596,7 +596,7 @@ func moveSecretFile(f secretFile) (bool, error) {
 func machineSecretFiles() []secretFile {
 	var files []secretFile
 	if dir, err := orgDirectory(""); err == nil {
-		files = append(files, serverKeysSecret(dir), serverSlackSecret(dir))
+		files = append(files, serverKeysSecret(dir), serverSlackSecret(dir), serverBucketSecret(dir))
 	}
 	files = append(files, mailSecret(), netbirdTokenSecret(), hiDomainSecret())
 	for _, name := range machineAppNames() {

@@ -927,4 +927,5 @@ func (s *adminServer) orgRoutes(mux *http.ServeMux, reply func(http.ResponseWrit
 		}
 	}))
 	s.adminWallRoutes(mux, reply)
+	s.backupsRoutes(mux, reply, decode, signedIn)
 }

@@ -396,3 +396,7 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .signin-list .dot { display: inline-block; margin-top: 0; vertical-align: middle; }
 .signin-list .warn { color: var(--warn); }
 .people-matrix td .dot { display: inline-block; margin-top: 0; vertical-align: middle; }
+
+/* Short explainers under controls (STE style). */
+.bullets { margin: 6px 0 10px; padding-left: 18px; list-style: disc; }
+.bullets li { margin: 2px 0; }

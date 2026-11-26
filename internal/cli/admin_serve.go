@@ -215,6 +215,11 @@ func adminMay(admin adminPerson, path string) error {
 		if !admin.Org {
 			return errors.New("you aren't one of the server's admins: you see the server, and its owner and admins change it")
 		}
+	case path == "/api/backups":
+		// The server's bucket, for the machine's apps: both lists.
+		if !admin.Org || !admin.Machine {
+			return errors.New("the server's Backups are changed by admins of both the server and the machine")
+		}
 	case !admin.Machine:
 		return errors.New("you are an admin of the server, not of the machine: you see the machine and its apps, and the machine's admins change them")
 	}

@@ -474,7 +474,7 @@ func TestTeamBackupsCommand(t *testing.T) {
 	}
 	config, _ := loadTeam("payments")
 	secrets, _ := loadTeamSecrets("payments")
-	if config.backups() != (appBackups{Offsite: "s3:https://s3.example.com/bucket", Daily: 14, Weekly: 8, Monthly: 12}) || secrets.BackupSecret != "SECRET" {
+	if config.backups() != (appBackups{Use: "own", Offsite: "s3:https://s3.example.com/bucket", Daily: 14, Weekly: 8, Monthly: 12}) || secrets.BackupSecret != "SECRET" {
 		t.Fatal(config.backups(), secrets)
 	}
 	// The keys stay out of team.json, which snapshots hold.
