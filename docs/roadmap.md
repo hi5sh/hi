@@ -6989,6 +6989,20 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.270 — The server backs itself up, and one queue for every app
+
+Approved spec: [hi_server_backups.md](specs/approved/hi_server_backups.md) (release 2).
+
+- [x] `hi-backups.timer`, installed by the server as it starts, backs up
+  each app in turn every day and waits for its copy, then the server's
+  own state; each app's own snapshot timer goes once it runs.
+- [x] The server's state (its folder, the vault as it is, the admin
+  page's settings; never the vault's key file) goes to
+  `<name>/server/`, its key in the vault and sealed beside it to the
+  recovery key. `hi server backups now --server`.
+- [x] Weekly `restic check` of each copy in the bucket, monthly with 1%
+  of the data read; `--limit-upload`; Recent runs on the page.
+
 ### v2.6.269 — Backups shows a backup while it runs
 
 - [x] The server's **Backups** shows each running **Back up now** job
