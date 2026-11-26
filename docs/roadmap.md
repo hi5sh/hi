@@ -6989,6 +6989,16 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.265 — Agent buttons in Start something new, the rest in Publish
+
+- [x] A pushed branch's buttons, by where they are: **Inspect** and
+  **Change it** (was Work on it) start an agent, in Start something new;
+  **Try on Stage** (was Try) and **Add to Preview** act at once with no
+  agent, in Publish. Inspect is no longer in Publish; the row's hover
+  says where it is. Each button's hover says whether it starts an agent.
+- [x] The guide page moved to /guide/app/work-from-your-own-machine/
+  (the old address forwards), with a table of the four buttons.
+
 ### v2.6.264 — Inspect a pushed branch
 
 - [x] **Inspect**, beside **Work on it** in Start something new's card
