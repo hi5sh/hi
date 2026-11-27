@@ -40,6 +40,29 @@ IT team to do.
 - The apps keep their NetBird names (`http://demo.<netbird-domain>:8888`)
   as they are. The server's names come in addition.
 
+## One more choice, not a replacement
+
+`server` is one more address mode. Each app picks its own mode with
+`hi app addresses <app> <mode>` and can change it back at any time. The
+modes there are now all stay:
+
+| Mode | Example | Who keeps the names |
+|------|---------|---------------------|
+| `netbird` | `http://demo.<netbird-domain>:8888` | NetBird; nothing for the IT team |
+| the machine's domain (`hi net domain`) | `demo-dev.corp.example`, at that machine | hi, with a DNS key |
+| a host | an A record to the app's NetBird address | the IT team |
+| `names` | `dev.demo.corp.example`, through the IT team's proxy | the IT team |
+| **`server`** (new) | `demo-dev.corp.example`, through the server | the IT team once, then hi |
+
+- On one machine, one app can be on `server` and another on `names` or
+  `netbird`.
+- Whatever its mode, an app's NetBird peer keeps its three ports (80,
+  8080, 8888). They are the way to keep people off a dev page with
+  NetBird's policies, and the way in when the server is stopped.
+- `hi app new` offers `server` first when the server has a domain. The
+  person can pick any other mode. An app made before this release keeps
+  its mode until someone changes it.
+
 ## The names
 
 A wildcard certificate covers one level of names: `*.corp.example`
@@ -138,7 +161,8 @@ browser ──https──▶ *.corp.example = the server's NetBird address, port
   names. The links in the owners' DMs, the dev page's Addresses, its
   origin check, the app's address file, and the sign-in return addresses
   then use them. `hi app addresses demo server` sets it. `hi app new`
-  makes it the default when the server has a domain.
+  offers it first when the server has a domain (see [One more
+  choice](#one-more-choice-not-a-replacement)).
 - **The admin page** is at `admin.corp.example`, through the same route,
   to the page's own socket.
 
