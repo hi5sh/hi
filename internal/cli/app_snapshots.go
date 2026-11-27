@@ -201,6 +201,10 @@ type appSnapshotStatus struct {
 	DataChecked   time.Time `json:"data_checked,omitzero"`
 	CheckFailed   string    `json:"check_failed,omitempty"`
 	CheckFailedAt time.Time `json:"check_failed_at,omitzero"`
+	// RestoreTested is when a restore test last brought the bucket's
+	// newest copy back whole (hi server backups test-restore).
+	RestoreTested     time.Time `json:"restore_tested,omitzero"`
+	RestoreTestFailed string    `json:"restore_test_failed,omitempty"`
 }
 
 var appSnapshotStatusMu sync.Mutex

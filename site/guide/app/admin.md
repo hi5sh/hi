@@ -275,7 +275,9 @@ server and no apps.
     this server's folder in it, and its keys), the plan (when, how many
     to keep, whether new apps are copied, and an upload limit), each app
     and **This server** (its vault, admins, and settings) with where it
-    copies, its last snapshot, copy, and weekly check, and **Back up**;
+    copies, its last snapshot, copy, weekly check, and restore test, with
+    **Back up** and **Test** (restore the newest copy to a folder of its
+    own, read it back, and remove it; nothing else changes);
     for the apps picked, **Copy to the bucket** and **Do not copy**; and
     **Recent runs**: each step of each backup, how long it took, and how
     much was new.

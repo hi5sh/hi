@@ -264,31 +264,11 @@ func vaultResealOffsite(log io.Writer) {
 // the snapshots come into a local repository, and the chosen one into a
 // new folder, which hi then adopts.
 func appRestoreFrom(name, offsite, region, folder, which string, stdin io.Reader, stdout io.Writer) error {
-	if !appNamePattern.MatchString(name) {
-		return fmt.Errorf("%q isn't an app's name", name)
-	}
-	if _, err := loadTeam(name); err == nil {
-		return fmt.Errorf("app %s is on this machine: hi app restore %s <snapshot> restores it from its own snapshots", name, name)
-	}
-	if err := appNeedsServer("hi app restore --from"); err != nil {
+	if _, err := appRestoreFromCheck(name, folder); err != nil {
 		return err
 	}
-	if !appResticInstalled() {
-		return errors.New("restic isn't installed: hi install restic adds it")
-	}
-	dir := appSnapshotsDir(name)
-	if fileExists(filepath.Join(dir, "repo", "config")) {
-		return fmt.Errorf("%s holds snapshots of a removed app called %s: hi app up with its kept folder brings it back, or hi app rm --purge %s deletes them", dir, name, name)
-	}
-	target, err := filepath.Abs(firstNonEmpty(folder, "app-"+name))
-	if err != nil {
-		return err
-	}
-	if fileExists(target) {
-		return fmt.Errorf("%s is there already; --folder names another", target)
-	}
-	var bucket appBucket
-	bucket.Region = region
+	bucket := appBucket{Region: region}
+	var err error
 	if strings.HasPrefix(offsite, "s3:") {
 		if bucket.KeyID, err = readSecretLine(stdin, stdout, "The bucket's access key ID"); err != nil {
 			return err
@@ -301,6 +281,49 @@ func appRestoreFrom(name, offsite, region, folder, which string, stdin io.Reader
 	if err != nil {
 		return err
 	}
+	return appRestoreFromWith(name, offsite, bucket, words, folder, which, false, stdout)
+}
+
+// appRestoreFromCheck says whether an app can come back here from a
+// bucket, and the folder it comes back into.
+func appRestoreFromCheck(name, folder string) (string, error) {
+	if !appNamePattern.MatchString(name) {
+		return "", fmt.Errorf("%q isn't an app's name", name)
+	}
+	if _, err := loadTeam(name); err == nil {
+		return "", fmt.Errorf("app %s is on this machine: hi app restore %s <snapshot> restores it from its own snapshots", name, name)
+	}
+	if err := appNeedsServer("hi app restore --from"); err != nil {
+		return "", err
+	}
+	if !appResticInstalled() {
+		return "", errors.New("restic isn't installed: hi install restic adds it")
+	}
+	dir := appSnapshotsDir(name)
+	if fileExists(filepath.Join(dir, "repo", "config")) {
+		return "", fmt.Errorf("%s holds snapshots of a removed app called %s: hi app up with its kept folder brings it back, or hi app rm --purge %s deletes them", dir, name, name)
+	}
+	target, err := filepath.Abs(firstNonEmpty(folder, "app-"+name))
+	if err != nil {
+		return "", err
+	}
+	if fileExists(target) {
+		return "", fmt.Errorf("%s is there already; --folder names another", target)
+	}
+	return target, nil
+}
+
+// appRestoreFromWith brings an app back from a bucket with its keys and
+// the recovery key's words in hand. fromServer: hi server restore brought
+// the old vault back, so the app's settings and tokens are there, and the
+// app follows the server's bucket.
+func appRestoreFromWith(name, offsite string, bucket appBucket, words, folder, which string, fromServer bool, stdout io.Writer) error {
+	target, err := appRestoreFromCheck(name, folder)
+	if err != nil {
+		return err
+	}
+	dir := appSnapshotsDir(name)
+	region := bucket.Region
 	data, err := appBucketGet(offsite, bucket)
 	if err != nil {
 		return err
@@ -358,8 +381,8 @@ func appRestoreFrom(name, offsite, region, folder, which string, stdin io.Reader
 	if adopted != name {
 		return fmt.Errorf("the snapshot is app %s's; it is in %s as %s", name, target, adopted)
 	}
-	// Its copies offsite go on, to the same bucket.
-	if strings.HasPrefix(offsite, "s3:") {
+	// Its copies offsite go on, to the same bucket (or the server's).
+	if strings.HasPrefix(offsite, "s3:") && !fromServer {
 		if err := updateTeamSecretsFile(name, func(s *appSecrets) error {
 			s.BackupKeyID, s.BackupSecret = bucket.KeyID, bucket.Secret
 			return nil
@@ -368,6 +391,10 @@ func appRestoreFrom(name, offsite, region, folder, which string, stdin io.Reader
 		}
 	}
 	vaultAudit(vaultActor(), "vault.restore-from", "hi/app/"+name, "the snapshot key from "+appSealedKeyName)
+	if fromServer {
+		fmt.Fprintf(stdout, "App %s is back in %s, as it was %s, with its settings and tokens from the server's vault.\n", name, target, snapshot.Time.Local().Format("Mon Jan 2 at 15:04"))
+		return nil
+	}
 	fmt.Fprintf(stdout, "App %s is back in %s, as it was %s. Its settings and tokens were in the old machine's vault: set them again (hi app env %s, and its Slack app on the admin page), then hi app up %s.\n",
 		name, target, snapshot.Time.Local().Format("Mon Jan 2 at 15:04"), name, name)
 	return nil

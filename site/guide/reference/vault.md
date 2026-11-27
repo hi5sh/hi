@@ -265,6 +265,34 @@ paths the apps take, with their versions and what's left out.
 
 ### After losing the machine
 
+With the server's bucket set (`hi server backups`), the server's own
+state is in the bucket too, beside its apps: its folder, this vault (as
+it is, encrypted), and the admin page's settings, with its key sealed to
+the recovery key in the same way. On a new machine with hi and restic:
+
+```sh
+hi server restore --from s3:https://s3.example.com/backups/ws1
+```
+
+asks for the bucket's keys and the recovery key's words, puts the
+server's folder, vault, and admin page's settings back, opens the vault
+with the words and seals it for this machine (its TPM, or a key file),
+takes over the bucket's `ws1/` folder, restores every app under
+`ws1/apps/` with its settings and tokens from that vault, and starts the
+server and the admin page. The apps stay down: `hi app up` each, after
+giving each its NetBird setup key (a peer's identity is never in a
+snapshot). A server that listened on the old machine's address listens
+on this one's, and devices join again. `--no-start` leaves it all
+stopped, `--no-apps` brings back the server alone, and `--apps-folder`
+says where the apps' folders go.
+
+`hi server backups test-restore` (or **Test** on the admin page's
+Backups) checks that this works without changing anything: it restores
+each newest copy into a folder of its own, has restic read every file
+back, checks that it is the app's (or the server's, with its vault), and
+that its key opens with this vault's recovery key, then removes the
+folder.
+
 An app with an offsite copy (`hi app backups <app> --offsite s3:…`) has
 its snapshot key beside it in the bucket, as `hi-key.sealed`: sealed to
 the vault's recovery key, which hi can do without knowing the words.

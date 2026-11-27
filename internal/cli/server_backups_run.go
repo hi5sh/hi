@@ -52,7 +52,7 @@ func serverBackupsLimitArgs() []string {
 // check, or the server's state.
 type serverBackupsRun struct {
 	At    time.Time `json:"at"`
-	What  string    `json:"what"`          // daily, now, check, or server
+	What  string    `json:"what"`          // daily, now, check, or test (a restore test)
 	App   string    `json:"app,omitempty"` // none: the server's state
 	Took  float64   `json:"took"`          // seconds
 	Size  int64     `json:"size,omitempty"`
@@ -329,6 +329,9 @@ type serverStateStatus struct {
 	CheckFailedAt time.Time `json:"check_failed_at,omitzero"`
 	KeySealed     string    `json:"key_sealed,omitempty"`
 	Repository    string    `json:"repository,omitempty"` // where Last is
+	// RestoreTested: a restore test last brought it back whole then.
+	RestoreTested     time.Time `json:"restore_tested,omitzero"`
+	RestoreTestFailed string    `json:"restore_test_failed,omitempty"`
 }
 
 func loadServerStateStatus() serverStateStatus {
@@ -574,7 +577,15 @@ func serverBackupsState(daily bool, stdout io.Writer) (err error) {
 		}
 	}
 	kind := map[bool]string{true: appSnapshotDaily, false: appSnapshotManual}[daily]
-	out, err := appRestic(env, staging, slices.Concat([]string{"backup", "--json", "--host", b.stateHost(), "--tag", "hi-server", "--tag", "kind:" + kind}, serverBackupsLimitArgs(), []string{"."})...)
+	// The folders by name, so the snapshot holds /org, /vault, and
+	// /admin, as an app's holds /app: a restore puts each in its place.
+	var folders []string
+	for _, source := range serverStateSources() {
+		if fileExists(filepath.Join(staging, source.name)) {
+			folders = append(folders, source.name)
+		}
+	}
+	out, err := appRestic(env, staging, slices.Concat([]string{"backup", "--json", "--host", b.stateHost(), "--tag", "hi-server", "--tag", "kind:" + kind}, serverBackupsLimitArgs(), folders)...)
 	if err != nil {
 		return fmt.Errorf("backing up to %s: %w", b.stateRepository(), err)
 	}

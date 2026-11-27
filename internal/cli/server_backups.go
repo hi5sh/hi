@@ -197,6 +197,9 @@ type serverBackupsApp struct {
 	CopyFailedAt time.Time `json:"copy_failed_at,omitzero"`
 	Checked      time.Time `json:"checked,omitzero"`
 	CheckFailed  string    `json:"check_failed,omitempty"`
+	// RestoreTested: a restore test brought its newest copy back whole.
+	RestoreTested     time.Time `json:"restore_tested,omitzero"`
+	RestoreTestFailed string    `json:"restore_test_failed,omitempty"`
 }
 
 func serverBackupsApps(server serverBackups) []serverBackupsApp {
@@ -225,6 +228,7 @@ func serverBackupsApps(server serverBackups) []serverBackupsApp {
 				line.CopyFailed, line.CopyFailedAt = status.CopyFailed, status.CopyFailedAt
 			}
 			line.Checked, line.CheckFailed = status.Checked, status.CheckFailed
+			line.RestoreTested, line.RestoreTestFailed = status.RestoreTested, status.RestoreTestFailed
 		}
 		apps = append(apps, line)
 	}
@@ -240,6 +244,7 @@ const serverBackupsUsage = `usage: hi server backups                       the b
        hi server backups [--at HH:MM] [--keep <daily>,<weekly>,<monthly>] [--apps-default on|off] [--limit-upload <KiB/s>|off]
        hi server backups on|off <app>... | --all
        hi server backups now [<app>... | --server]
+       hi server backups test-restore [<app>... | --server]   restore the newest copies to a folder of their own, check them, remove them
        hi server backups run --daily                 the daily queue (hi-backups.timer runs it)`
 
 func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
@@ -273,7 +278,7 @@ func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 			limit, err = value()
 		case arg == "--daily" && verb == "run":
 			daily = true
-		case arg == "--server" && verb == "now":
+		case arg == "--server" && (verb == "now" || verb == "test-restore"):
 			stateOnly = true
 		case arg == "--take-over":
 			takeOver = true
@@ -281,7 +286,7 @@ func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 			all = true
 		case strings.HasPrefix(arg, "-"):
 			return usageError{"unknown option " + arg + "\n" + serverBackupsUsage}
-		case verb == "" && (arg == "on" || arg == "off" || arg == "now" || arg == "run" || arg == "__key"):
+		case verb == "" && (arg == "on" || arg == "off" || arg == "now" || arg == "run" || arg == "test-restore" || arg == "__key"):
 			verb = arg
 		case verb != "":
 			apps = append(apps, arg)
@@ -310,6 +315,11 @@ func serverBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 		// named; or, with --server, the server's state alone.
 		b := loadServerBackups()
 		return serverBackupsRunAll(false, apps, !stateOnly, stateOnly || len(apps) == 0 && b.on() && vaultExists(), stdout)
+	case "test-restore":
+		// The apps named, or every app that is copied and the server's
+		// state; with --server, the server's state alone.
+		b := loadServerBackups()
+		return serverBackupsTestRestore(apps, !stateOnly, stateOnly || len(apps) == 0 && b.on() && vaultExists(), stdout)
 	case "run":
 		if !daily || len(apps) > 0 {
 			return usageError{"usage: hi server backups run --daily"}
@@ -646,6 +656,7 @@ type serverBackupsJob struct {
 	Title   string    `json:"title"`
 	Apps    []string  `json:"apps,omitempty"`   // none: every app that is copied
 	Server  bool      `json:"server,omitempty"` // the server's state alone
+	Test    bool      `json:"test,omitempty"`   // a restore test, not a backup
 	Started time.Time `json:"started"`
 }
 
@@ -653,10 +664,10 @@ type serverBackupsJob struct {
 func serverBackupsRunning() []serverBackupsJob {
 	var running []serverBackupsJob
 	for _, job := range adminJobs() {
-		if job.State != "running" || len(job.Args) < 3 || job.Args[0] != "server" || job.Args[1] != "backups" || job.Args[2] != "now" {
+		if job.State != "running" || len(job.Args) < 3 || job.Args[0] != "server" || job.Args[1] != "backups" || job.Args[2] != "now" && job.Args[2] != "test-restore" {
 			continue
 		}
-		line := serverBackupsJob{ID: job.ID, Title: job.Title, Apps: job.Args[3:], Started: job.Started}
+		line := serverBackupsJob{ID: job.ID, Title: job.Title, Apps: job.Args[3:], Started: job.Started, Test: job.Args[2] == "test-restore"}
 		if slices.Contains(line.Apps, "--server") {
 			line.Apps, line.Server = nil, true
 		}
@@ -688,7 +699,7 @@ func serverBackupsViewOf() serverBackupsView {
 
 // serverBackupsChange is a change from the page.
 type serverBackupsChange struct {
-	What        string   `json:"what"` // bucket, off, plan, apps, or now
+	What        string   `json:"what"` // bucket, off, plan, apps, now, or test
 	Bucket      string   `json:"bucket"`
 	Region      string   `json:"region"`
 	Name        string   `json:"name"`
@@ -752,6 +763,14 @@ func serverBackupsArgs(c serverBackupsChange) (args []string, stdin, said string
 		}
 		verb := map[bool]string{true: "on", false: "off"}[c.On]
 		return append([]string{"server", "backups", verb}, c.Apps...), "", "turned offsite copies " + verb + " for " + strings.Join(c.Apps, ", "), nil
+	case "test":
+		if c.Server {
+			if len(c.Apps) > 0 {
+				return nil, "", "", errors.New("the server's state, or apps")
+			}
+			return []string{"server", "backups", "test-restore", "--server"}, "", "", nil
+		}
+		return append([]string{"server", "backups", "test-restore"}, c.Apps...), "", "", nil
 	case "now":
 		if c.Server {
 			if len(c.Apps) > 0 {
@@ -761,7 +780,7 @@ func serverBackupsArgs(c serverBackupsChange) (args []string, stdin, said string
 		}
 		return append([]string{"server", "backups", "now"}, c.Apps...), "", "", nil
 	}
-	return nil, "", "", errors.New("bucket, off, plan, apps, or now")
+	return nil, "", "", errors.New("bucket, off, plan, apps, now, or test")
 }
 
 func (s *adminServer) backupsRoutes(mux *http.ServeMux, reply func(http.ResponseWriter, int, any),
@@ -791,12 +810,20 @@ func (s *adminServer) backupsRoutes(mux *http.ServeMux, reply func(http.Response
 			failure(w, http.StatusBadRequest, err)
 			return
 		}
-		if change.What == "now" {
+		if change.What == "now" || change.What == "test" {
 			title := "Back up every app and the server now"
 			if change.Server {
 				title = "Back up the server's state now"
 			} else if len(change.Apps) > 0 {
 				title = "Back up " + strings.Join(change.Apps, ", ") + " now"
+			}
+			if change.What == "test" {
+				title = "Test restoring every app and the server"
+				if change.Server {
+					title = "Test restoring the server's state"
+				} else if len(change.Apps) > 0 {
+					title = "Test restoring " + strings.Join(change.Apps, ", ")
+				}
 			}
 			job, err := s.startJob(adminJob{Title: title, By: admin.Name, Args: args})
 			if err != nil {

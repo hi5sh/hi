@@ -3697,7 +3697,7 @@ async function refreshBackups() {
 }
 // backupsCopying is the running job that copies app a now, if any.
 function backupsCopying(a) {
-  return (backupsView.running || []).find((j) => !j.server && (!j.apps || !j.apps.length ? !!a.offsite : j.apps.includes(a.name)) && (!a.copied || a.copied < j.started));
+  return (backupsView.running || []).find((j) => !j.server && !j.test && (!j.apps || !j.apps.length ? !!a.offsite : j.apps.includes(a.name)) && (!a.copied || a.copied < j.started));
 }
 // backupsSize is bytes as people read them.
 function backupsSize(n) {
@@ -3805,34 +3805,41 @@ function backupsBlock() {
   for (const name of [...backupsPicked]) if (!apps.some((a) => a.name === name)) backupsPicked.delete(name);
   const where = { server: "Bucket", own: "Own bucket", off: "Off", none: "—" };
   const t = el("table", { class: "people-matrix backups-table" });
-  t.append(el("tr", {}, el("th", {}, ""), el("th", {}, "App"), el("th", {}, "Offsite"), el("th", {}, "Last snapshot"), el("th", {}, "Last copy"), el("th", {}, "Checked"), el("th", {}, "Keep"), el("th", {}, "")));
+  t.append(el("tr", {}, el("th", {}, ""), el("th", {}, "App"), el("th", { title: "The last snapshot on this machine" }, "Snapshot"), el("th", { title: "The last copy to the bucket" }, "Copy"), el("th", { title: "The last weekly check of the copy in the bucket" }, "Checked"), el("th", { title: "The last restore test: the copy came back whole" }, "Restored"), el("th", {}, "")));
+  const testing = (a) => (v.running || []).find((j) => j.test && !j.server && (!j.apps || !j.apps.length ? !!a.offsite : j.apps.includes(a.name)) && (!a.restore_tested || a.restore_tested < j.started));
+  const testCell = (tested, failed, running) => running ? el("span", { class: "muted" }, "Testing…")
+    : failed ? el("span", { class: "warn", title: failed }, "Failed") : backupsWhen(tested);
   for (const a of apps) {
     const pick = el("input", { type: "checkbox", "aria-label": "Pick " + a.name, disabled: !can });
     pick.checked = backupsPicked.has(a.name);
     pick.addEventListener("change", () => { if (pick.checked) backupsPicked.add(a.name); else backupsPicked.delete(a.name); renderOrgSection(); });
     const snap = a.failed && (!a.last || a.failed_at > a.last) ? el("span", { class: "warn", title: a.failed }, "Failed " + ago(a.failed_at)) : backupsWhen(a.last);
-    let copy = a.offsite ? backupsWhen(a.copied) : "—";
+    let copy = a.offsite ? backupsWhen(a.copied) : el("span", { class: "muted", title: a.use === "off" ? "Not copied offsite: turned off" : "Not copied offsite: no bucket" }, where[a.use] || "—");
     const copying = a.offsite && backupsCopying(a);
     if (copying) copy = el("span", { class: "muted", title: copying.title }, "Copying…");
     else if (a.offsite && a.copy_failed) copy = el("span", { class: "warn", title: a.copy_failed }, "Failed " + ago(a.copy_failed_at));
     else if (a.offsite && !a.copied) copy = el("span", { class: "muted" }, "Not yet");
+    if (a.use === "own" && a.offsite) copy = el("span", { title: "Its own bucket: " + a.offsite }, copy, " · own bucket");
     t.append(el("tr", {}, el("td", {}, pick), el("th", { scope: "row" }, a.name),
-      el("td", { title: a.offsite || "" }, where[a.use] || a.use), el("td", {}, snap), el("td", {}, copy),
+      el("td", {}, snap), el("td", { title: a.offsite || "" }, copy),
       el("td", {}, !a.offsite ? "—" : a.check_failed ? el("span", { class: "warn", title: a.check_failed }, "Failed") : backupsWhen(a.checked)),
-      el("td", { title: a.own_keep ? "The app's own number" : "The plan's number" }, a.keep + (a.own_keep ? " *" : "")),
-      el("td", {}, can && a.offsite && !copying ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", apps: [a.name] }, "Backing up " + a.name), title: "Back up " + a.name + " now" }, "Back up") : "")));
+      el("td", {}, !a.offsite ? "—" : testCell(a.restore_tested, a.restore_test_failed, testing(a))),
+      el("td", { class: "row-buttons" }, can && a.offsite && !copying ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", apps: [a.name] }, "Backing up " + a.name), title: "Back up " + a.name + " now" }, "Back up") : "",
+        can && a.offsite && !testing(a) ? el("button", { class: "small", onclick: () => backupsDo({ what: "test", apps: [a.name] }, "Testing the restore of " + a.name), title: "Restore " + a.name + "'s newest copy to a temporary folder, check it, and delete it" }, "Test") : "")));
   }
   if (v.on) {
     const sv = v.server || {};
-    const serverCopying = (v.running || []).find((j) => (j.server || !j.apps || !j.apps.length) && (!sv.last || sv.last < j.started));
+    const serverCopying = (v.running || []).find((j) => !j.test && (j.server || !j.apps || !j.apps.length) && (!sv.last || sv.last < j.started));
     let last = sv.last ? el("span", { title: new Date(sv.last).toLocaleString() + ", " + backupsSize(sv.size) }, ago(sv.last)) : el("span", { class: "muted" }, "Not yet");
     if (serverCopying) last = el("span", { class: "muted" }, "Copying…");
     else if (sv.failed && (!sv.last || sv.failed_at > sv.last)) last = el("span", { class: "warn", title: sv.failed }, "Failed " + ago(sv.failed_at));
     if (!v.vault) last = el("span", { class: "muted" }, "Needs the vault");
     t.append(el("tr", { class: "backups-server" }, el("td", {}, ""), el("th", { scope: "row", title: "The vault (encrypted), the admins, and the settings of this server" }, "This server"),
-      el("td", {}, "Bucket"), el("td", {}, "—"), el("td", {}, last),
-      el("td", {}, sv.check_failed ? el("span", { class: "warn", title: sv.check_failed }, "Failed") : backupsWhen(sv.checked)), el("td", {}, v.keep),
-      el("td", {}, can && v.vault && !serverCopying ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", server: true }, "Backing up the server"), title: "Back up this server now" }, "Back up") : "")));
+      el("td", {}, "—"), el("td", {}, last),
+      el("td", {}, sv.check_failed ? el("span", { class: "warn", title: sv.check_failed }, "Failed") : backupsWhen(sv.checked)),
+      el("td", {}, testCell(sv.restore_tested, sv.restore_test_failed, (v.running || []).find((j) => j.test && (j.server || !j.apps || !j.apps.length) && (!sv.restore_tested || sv.restore_tested < j.started)))),
+      el("td", { class: "row-buttons" }, can && v.vault && !serverCopying ? el("button", { class: "small", onclick: () => backupsDo({ what: "now", server: true }, "Backing up the server"), title: "Back up this server now" }, "Back up") : "",
+        can && v.vault && sv.last ? el("button", { class: "small", onclick: () => backupsDo({ what: "test", server: true }, "Testing the restore of this server"), title: "Restore this server's newest copy to a temporary folder, check it, and delete it" }, "Test") : "")));
   }
   const picked = [...backupsPicked];
   const appsBox = el("div", { class: "machine-block" });
@@ -3848,12 +3855,17 @@ function backupsBlock() {
     el("span", { class: "muted small" }, picked.length ? picked.length + " picked:" : "Pick apps to change them together."),
     el("button", { class: "small", disabled: !picked.length || !v.on, onclick: () => backupsDo({ what: "apps", apps: picked, on: true }, "Copies to the bucket are on for " + picked.join(", ")) }, "Copy to the bucket"),
     el("button", { class: "small", disabled: !picked.length, onclick: () => backupsDo({ what: "apps", apps: picked, on: false }, "Copies offsite are off for " + picked.join(", ")) }, "Do not copy"),
-    el("button", { class: "small", disabled: !apps.some((a) => a.offsite) || (v.running || []).length > 0, onclick: () => backupsDo({ what: "now", apps: picked }, picked.length ? "Backing up " + picked.join(", ") : "Backing up every app") }, picked.length ? "Back up picked now" : "Back up all now")));
+    el("button", { class: "small", disabled: !apps.some((a) => a.offsite) || (v.running || []).length > 0, onclick: () => backupsDo({ what: "now", apps: picked }, picked.length ? "Backing up " + picked.join(", ") : "Backing up every app") }, picked.length ? "Back up picked now" : "Back up all now"),
+    el("button", { class: "small", disabled: !apps.some((a) => a.offsite) || (v.running || []).length > 0, onclick: () => backupsDo({ what: "test", apps: picked }, picked.length ? "Testing the restore of " + picked.join(", ") : "Testing the restore of every app and the server") }, picked.length ? "Test restore picked" : "Test restore all")));
   appsBox.append(el("ul", { class: "bullets small muted" },
     el("li", {}, "Do not copy: the snapshots stay on this machine. Rollback still works."),
     el("li", {}, "Own bucket: the app uses its own bucket (hi app backups <app> --offsite). Copy to the bucket moves it to the server's bucket. Its old copies stay where they are."),
     el("li", {}, "This server: the vault (still encrypted), the admins and the settings. Not the vault's key file."),
+    el("li", {}, "Test: hi restores the newest copy to a temporary folder, reads every file back, checks it, and deletes it. Nothing else changes."),
+    el("li", {}, "A lost machine comes back with hi server restore --from " + (v.folder || "s3:https://<host>/<bucket>/" + v.name + "/") + " on a new machine, with the recovery key."),
     el("li", {}, "The snapshot keys are in the bucket too, sealed to the vault's recovery key. Keep the recovery key off this machine.")));
+  const ownKeep = apps.filter((a) => a.own_keep);
+  if (ownKeep.length) appsBox.append(el("p", { class: "muted small" }, "Keep their own number of snapshots: " + ownKeep.map((a) => a.name + " (" + a.keep + ")").join(", ") + ". The others keep " + v.keep + "."));
   for (const a of apps) if (a.offsite && a.check_failed) appsBox.append(el("p", { class: "warn small" }, a.name + ": the copy in the bucket failed its check: " + a.check_failed));
   parts.push(card("Apps", appsBox));
   // Recent runs, newest first.
@@ -3863,7 +3875,7 @@ function backupsBlock() {
   else {
     const rt = el("table", { class: "people-matrix backups-runs" });
     rt.append(el("tr", {}, el("th", {}, "When"), el("th", {}, "What"), el("th", {}, "Took"), el("th", {}, "Size"), el("th", {}, "New"), el("th", {}, "Result")));
-    const kinds = { daily: "Daily", now: "Back up now", check: "Check", server: "Server" };
+    const kinds = { daily: "Daily", now: "Back up now", check: "Check", test: "Restore test", server: "Server" };
     for (const r of runs) {
       const took = r.took < 60 ? Math.round(r.took) + " s" : Math.round(r.took / 60) + " min";
       rt.append(el("tr", {}, el("td", {}, backupsWhen(r.at)), el("td", {}, (kinds[r.what] || r.what) + ": " + (r.app || "this server")),

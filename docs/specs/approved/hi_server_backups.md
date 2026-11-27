@@ -6,7 +6,8 @@ server is recommended and a shared one works; admins (of the server and
 the machine) turn apps on and off; apps follow the server by default;
 an app may keep a bucket of its own; the server's own state is release
 2. Release 1 built as v2.6.268 (see [As built](#as-built-release-1)),
-release 2 as v2.6.270 (see [As built](#as-built-release-2)).
+release 2 as v2.6.270 (see [As built](#as-built-release-2)), release 3
+as v2.6.276 (see [As built](#as-built-release-3)).
 
 Dependencies: [hi_app_snapshots.md](hi_app_snapshots.md)
 (snapshots, restic, `hi app backups`), [hi_server_vault.md](hi_server_vault.md)
@@ -331,3 +332,43 @@ v2.6.270:
 - **Recent runs.** `backups-runs.jsonl` in the server's folder (the last
   200 steps): when, what (daily, now, check), the app or the server, how
   long, size, new bytes, and the error. The page shows the last 30.
+
+## As built (release 3)
+
+v2.6.276:
+
+- **`hi server restore --from <bucket>/<name>`**, on a machine with no
+  server and no vault: asks for the bucket's keys and the recovery
+  key's words; reads `hi-server.json` (whose folder it is); opens the
+  server's `hi-key.sealed` with the words (it must be sealed for
+  `hi-server:<name>`); restores the newest snapshot of the state into a
+  folder beside and moves `org/`, `vault/`, and `admin/` into place (each
+  refused if its place has files); opens the vault with the words and
+  seals it for this machine (`vaultUnlockHere`: the TPM, or a key file);
+  keeps the bucket's keys as given; takes over the folder's claim; keeps
+  the server's address if it is this machine's, or else this machine's
+  NetBird address (none for a server on a peer of its own); then
+  restores each app under `apps/` (listed with S3 ListObjectsV2) as
+  `hi app restore --from` does, its snapshot key from its own
+  `hi-key.sealed`, its settings and tokens from the restored vault, and
+  following the server's bucket; and starts `hi-server.service` and the
+  admin page. Apps stay down; their NetBird peers need new setup keys.
+  `--no-start`, `--no-apps`, `--apps-folder`.
+- **`hi server backups test-restore [<app>... | --server]`** and the
+  page's **Test**: the newest snapshot (not a warm-up) restored from the
+  bucket into `~/.cache/hi/restore-test/<app>` with `restic restore
+  --verify`; checked: the app's `app.json` is the app's, as many files as
+  the snapshot's summary counts, and `hi-key.sealed` sealed to this
+  vault's recovery key (for the server: `org/config.json`,
+  `vault/keys.json` with this vault's recovery key, and its sealed key);
+  then removed. Results in the status (`restore_tested`) and Recent runs.
+  It takes the backup lock, so it never runs beside a backup.
+- **The server's state** is backed up by folder name (`org`, `vault`,
+  `admin`), so a restore puts each in its place.
+- **Moves:** nothing new. The local repository moves with the app, and
+  the new server's first copy fills `<new name>/apps/<app>/` from it; the
+  old folder stays for the old server's admins to delete.
+- Checked end to end with restic: an app and the server backed up to a
+  folder, tested, the server's folder, vault, vault key, admin settings,
+  and app deleted, and `hi server restore` bringing all back with the
+  vault opening by itself and the app's settings from it.

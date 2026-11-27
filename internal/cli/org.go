@@ -54,6 +54,8 @@ func runOrg(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitCode(vaultCommand(rest, stdin, stdout), stderr)
 	case "backups":
 		return exitCode(serverBackupsCommand(rest, stdin, stdout), stderr)
+	case "restore":
+		return exitCode(serverRestoreCommand(rest, stdin, stdout), stderr)
 	case "__page":
 		return exitCode(adminServe(stderr), stderr)
 	case "__job":
@@ -117,7 +119,10 @@ On the server box:
                                        The vault every secret hi keeps is in, encrypted on disk
   hi server backups [--bucket s3:https://<host>/<bucket> | on|off <app>... | now [--server]]
                                        One S3 bucket for every app's snapshots and the server's own state, the daily
-                                       plan (--at, --keep, --limit-upload), and each app's last copy and check
+                                       plan (--at, --keep, --limit-upload), and each app's last copy and check;
+                                       test-restore [<app>... | --server] restores to a folder of its own and checks
+  hi server restore --from s3:https://<host>/<bucket>/<server>
+                                       On a new machine: the server, its vault, admin page, and apps, from the bucket
   hi server sites [allow <site> [--why W] | remove <site> | org on|off]
                                        What every app's dev box reaches beyond its own list
   hi server provider add|remove <p>    Store or remove a provider key (runpod, shadeform)
