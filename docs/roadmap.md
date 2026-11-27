@@ -6989,6 +6989,14 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.272 — Try on Stage for your own work, and space between cards
+
+- [x] Publish's "Not on the preview yet" rows have **Try on Stage** beside
+  **Add to Preview** for a workspace's work too, as a pushed branch's
+  row has; **Try on Stage again** once the work has commits since.
+- [x] The admin page's cards listed one under another (the server's
+  Backups) have the cards grid's gap between them.
+
 ### v2.6.271 — An Open menu on every app row
 
 - [x] Each app in the admin page's apps list has its own **Open ▾**
