@@ -465,6 +465,9 @@ func serverRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 	if err != nil {
 		return err
 	}
+	if !strings.HasPrefix(from, "/") && (bucket.KeyID == "" || bucket.Secret == "") || strings.TrimSpace(words) == "" {
+		return errors.New("hi server restore needs the bucket's access key ID, its secret access key, and the recovery key's 24 words")
+	}
 	// Whose folder it is, and its key, opened with the words.
 	if data, found, err := appBucketGetObject(b.folder(), serverClaimName, bucket); err != nil {
 		return fmt.Errorf("reaching %s: %w", b.folder(), err)
