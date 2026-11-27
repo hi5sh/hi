@@ -6989,6 +6989,11 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.273 — Publish's buttons side by side
+
+- [x] In Publish's rows, **Try on Stage** and **Add to Preview** sit
+  together at the row's end; the name takes the room before them.
+
 ### v2.6.272 — Try on Stage for your own work, and space between cards
 
 - [x] Publish's "Not on the preview yet" rows have **Try on Stage** beside
