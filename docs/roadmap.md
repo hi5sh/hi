@@ -6989,6 +6989,17 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.275 — Google Cloud DNS for the machine's domain; Stage at `<app>-stage`
+
+Approved spec: [hi_net_domain_googleclouddns.md](specs/approved/hi_net_domain_googleclouddns.md).
+
+- [x] `hi net domain <domain> --dns googleclouddns --key-file <key.json>`:
+  a service account's key, checked and kept in the vault; the library
+  gets it as a file of its own, mode 0600, only for each call.
+  `--project` when the key names none.
+- [x] Stage's name on a machine's domain is `<app>-stage.<domain>`;
+  `<app>-preview.<domain>` stays as a second name until a later release.
+
 ### v2.6.274 — Restore, in place of Show the next version
 
 - [x] With one piece of work alone on the preview, Publish says "Shows
