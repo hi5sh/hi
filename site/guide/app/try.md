@@ -20,7 +20,7 @@ address, so the people can try the work, on their phones too:
    traffic on the network.
 3. **On https**, with a domain of yours for the machine
    (`hi net domain`): production at `https://<app>.<domain>/` and
-   Stage at `https://<app>-preview.<domain>/`, still reached only on
+   Stage at `https://<app>-stage.<domain>/`, still reached only on
    the network (see [The addresses on https](/guide/app/dev/#the-addresses-on-https)).
 4. **Public too**, when an owner makes it so with **Make public** under
    **Addresses** in the [dev page](/guide/app/dev/#the-dev-page)'s Publish view:

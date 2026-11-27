@@ -90,7 +90,7 @@ addresses are named (`hi app addresses <app>`):
 | | On its NetBird name (the default) | On the machine's domain ([`hi net domain`](/guide/app/dev/#the-addresses-on-https)) | A name for each, A records ([`names`](/guide/app/dev/#a-name-for-each-address)) |
 |---|---|---|---|
 | **Production** | 80 | 443, `<app>.<domain>` | 80, by its name |
-| **Stage** | 8080 | 443, `<app>-preview.<domain>` | 80, by its name |
+| **Stage** | 8080 | 443, `<app>-stage.<domain>` (`<app>-preview` until a later release) | 80, by its name |
 | **Dev page** | 8888 | 443, `<app>-dev.<domain>` | 80, by its name |
 | **SSH to the dev box** | 22 | 22 | 22 |
 

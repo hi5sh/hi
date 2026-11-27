@@ -109,7 +109,7 @@ func TestNetDomain(t *testing.T) {
 	}
 	domain, ok := loadHiDomain()
 	if !ok || domain.Zone != "example.com" || domain.addressName("quarry", appSlotProduction) != "quarry.dev.example.com" ||
-		domain.addressName("quarry", appSlotPreview) != "quarry-preview.dev.example.com" || domain.addressName("quarry", appAddressDev) != "quarry-dev.dev.example.com" || domain.recordName("quarry.dev.example.com") != "quarry.dev" {
+		domain.addressName("quarry", appSlotPreview) != "quarry-stage.dev.example.com" || strings.Join(domain.addressNames("quarry", appSlotPreview), " ") != "quarry-stage.dev.example.com quarry-preview.dev.example.com" || domain.addressName("quarry", appAddressDev) != "quarry-dev.dev.example.com" || domain.recordName("quarry.dev.example.com") != "quarry.dev" {
 		t.Fatalf("%+v", domain)
 	}
 	if info, err := os.Stat(hiDomainPath()); hiDomainSecret().inVault() && err == nil {
@@ -190,10 +190,10 @@ func TestTeamHTTPS(t *testing.T) {
 		}
 		names = append(names, record.RR().Name)
 	}
-	if strings.Join(names, " ") != "payments.dev payments-preview.dev payments-dev.dev" {
+	if strings.Join(names, " ") != "payments.dev payments-stage.dev payments-preview.dev payments-dev.dev" {
 		t.Fatal(names)
 	}
-	if appInternalURL("payments", appSlotProduction) != "https://payments.dev.example.com/" || appInternalURL("payments", appSlotPreview) != "https://payments-preview.dev.example.com/" ||
+	if appInternalURL("payments", appSlotProduction) != "https://payments.dev.example.com/" || appInternalURL("payments", appSlotPreview) != "https://payments-stage.dev.example.com/" ||
 		appInternalURL("payments", appAddressDev) != "https://payments-dev.dev.example.com/" || restarts != 1 || issued != 1 {
 		t.Fatal(appInternalURL("payments", appAddressDev), restarts, issued)
 	}
@@ -207,7 +207,7 @@ func TestTeamHTTPS(t *testing.T) {
 	// A new address for the peer: its record follows.
 	ip = netip.MustParseAddr("100.100.20.7")
 	b.applyHTTPS()
-	if records, _ := dns.GetRecords(context.Background(), "example.com."); len(records) != 3 || records[0].RR().Data != "100.100.20.7" || dns.sets != 2 || restarts != 1 {
+	if records, _ := dns.GetRecords(context.Background(), "example.com."); len(records) != 4 || records[0].RR().Data != "100.100.20.7" || dns.sets != 2 || restarts != 1 {
 		t.Fatalf("%+v %d", records, restarts)
 	}
 	// A failure waits before trying again, not every minute.
@@ -235,7 +235,7 @@ func TestTeamHTTPS(t *testing.T) {
 	for _, address := range appHTTPSAddresses {
 		relays[address] = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, address) })
 	}
-	for name, want := range map[string]string{"payments.dev.example.com": "production", "payments-preview.dev.example.com": "preview", "payments-dev.dev.example.com": "dev", "other.dev.example.com": "nothing of this app's"} {
+	for name, want := range map[string]string{"payments.dev.example.com": "production", "payments-stage.dev.example.com": "preview", "payments-preview.dev.example.com": "preview", "payments-dev.dev.example.com": "dev", "other.dev.example.com": "nothing of this app's"} {
 		server, client := net.Pipe()
 		go func() {
 			listener := &appOneConn{conn: server}
@@ -318,7 +318,7 @@ func TestTeamHTTPSFromDevPageOnly(t *testing.T) {
 	if state, _ := loadTeamSlot("payments", appSlotProduction); state.URL != "https://payments.dev.example.com/" || state.Container != "app-1" {
 		t.Fatalf("%+v", state)
 	}
-	if records, _ := hiTestDNS.GetRecords(context.Background(), "example.com."); len(records) != 3 {
+	if records, _ := hiTestDNS.GetRecords(context.Background(), "example.com."); len(records) != 4 {
 		t.Fatalf("%+v", records)
 	}
 }

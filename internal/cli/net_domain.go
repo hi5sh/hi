@@ -66,6 +66,9 @@ type hiDNSField struct {
 	Label    string
 	Secret   bool
 	Optional bool
+	// File says the value is a file's contents: hi asks for its path, or
+	// takes --key-file, and keeps what is in it.
+	File bool
 }
 
 // hiDNSKind is a DNS provider hi works with.
@@ -100,6 +103,9 @@ var hiDNSKinds = map[string]hiDNSKind{
 		{Key: "key_alg", Label: "TSIG algorithm (Enter for hmac-sha256)", Optional: true}, {Key: "key", Label: "TSIG secret (base64)", Secret: true}},
 		Help: "a TSIG key the server takes dynamic updates of the zone with",
 		New:  func() hiDNSProvider { return &rfc2136.Provider{} }},
+	"googleclouddns": {Name: "Google Cloud DNS", Fields: []hiDNSField{{Key: hiGoogleDNSKeyField, Label: "Path to the service account's key file (JSON)", Secret: true, File: true}},
+		Help: "a service account's key file (JSON) with a role that may change the zone's records, such as DNS Administrator (roles/dns.admin) on the zone",
+		New:  func() hiDNSProvider { return &hiGoogleDNS{} }},
 }
 
 func hiDNSKindNames() []string {
@@ -167,15 +173,26 @@ func hiDomainZone(domain string) (string, error) {
 
 // addressName is a team's address's name in the domain, one label under
 // it for the wildcard certificate: quarry.dev.example.com for production,
-// quarry-preview for the preview, and quarry-dev for the dev page.
+// quarry-stage for Stage, and quarry-dev for the dev page.
 func (d hiDomain) addressName(team, address string) string {
 	switch address {
 	case appSlotPreview:
-		return team + "-preview." + d.Domain
+		return team + "-stage." + d.Domain
 	case appAddressDev:
 		return team + "-dev." + d.Domain
 	}
 	return team + "." + d.Domain
+}
+
+// addressNames are all of an address's names: its name, then the names it
+// had before, which still lead to it. Stage was quarry-preview until
+// v2.6.275; that name goes in a later release.
+func (d hiDomain) addressNames(team, address string) []string {
+	names := []string{d.addressName(team, address)}
+	if address == appSlotPreview {
+		names = append(names, team+"-preview."+d.Domain)
+	}
+	return names
 }
 
 // recordName is a name relative to the zone, as libdns takes it.
@@ -186,13 +203,15 @@ func (d hiDomain) recordName(fqdn string) string {
 const hiDomainUsage = `usage: hi net domain                                  the domain this machine's apps' addresses use
        hi net domain <domain> --dns <provider> [--zone <zone>]
                                                      use it: hi asks for the provider's token
+       hi net domain <domain> --dns googleclouddns --key-file <key.json> [--project <id>]
+                                                     Google Cloud DNS, with a service account's key
        hi net domain --email <address>               where Let's Encrypt writes about the certificate
        hi net domain --unset                         back to plain http on the NetBird names
-providers: ` + "gandi, cloudflare, route53, hetzner, digitalocean, rfc2136"
+providers: ` + "gandi, cloudflare, route53, hetzner, digitalocean, rfc2136, googleclouddns"
 
 // runNetDomain is hi net domain.
 func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	var domain, provider, zone string
+	var domain, provider, zone, keyFile, project string
 	email, emailGiven := "", false
 	unset := false
 	for i := 0; i < len(args); i++ {
@@ -203,6 +222,12 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		case args[i] == "--zone" && i+1 < len(args):
 			i++
 			zone = strings.ToLower(strings.TrimSuffix(args[i], "."))
+		case args[i] == "--key-file" && i+1 < len(args):
+			i++
+			keyFile = args[i]
+		case args[i] == "--project" && i+1 < len(args):
+			i++
+			project = strings.TrimSpace(args[i])
 		case args[i] == "--unset":
 			unset = true
 		case args[i] == "--email" && i+1 < len(args):
@@ -248,7 +273,7 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 			fmt.Fprintln(stdout, "The apps' addresses are on plain http, on their NetBird names. Give them a domain of your own for https: hi net domain dev.example.com --dns gandi")
 			return nil
 		}
-		fmt.Fprintf(stdout, "The apps' addresses are on https at <app>.%[1]s (production), <app>-preview.%[1]s, and <app>-dev.%[1]s (the dev page), with the DNS at %[2]s (zone %[3]s), since %[4]s.\n", current.Domain, current.Provider, current.Zone, current.Set.Local().Format("Jan 2, 2006"))
+		fmt.Fprintf(stdout, "The apps' addresses are on https at <app>.%[1]s (production), <app>-stage.%[1]s (Stage), and <app>-dev.%[1]s (the dev page), with the DNS at %[2]s (zone %[3]s), since %[4]s.\n", current.Domain, current.Provider, current.Zone, current.Set.Local().Format("Jan 2, 2006"))
 		if current.Email != "" {
 			fmt.Fprintf(stdout, "Let's Encrypt writes to %s about the certificate.\n", current.Email)
 		} else {
@@ -277,8 +302,44 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 			return fmt.Errorf("hi doesn't know the DNS provider %q; it knows %s", provider, strings.Join(hiDNSKindNames(), ", "))
 		}
 		fmt.Fprintf(stdout, "%s needs %s.\n", kind.Name, kind.Help)
+		if (keyFile != "" || project != "") && provider != "googleclouddns" {
+			return errors.New("--key-file and --project are for --dns googleclouddns")
+		}
+		if project != "" {
+			next.Settings["gcp_project"] = project
+		}
 		for _, field := range kind.Fields {
 			var value string
+			if field.File {
+				path := keyFile
+				if path == "" {
+					fmt.Fprintf(stdout, "%s: ", field.Label)
+					path, err = readLine(stdin)
+					if errors.Is(err, io.EOF) {
+						err = nil
+					}
+					if err != nil {
+						return err
+					}
+					path = strings.TrimSpace(path)
+				}
+				if path == "" {
+					return fmt.Errorf("no %s was entered", strings.ToLower(field.Label))
+				}
+				data, err := os.ReadFile(hiExpandHome(path))
+				if err != nil {
+					return err
+				}
+				keyProject, err := hiGoogleDNSKey(data)
+				if err != nil {
+					return fmt.Errorf("%s: %w", path, err)
+				}
+				if keyProject == "" && project == "" {
+					return fmt.Errorf("%s names no project (project_id); give it with --project <id>", path)
+				}
+				next.Settings[field.Key] = string(data)
+				continue
+			}
 			if field.Secret {
 				value, err = appAskSecret(stdin, stdout, field.Label)
 			} else {
@@ -326,7 +387,10 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		return err
 	}
 	fmt.Fprintf(stdout, "%s answers for %s (%d records). hi keeps the token on this machine only.\n", provider, zone, len(records))
-	fmt.Fprintf(stdout, "Within a few minutes each app's production is on https://<app>.%[1]s/, its preview on https://<app>-preview.%[1]s/, and its dev page on https://<app>-dev.%[1]s/, with their names in the zone pointing at the app's NetBird address and a certificate for *.%[1]s from Let's Encrypt. Then ask for the dev page's new link in Slack (/hi-<app> dev).\n", domain)
+	if keyFile != "" {
+		fmt.Fprintf(stdout, "hi keeps the key in the vault, so you may delete %s now.\n", keyFile)
+	}
+	fmt.Fprintf(stdout, "Within a few minutes each app's production is on https://<app>.%[1]s/, its Stage on https://<app>-stage.%[1]s/, and its dev page on https://<app>-dev.%[1]s/, with their names in the zone pointing at the app's NetBird address and a certificate for *.%[1]s from Let's Encrypt. Then ask for the dev page's new link in Slack (/hi-<app> dev).\n", domain)
 	fmt.Fprintln(stdout, "In NetBird's Access Control, let the people and the owners reach the apps' peers on TCP 443 too. Each app's peer starts again once for it, which ends SSH sessions to the dev box; the agents and production keep running.")
 	return nil
 }

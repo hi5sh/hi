@@ -1,15 +1,16 @@
 # Google Cloud DNS for `hi net domain`
 
-Status: Draft (2026-11-27), for review. This replaces the earlier draft
+Status: Approved (2026-11-27). Releases 1 and 2 built as v2.6.275 (see
+[As built](#as-built-v26275)). This replaces the earlier draft
 of the same day, `hi server domain` (a front door at the server, for
 every app's names), which is shelved: see [Considered and
 rejected](#considered-and-rejected).
 
-Dependencies: [hi_net.md](../approved/hi_net.md) (`hi net domain`: the
+Dependencies: [hi_net.md](hi_net.md) (`hi net domain`: the
 machine's domain, its records, its wildcard certificate over DNS-01,
-certmagic and libdns), [hi_app_addresses.md](../approved/hi_app_addresses.md)
+certmagic and libdns), [hi_app_addresses.md](hi_app_addresses.md)
 (the address modes, among them `names`), and
-[hi_server_vault.md](../approved/hi_server_vault.md) (where the
+[hi_server_vault.md](hi_server_vault.md) (where the
 provider's key is kept).
 
 ## Goal
@@ -160,3 +161,22 @@ The peer's ports 80, 8080, and 8888 stay, whatever the mode.
 - How it finds the zone: by the domain's name in the project, or does it
   need the zone's ID?
 - The size the Google API client adds to hi's binary.
+
+## As built (v2.6.275)
+
+- `googleclouddns` in `hiDNSKinds`, with `libdns/googleclouddns` v1.2.0
+  behind a wrapper of hi's (`internal/cli/net_domain_google.go`). The
+  wrapper keeps the key's JSON in the domain's settings (the vault), and
+  gives the library a file of its own in `$XDG_RUNTIME_DIR`, mode 0600,
+  only for each call. The Google client reads the file when it is made,
+  and keeps the key in memory after that.
+- `--key-file <path>` (or the path, asked at the prompt; `~/` is the
+  home). hi checks that it is a service account's key, with a private
+  key and a client email. `--project <id>` when the key has no
+  `project_id`. Both flags are refused with another provider.
+- Stage is `<app>-stage.<domain>`. `<app>-preview.<domain>` is a second
+  record and a second name the peer answers, until a later release.
+- hi's binary is about 6 MB larger (38.8 to 44.6 MB), for Google's API
+  client.
+- Not yet checked against a real Google Cloud zone: the first
+  `hi net domain … --dns googleclouddns` on a machine is that check.

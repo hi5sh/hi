@@ -838,7 +838,8 @@ The email is optional: Let's Encrypt writes to it if the certificate's
 renewal keeps failing, well before it ends.
 
 - **The names:** production is `https://<app>.dev.example.com/`,
-  Stage `https://<app>-preview.dev.example.com/`, and the dev page
+  Stage `https://<app>-stage.dev.example.com/` (`<app>-preview`, its
+  name before v2.6.275, still works for now), and the dev page
   `https://<app>-dev.dev.example.com/`. hi keeps their records in the
   domain's DNS, pointing at the app's NetBird address: anyone can look
   the names up, but only the network reaches them. The http addresses on
@@ -848,8 +849,9 @@ renewal keeps failing, well before it ends.
   before it ends. Nothing reaches the machine from outside, and the app
   names stay out of the certificates' public logs.
 - **The DNS provider** is a setting: Gandi, Cloudflare, Amazon Route 53,
-  Hetzner, DigitalOcean, or a DNS server of your own that takes RFC 2136
-  updates. Give hi a token that may change only that zone's records; it
+  Hetzner, DigitalOcean, Google Cloud DNS (`--dns googleclouddns
+  --key-file <key.json>`, a service account's key), or a DNS server of
+  your own that takes RFC 2136 updates. Give hi a token that may change only that zone's records; it
   stays on the machine, in the server's [vault](/guide/reference/vault/),
   encrypted. To move to another provider, run the command again with it.
 - **NetBird:** the people's and the owners' Access Control policies need

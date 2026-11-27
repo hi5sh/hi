@@ -7,7 +7,7 @@ package cli
 // nears its end), and answers TLS on a socket the team's peer passes its
 // port 443 to, passing each name to its address. Once the names and the
 // certificate are there, the links are https://<team>.<domain>/ for
-// production, <team>-preview for the preview, and <team>-dev for the dev
+// production, <team>-stage for Stage (<team>-preview too, its old name), and <team>-dev for the dev
 // page, which the owners get in their DMs.
 
 import (
@@ -63,6 +63,15 @@ func appHTTPSHost(team, address string) string {
 		return ""
 	}
 	return hiDomain{Domain: domain}.addressName(team, address)
+}
+
+// appHTTPSHosts are all of an address's https names, its old ones too.
+func appHTTPSHosts(team, address string) []string {
+	domain := appHTTPSDomain(team)
+	if domain == "" {
+		return nil
+	}
+	return hiDomain{Domain: domain}.addressNames(team, address)
 }
 
 // appHTTPSAddresses are the addresses on https, each at its own name.
@@ -204,9 +213,10 @@ func (b *appBroker) applyHTTPS() error {
 	var names []string
 	var records []libdns.Record
 	for _, address := range appHTTPSAddresses {
-		name := domain.addressName(b.team, address)
-		names = append(names, name)
-		records = append(records, libdns.Address{Name: domain.recordName(name), TTL: appHTTPSTTL, IP: ip})
+		for _, name := range domain.addressNames(b.team, address) {
+			names = append(names, name)
+			records = append(records, libdns.Address{Name: domain.recordName(name), TTL: appHTTPSTTL, IP: ip})
+		}
 	}
 	var record appHTTPSRecord
 	if data, err := os.ReadFile(appHTTPSRecordFile(b.team)); err == nil {
@@ -297,9 +307,11 @@ func appHTTPSHandler(team string, relays map[string]http.Handler) http.Handler {
 			host = h
 		}
 		for address, relay := range relays {
-			if name := appHTTPSHost(team, address); name != "" && strings.EqualFold(host, name) {
-				relay.ServeHTTP(w, r)
-				return
+			for _, name := range appHTTPSHosts(team, address) {
+				if strings.EqualFold(host, name) {
+					relay.ServeHTTP(w, r)
+					return
+				}
 			}
 		}
 		http.Error(w, "hi: nothing of this app's is at "+host, http.StatusMisdirectedRequest)

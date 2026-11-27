@@ -26,7 +26,7 @@ description: Every hi command and option in one place.
 | `hi verify strix`                | Check a Strix Halo workstation                         |
 | `hi net`                         | Enroll in NetBird; `status`, `down`, `reconnect`       |
 | `hi net expose <port>`           | A local service on a temporary public address; see below |
-| `hi net domain [<domain> --dns <provider> [--zone <zone>] \| --email <address> \| --unset]` | https for the apps' addresses, under a domain of yours; see [The addresses on https](/guide/app/dev/#the-addresses-on-https) |
+| `hi net domain [<domain> --dns <provider> [--zone <zone>] [--key-file <key.json>] \| --email <address> \| --unset]` | https for the apps' addresses, under a domain of yours; see [The addresses on https](/guide/app/dev/#the-addresses-on-https) |
 | `hi people …`                    | Everyone on this machine, by email: their level in each app, their SSH key; see below |
 | `hi adduser <name>`              | Create a user with GPU access                          |
 | `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi server` and app services still on the old version |

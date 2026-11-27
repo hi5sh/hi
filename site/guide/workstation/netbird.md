@@ -67,12 +67,15 @@ hi net domain --unset                       # back to plain http
 ```
 
 Each app's production is then on `https://<app>.dev.example.com/`, its
-preview on `<app>-preview`, and its dev page on `<app>-dev`. hi keeps
+Stage on `<app>-stage` (`<app>-preview`, its old name, still works for
+now), and its dev page on `<app>-dev`. hi keeps
 those names in the domain's DNS, pointing at the app's NetBird address,
 so only the network reaches them, and gets one wildcard certificate from
 Let's Encrypt by proving the domain with a TXT record. `--dns` takes
-`gandi`, `cloudflare`, `route53`, `hetzner`, `digitalocean`, or `rfc2136`
-(a DNS server of your own); `--zone` names the zone when it isn't the
+`gandi`, `cloudflare`, `route53`, `hetzner`, `digitalocean`, `rfc2136`
+(a DNS server of your own), or `googleclouddns` (Google Cloud DNS, with
+`--key-file <key.json>`: a service account's key with DNS Administrator
+on the zone; hi keeps it and you can delete the file); `--zone` names the zone when it isn't the
 domain's registered part. hi checks that the token can read the zone
 before it keeps it, in `~/.local/share/hi/domain.json`, which only you
 can read.
