@@ -345,7 +345,7 @@ function renderBar() {
   $("crumb").hidden = !named;
   $("sections").hidden = !openApp || movedOpen();
   $("org-sections").hidden = !orgOpen();
-  $("open-box").hidden = !openApp || movedOpen();
+  placeOpenBox();
   $("crumb-app").textContent = named;
   document.title = (named ? named + " · " : "") + "Admin page · " + state.machine;
   $("bar-note").textContent = restarting ? "The admin page is restarting…" : state.running ? (state.running === 1 ? "A job runs" : state.running + " jobs run") : "";
@@ -354,8 +354,6 @@ function renderBar() {
 function renderApps() {
   const query = $("apps-search").value.trim().toLowerCase();
   const list = $("apps-list");
-  // The Open menu may sit on a row: out first, or it goes with the row.
-  if (list.contains($("open-box"))) $("right-toggle").before($("open-box"));
   list.replaceChildren();
   const apps = state.apps.filter((a) => !query || a.name.includes(query) || (a.purpose || "").toLowerCase().includes(query));
   // The server first, on a machine that runs it: opened as an app is.
@@ -380,6 +378,8 @@ function renderApps() {
     }
     const unseen = unseenIncidents(app.name, app.incidents_opened);
     if (unseen) li.append(el("span", { class: "count", "data-app": app.name, title: unseen + " open incident" + (unseen === 1 ? "" : "s") + " that you did not see yet" }, unseen));
+    li.append(el("button", { class: "row-open", "data-open": app.name, "aria-haspopup": "menu", "aria-expanded": "false", title: "Open production, Stage or the dev page of " + app.name,
+      onclick: (event) => { event.stopPropagation(); toggleMenu(app.name, event.currentTarget); } }, "Open ▾"));
     if (app.name === openApp) li.dataset.app = app.name;
     list.append(li);
   }
@@ -659,7 +659,7 @@ function renderOverview() {
     $("say-text").value = typing.text;
     if (typing.focus) $("say-text").focus();
   }
-  renderOpenMenu();
+  if (menuApp) renderOpenMenu(menuApp);
 }
 
 // signinsCard is the Overview's Sign-ins: each subscription the app's
@@ -747,53 +747,65 @@ function boxUsage(name, boxes) {
   }
 }
 
-// The Open ▾ menu: production, Stage, and the dev page. It sits on the open
-// app's row in the apps list, next to where the app was picked; with the
-// list not shown (another view, the panel closed, or a search that leaves
-// the app out), in the bar, where it was before.
+// The Open ▾ menu: production, Stage, and the dev page. Each app's row in
+// the apps list has its own Open button; with the list not shown (another
+// view, the panel closed, or a search that leaves the app out), the open
+// app's button is in the bar. One menu serves them all. It lives in the
+// body, fixed under the button that opened it: inside a panel, the panel
+// would clip it, and the other panel and its drag edge would lie over it.
+let menuApp = "";          // the app the menu is open for; "" is closed
+let menuButton = null;     // the button that opened it
+document.body.append($("open-menu"));
 function placeOpenBox() {
-  const openBox = $("open-box"), openBoxHome = $("right-toggle");
-  const row = viewShown("apps") ? $("apps-list").querySelector("li[data-app]") : null;
-  if (row) {
-    if (openBox.parentNode !== row) row.append(openBox);
-  } else if (openBox.nextSibling !== openBoxHome) {
-    openBoxHome.before(openBox);
-  }
-  openBox.classList.toggle("in-list", Boolean(row));
-  if (!$("open-menu").hidden) placeOpenMenu();
+  const inList = viewShown("apps") && Boolean($("apps-list").querySelector("li[data-app]"));
+  $("open-box").hidden = !openApp || movedOpen() || inList;
+  if (!menuApp) return;
+  // The list was drawn again: the menu follows its app's new button.
+  const rowButton = $("apps-list").querySelector('button[data-open="' + CSS.escape(menuApp) + '"]');
+  const button = rowButton && viewShown("apps") ? rowButton : menuApp === openApp && !$("open-box").hidden ? $("open-button") : null;
+  if (!button) { closeMenu(); return; }
+  if (button !== menuButton) { menuButton.setAttribute("aria-expanded", "false"); menuButton = button; button.setAttribute("aria-expanded", "true"); }
+  placeOpenMenu();
 }
-// In the list, the menu opens fixed under its button: the panel would clip it.
 function placeOpenMenu() {
-  const menu = $("open-menu");
-  if (!$("open-box").classList.contains("in-list")) {
-    menu.style.position = menu.style.top = menu.style.left = menu.style.right = "";
-    return;
-  }
-  const at = $("open-button").getBoundingClientRect();
-  menu.style.position = "fixed";
-  menu.style.right = "auto";
+  const menu = $("open-menu"), at = menuButton.getBoundingClientRect();
   menu.style.top = at.bottom + 4 + "px";
   menu.style.left = Math.max(8, Math.min(at.left, window.innerWidth - menu.offsetWidth - 8)) + "px";
 }
-function renderOpenMenu() {
+function renderOpenMenu(app) {
   const menu = $("open-menu");
+  const shown = state && state.apps.find((a) => a.name === app);
+  const addresses = (shown && shown.addresses) || (detail && detail.name === app ? detail.addresses : []) || [];
   menu.replaceChildren();
-  for (const address of (detail ? detail.addresses : [])) {
-    menu.append(el("button", { role: "menuitem", onclick: () => { closeMenu(); window.open(address.url, "_blank", "noopener,noreferrer"); } }, address.what + " ↗"));
+  for (const address of addresses) {
+    menu.append(address.url
+      ? el("button", { role: "menuitem", onclick: () => { closeMenu(); window.open(address.url, "_blank", "noopener,noreferrer"); } }, address.what + " ↗")
+      : el("button", { role: "menuitem", disabled: true, title: "After the app joins NetBird" }, address.what + " (waits)"));
   }
-  menu.append(el("button", { role: "menuitem", onclick: () => { closeMenu(); openDevPage(openApp); } }, "Dev page ↗"));
+  menu.append(el("button", { role: "menuitem", onclick: () => { closeMenu(); openDevPage(app); } }, "Dev page ↗"));
 }
-function closeMenu() { $("open-menu").hidden = true; $("open-button").setAttribute("aria-expanded", "false"); }
-$("open-button").addEventListener("click", (event) => {
-  event.stopPropagation();
-  const menu = $("open-menu");
-  menu.hidden = !menu.hidden;
-  $("open-button").setAttribute("aria-expanded", String(!menu.hidden));
-  if (!menu.hidden) placeOpenMenu();
-});
+function toggleMenu(app, button) {
+  const again = menuApp === app && menuButton === button;
+  closeMenu();
+  if (again) return;
+  menuApp = app;
+  menuButton = button;
+  renderOpenMenu(app);
+  $("open-menu").hidden = false;
+  button.setAttribute("aria-expanded", "true");
+  placeOpenMenu();
+}
+function closeMenu() {
+  $("open-menu").hidden = true;
+  if (menuButton) menuButton.setAttribute("aria-expanded", "false");
+  menuApp = "";
+  menuButton = null;
+}
+$("open-button").addEventListener("click", (event) => { event.stopPropagation(); toggleMenu(openApp, event.currentTarget); });
 $("apps-list").addEventListener("scroll", closeMenu);
 window.addEventListener("resize", closeMenu);
-document.addEventListener("click", (event) => { if (!$("open-box").contains(event.target)) closeMenu(); });
+document.addEventListener("click", (event) => { if (!$("open-menu").contains(event.target)) closeMenu(); });
+document.addEventListener("keydown", (event) => { if (event.key === "Escape" && menuApp) { const b = menuButton; closeMenu(); b.focus(); } });
 
 // openDevPage opens the dev page as the admin is in the app. The window
 // opens now, while the click counts, and goes to the link once the app's
