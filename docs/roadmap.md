@@ -6989,6 +6989,14 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.278 — A restore asks for its keys before it starts
+
+- [x] `hi server restore` refuses empty bucket keys or recovery words
+  before reaching the bucket, instead of the bucket's 403.
+- [x] Checked for real: `hi server restore --drill` of a test server onto
+  a spare machine brought back its vault and six apps, each matching the
+  live server (hi_server_backups.md, As built, release 3).
+
 ### v2.6.277 — Rehearse a server restore on a spare machine
 
 - [x] `hi server restore --drill`: everything comes back as in a real
