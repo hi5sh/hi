@@ -6989,6 +6989,15 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.271 — An Open menu on every app row
+
+- [x] Each app in the admin page's apps list has its own **Open ▾**
+  (Production, Stage, Dev page); no need to open the app first. The bar
+  keeps the open app's button when the list is not shown.
+- [x] The menu is drawn over both panels: the right panel's drag edge no
+  longer catches the pointer over it. An address that waits for NetBird
+  shows "(waits)" and does not open a blank tab.
+
 ### v2.6.270 — The server backs itself up, and one queue for every app
 
 Approved spec: [hi_server_backups.md](specs/approved/hi_server_backups.md) (release 2).
