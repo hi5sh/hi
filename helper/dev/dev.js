@@ -1193,7 +1193,7 @@
       onclick: function () { previewOnly(space); } });
   }
   // Preview only this change: the branch alone on the preview, for a look
-  // without the rest; Show the next version puts that back.
+  // without the rest; Restore puts that back.
   function previewOnly(space) {
     toast("Putting only " + workName(space) + " on the preview…", true);
     act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; }, "ship:" + space.id);
@@ -1291,9 +1291,9 @@
     if (s.preview_branch) {
       var alone = workSpaces().filter(function (space) { return space.branch === s.preview_branch; })[0];
       var pushedAlone = /^pushed\//.test(s.preview_branch) ? s.preview_branch.slice(7) + " (pushed to " + pushedForge() + ")" : "";
-      preview.push(el("div", { class: "flow-what" }, [document.createTextNode("Shows only "), el("strong", { text: alone ? workName(alone) : pushedAlone || s.preview_branch }), document.createTextNode(", not the next version. "), showNext()]));
+      preview.push(el("div", { class: "flow-what" }, [el("span", { class: "flow-what-text" }, [document.createTextNode("Shows only "), el("strong", { text: alone ? workName(alone) : pushedAlone || s.preview_branch }), document.createTextNode(", to try it. It is not added.")]), showNext()]));
     } else if (s.preview_old) {
-      preview.push(el("div", { class: "flow-what" }, [document.createTextNode("Shows an earlier state of the next version, without the newest changes. "), showNext()]));
+      preview.push(el("div", { class: "flow-what" }, [el("span", { class: "flow-what-text", text: "Shows an earlier state, without the newest changes." }), showNext()]));
     } else if (!s.preview) {
       preview.push(el("div", { class: "muted small", text: "Nothing on it yet." }));
     }
@@ -1514,8 +1514,8 @@
   }
   // showNext puts the next version back on the preview.
   function showNext() {
-    return el("button", { class: "small", text: "Show the next version", busy: "preview-dev", title: "Put the next version on the preview again. This adds or removes nothing.", onclick: function () {
-      toast("Putting the next version on the preview…", true);
+    return el("button", { text: "Restore", busy: "preview-dev", title: "Put the preview back as it was: production and the changes added to it. This adds or removes nothing.", onclick: function () {
+      toast("Restoring the preview…", true);
       act("", "preview-dev", {}, function (r) { return r.text; }, "preview-dev");
     } });
   }

@@ -6989,6 +6989,12 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.274 — Restore, in place of Show the next version
+
+- [x] With one piece of work alone on the preview, Publish says "Shows
+  only …, to try it. It is not added." and its button is **Restore**,
+  at the row's end as Add to Preview is.
+
 ### v2.6.273 — Publish's buttons side by side
 
 - [x] In Publish's rows, **Try on Stage** and **Add to Preview** sit

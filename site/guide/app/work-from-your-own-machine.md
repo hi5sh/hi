@@ -125,8 +125,8 @@ You do these once.
 6. **Try it on Stage.** **Try on Stage** puts only your branch on Stage. When the
    branch is new there, Stage first gets a fresh copy of production's
    data. Stage is one address for the whole team: while your branch is
-   on it, nobody sees the next version there. **Show the next version**,
-   under Preview in the same panel, puts that back.
+   on it, nobody sees the next version there. **Restore**, under Preview
+   in the same panel, puts the preview back as it was.
 
    If you push again after that, the row says "On the preview as it was
    before the last push". Click **Try on Stage again** to see the new

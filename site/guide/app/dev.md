@@ -603,8 +603,8 @@ dot.
   **Try on Stage**, beside it in Publish (or **Preview only this
   change** in its **⋯**), shows that one alone on the preview, with a
   fresh copy of production's data, and adds nothing (`hi dev preview`);
-  **Try on Stage again** once it has commits since. **Show the next
-  version** puts the rest back.
+  **Try on Stage again** once it has commits since. **Restore** puts
+  the preview back as it was.
 
   When a piece of work changes the same lines as a change already on the
   preview, Add to Preview opens a dialog that stays until you choose:
@@ -627,7 +627,7 @@ dot.
   ```
   Add to Preview             it joins the next version; the preview shows that
   Try on Stage               the preview shows only it (nothing is added)
-  Show the next version      the preview shows the next version again
+  Restore                    the preview shows the next version again
   Publish v16                the next version goes to production
   ```
 - **Done ✓**, beside a piece of work in Workspaces (and beside its
@@ -642,7 +642,7 @@ dot.
   which adds each in turn; one that clashes has its agent asked to
   combine them, which adds it when it's done); the **Preview** with its address, what it shows (the next
   version, "v15 + 2 changes", and those changes; or "Shows only …" with
-  **Show the next version**), and **Publish v16**; and **Production**,
+  **Restore**), and **Publish v16**; and **Production**,
   the version everyone uses. Under it:
   - **Publish v16** puts the next version in production, with notes for
     the channel drafted from its changes. It also offers to close the

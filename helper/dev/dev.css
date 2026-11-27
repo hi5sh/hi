@@ -835,6 +835,8 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .flow-head strong { font-weight: 500; color: var(--bright); }
 .flow-head a { font-size: 12.5px; }
 .flow-what { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.flow-what-text { flex: 1 1 auto; min-width: 0; } /* Restore sits at the end, as Add to Preview does */
+.flow-what > button { flex: none; white-space: nowrap; }
 .flow-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .flow-list li { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 2px 0 2px 12px; border-left: 3px solid var(--accent); border-radius: 2px; }
 .flow-merge { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; margin-top: 6px; white-space: nowrap; }
