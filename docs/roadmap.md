@@ -6989,6 +6989,18 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.276 — Restore a whole server from the bucket, and test restores
+
+Approved spec: [hi_server_backups.md](specs/approved/hi_server_backups.md) (release 3).
+
+- [x] `hi server restore --from s3:https://<host>/<bucket>/<server>` on a
+  new machine: the server's folder, vault (opened with the recovery key,
+  sealed for this machine), admin page, and every app with its settings
+  from that vault; the bucket's folder taken over.
+- [x] `hi server backups test-restore [<app>... | --server]` and **Test**
+  on the admin page's Backups: each newest copy restored to a folder of
+  its own, read back, checked, and removed.
+
 ### v2.6.275 — Google Cloud DNS for the machine's domain; Stage at `<app>-stage`
 
 Approved spec: [hi_net_domain_googleclouddns.md](specs/approved/hi_net_domain_googleclouddns.md).
