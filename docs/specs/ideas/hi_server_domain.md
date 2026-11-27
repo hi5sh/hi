@@ -255,6 +255,9 @@ The server's **Addresses** section:
 
 ## Answers from the review (2026-11-27)
 
+- **Flat names:** `demo.corp.example`, `demo-stage.corp.example`,
+  `demo-dev.corp.example`. One wildcard certificate and one record cover
+  every app. Today's hand-kept two-level names change once.
 - **The admin page is at `admin.<domain>`.**
 - **No extra access control for the dev pages.** The IT team has not
   kept people apart by environment before. The dev page's own links
@@ -265,15 +268,7 @@ The server's **Addresses** section:
 
 ## Open questions
 
-1. **Flat names (`demo-dev.corp.example`) or two levels
-   (`dev.demo.corp.example`)?** Recommended: flat. One wildcard
-   certificate and one DNS record cover every app, now and later. Two
-   levels would need a record and a certificate per app. hi could make
-   them with a whole-zone key, but that is one certificate per app to
-   renew and watch, and a name hi writes in the zone for each new app.
-   The cost of flat: today's hand-kept names change once
-   (`dev.demo.corp.example` to `demo-dev.corp.example`).
-2. **Several servers on one domain** (one per machine, for now). Either
+1. **Several servers on one domain** (one per machine, for now). Either
    each server's apps are under its own name
    (`demo-dev.m2.corp.example`, one record `*.m2.corp.example` per
    server), or only one server per domain has names, and the other
