@@ -6989,6 +6989,13 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.277 — Rehearse a server restore on a spare machine
+
+- [x] `hi server restore --drill`: everything comes back as in a real
+  restore, but nothing starts, the bucket's folder stays the old
+  server's, and the restored copy has no bucket, so a rehearsal on a
+  spare machine never touches the server that still runs.
+
 ### v2.6.276 — Restore a whole server from the bucket, and test restores
 
 Approved spec: [hi_server_backups.md](specs/approved/hi_server_backups.md) (release 3).
