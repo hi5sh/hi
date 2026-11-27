@@ -69,6 +69,8 @@ button.app-card:hover { background: none; }
 .admin-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 12px; margin-top: 16px; }
 .admin-card { min-width: 0; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 2px 16px 14px; }
 .admin-card.wide { grid-column: 1 / -1; }
+/* Cards outside a grid (a section that lists them one under another): the grid's gap between them. */
+:not(.admin-cards) > .admin-card { margin-top: 12px; }
 .admin-card > h2 { margin: 12px 0 8px; }
 .admin-card > .list > li:last-child { border-bottom: 0; padding-bottom: 2px; }
 .admin-card > .data-actions { margin: 4px 0 8px; }
