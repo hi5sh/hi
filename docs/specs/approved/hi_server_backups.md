@@ -376,3 +376,12 @@ v2.6.276:
   folder, tested, the server's folder, vault, vault key, admin settings,
   and app deleted, and `hi server restore` bringing all back with the
   vault opening by itself and the app's settings from it.
+- **A real drill (2026-11-27):** `hi server restore --drill` of a test
+  server from a Backblaze bucket onto a spare, clean machine (hi updated
+  from v1.0.3 to v2.6.277 first) took a few minutes for six apps (about
+  17 GB). The vault opened with the recovery key and resealed with a key
+  file (that machine's TPM library was missing). All six apps' `app.json`,
+  `versions.json`, repository HEADs, and vault paths matched the live
+  server; their data differed by under 1% from what the live apps had
+  written since the snapshot. Nothing started there, and the live server
+  ran on with no failed unit.
