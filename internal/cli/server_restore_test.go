@@ -126,6 +126,32 @@ func TestServerRestoreRoundTrip(t *testing.T) {
 	if config, _ := loadTeam("payments"); config.backups().Offsite != filepath.Join(bucket, "aiw11", "apps", "payments") {
 		t.Fatal(config.backups())
 	}
+	// A drill on another "new machine": all comes back, nothing claims the
+	// folder, and the copy has no bucket to write to.
+	claimed, _ := os.ReadFile(filepath.Join(bucket, "aiw11", serverClaimName))
+	for _, gone := range []string{orgDir, vaultDir(), os.Getenv("HI_VAULT_KEY_DIR"), adminDir(), appDir("payments"), appSnapshotsDir("payments"), filepath.Join(apps, "app-payments")} {
+		os.RemoveAll(gone)
+	}
+	vaultForget()
+	out.Reset()
+	if err := serverRestoreCommand([]string{"--from", bucket + "/aiw11", "--drill", "--apps-folder", apps}, strings.NewReader(words+"\n"), &out); err != nil {
+		t.Fatal(err, out.String())
+	}
+	if now, _ := os.ReadFile(filepath.Join(bucket, "aiw11", serverClaimName)); !bytes.Equal(now, claimed) {
+		t.Fatal("a drill took the folder over")
+	}
+	if b := loadServerBackups(); b.on() || b.Claim != "" {
+		t.Fatalf("the drill's copy can write to the bucket: %+v", b)
+	}
+	if _, err := loadServerBucket(loadServerBackups()); err == nil {
+		t.Fatal("the drill's copy kept the bucket's keys")
+	}
+	if config, _ := loadTeam("payments"); config.backups().Offsite != "" {
+		t.Fatal("a drilled app copies offsite:", config.backups())
+	}
+	if !strings.Contains(out.String(), "The drill is done") {
+		t.Fatal(out.String())
+	}
 	// Once more is refused: this machine has a server now.
 	if err := serverRestoreCommand([]string{"--from", bucket + "/aiw11", "--no-start"}, strings.NewReader(words+"\n"), &out); err == nil || !strings.Contains(err.Error(), "runs a server already") {
 		t.Fatal(err)

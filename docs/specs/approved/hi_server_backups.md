@@ -353,7 +353,11 @@ v2.6.276:
   `hi-key.sealed`, its settings and tokens from the restored vault, and
   following the server's bucket; and starts `hi-server.service` and the
   admin page. Apps stay down; their NetBird peers need new setup keys.
-  `--no-start`, `--no-apps`, `--apps-folder`.
+  `--no-start`, `--no-apps`, `--apps-folder`. `--drill` (v2.6.277)
+  rehearses it on a spare machine while the old server runs: it implies
+  `--no-start`, leaves the folder's claim alone, and clears the restored
+  copy's bucket and its keys, so nothing there writes to the old
+  server's folder.
 - **`hi server backups test-restore [<app>... | --server]`** and the
   page's **Test**: the newest snapshot (not a warm-up) restored from the
   bucket into `~/.cache/hi/restore-test/<app>` with `restic restore

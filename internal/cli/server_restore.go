@@ -379,7 +379,7 @@ func serverBucketApps(folder string, bucket appBucket) ([]string, error) {
 // ---------------------------------------------------------------------------
 // hi server restore
 
-const serverRestoreUsage = `usage: hi server restore --from s3:https://<host>/<bucket>/<server> [--region <r>] [--apps-folder <dir>] [--no-apps] [--no-start]`
+const serverRestoreUsage = `usage: hi server restore --from s3:https://<host>/<bucket>/<server> [--region <r>] [--apps-folder <dir>] [--no-apps] [--no-start] [--drill]`
 
 // serverRestoreCommand brings a server back on this machine from its
 // folder in the bucket: its state, its vault (opened with the recovery
@@ -387,7 +387,7 @@ const serverRestoreUsage = `usage: hi server restore --from s3:https://<host>/<b
 // which stay down until an admin starts each.
 func serverRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	var from, region, appsFolder string
-	var noApps, noStart bool
+	var noApps, noStart, drill bool
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		value := func() (string, error) {
@@ -409,6 +409,11 @@ func serverRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 			noApps = true
 		case "--no-start":
 			noStart = true
+		case "--drill":
+			// A rehearsal while the server still runs elsewhere: nothing
+			// starts, the bucket's folder stays the other server's, and the
+			// copy here never writes to it.
+			drill, noStart = true, true
 		default:
 			return usageError{serverRestoreUsage}
 		}
@@ -539,26 +544,39 @@ func serverRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 		return fmt.Errorf("opening the restored vault with the recovery key: %w", err)
 	}
 	fmt.Fprintf(stdout, "The vault opens with the recovery key, and from now on with %s on this machine.\n", kind)
-	// This machine writes to the server's folder from now on: the bucket's
-	// keys as given, and the folder's claim taken over.
-	current := loadServerBackups()
-	current.Bucket, current.Name = b.Bucket, b.Name
-	if region != "" {
-		current.Region = region
-	}
-	if !strings.HasPrefix(from, "/") {
-		encoded, _ := json.Marshal(serverBucketKeys{KeyID: bucket.KeyID, Secret: bucket.Secret})
-		if err := writeSecretFile(serverBucketSecret(dir), append(encoded, '\n'), 0o600); err != nil {
+	if drill {
+		// The copy here keeps no bucket: it can't write to the folder the
+		// server it came from still writes to.
+		removeSecretFile(serverBucketSecret(dir))
+		current := loadServerBackups()
+		current.Bucket, current.Region, current.Claim = "", "", ""
+		if err := saveServerBackups(current); err != nil {
 			return err
 		}
+		fmt.Fprintf(stdout, "A drill: the copy here has no bucket, and %s/ stays the other server's.\n", b.folder())
 	}
-	if claim, err := serverClaimFolder(current, bucket, true); err != nil {
-		fmt.Fprintf(stdout, "hi: %v; hi server backups --bucket %s --take-over claims it\n", err, current.Bucket)
-	} else {
-		current.Claim = claim
-	}
-	if err := saveServerBackups(current); err != nil {
-		return err
+	// This machine writes to the server's folder from now on: the bucket's
+	// keys as given, and the folder's claim taken over.
+	if !drill {
+		current := loadServerBackups()
+		current.Bucket, current.Name = b.Bucket, b.Name
+		if region != "" {
+			current.Region = region
+		}
+		if !strings.HasPrefix(from, "/") {
+			encoded, _ := json.Marshal(serverBucketKeys{KeyID: bucket.KeyID, Secret: bucket.Secret})
+			if err := writeSecretFile(serverBucketSecret(dir), append(encoded, '\n'), 0o600); err != nil {
+				return err
+			}
+		}
+		if claim, err := serverClaimFolder(current, bucket, true); err != nil {
+			fmt.Fprintf(stdout, "hi: %v; hi server backups --bucket %s --take-over claims it\n", err, current.Bucket)
+		} else {
+			current.Claim = claim
+		}
+		if err := saveServerBackups(current); err != nil {
+			return err
+		}
 	}
 	if err := serverRestoreListen(dir, stdout); err != nil {
 		fmt.Fprintf(stdout, "hi: the server's address: %v\n", err)
@@ -584,6 +602,10 @@ func serverRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 		}
 	}
 	fmt.Fprintln(stdout)
+	if drill {
+		fmt.Fprintln(stdout, "The drill is done: nothing is started here. Don't start the server or its apps on this machine while the old one runs: they would take its NetBird peers.")
+		return nil
+	}
 	if noStart {
 		fmt.Fprintln(stdout, "The server isn't started (--no-start). hi server run starts it here; hi update installs its services.")
 	} else if err := serverRestoreStart(dir, stdout); err != nil {

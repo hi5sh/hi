@@ -283,7 +283,8 @@ server and the admin page. The apps stay down: `hi app up` each, after
 giving each its NetBird setup key (a peer's identity is never in a
 snapshot). A server that listened on the old machine's address listens
 on this one's, and devices join again. `--no-start` leaves it all
-stopped, `--no-apps` brings back the server alone, and `--apps-folder`
+stopped, `--drill` rehearses it on a spare machine while the old one
+runs (nothing starts, and the copy never writes to the bucket), `--no-apps` brings back the server alone, and `--apps-folder`
 says where the apps' folders go.
 
 `hi server backups test-restore` (or **Test** on the admin page's
