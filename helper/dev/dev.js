@@ -1180,6 +1180,18 @@
       stuckSay(error.message, true);
     });
   });
+  // Try on Stage, in Publish: the work alone on Stage, as a pushed
+  // branch's row has it; again once it has commits since.
+  function tryButton(space) {
+    if (!(space.ahead > 0)) return null;
+    var s = state.status || {};
+    var onStage = space.branch && s.preview_branch === space.branch;
+    var stale = onStage && s.preview_commit && space.commit && s.preview_commit !== space.commit;
+    if (onStage && !stale) return null;
+    return el("button", { text: stale ? "Try on Stage again" : "Try on Stage", busy: "ship:" + space.id,
+      title: stale ? "Stage shows this work without its newest commits. Put it on Stage again." : "Put only this work on Stage now, with a copy of production's data. It is not added yet.",
+      onclick: function () { previewOnly(space); } });
+  }
   // Preview only this change: the branch alone on the preview, for a look
   // without the rest; Show the next version puts that back.
   function previewOnly(space) {
@@ -1268,6 +1280,7 @@
           el("span", { class: "flow-name" }, [el("span", { text: workName(space) }), ticketOf(space) ? el("span", { class: "muted", text: " #" + ticketOf(space) }) : null,
             space.out && !space.ahead ? el("span", { class: "small muted flow-sub", text: "Taken out of the preview" }) : null,
             space.dirty ? el("span", { class: "small warn flow-sub", text: "Changes not committed. Ask the agent to commit them." }) : null]),
+          stage.add ? tryButton(space) : null,
           stage.add ? addButton(space) : null,
         ]);
       })) : null, merge, pushed.length ? renderPushed(pushed) : null]);

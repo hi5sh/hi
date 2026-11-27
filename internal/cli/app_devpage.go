@@ -410,6 +410,9 @@ type appDevSpace struct {
 	Ahead   int    `json:"ahead,omitempty"`
 	Dirty   bool   `json:"dirty,omitempty"`
 	Checked bool   `json:"checked,omitempty"` // Ahead and Dirty are known
+	// Commit is its worktree's HEAD: Publish tells by it when the work
+	// has commits since it went on Stage alone.
+	Commit string `json:"commit,omitempty"`
 	// Out says its change was in dev and was taken out since: Add to
 	// Preview puts it back.
 	Out bool `json:"out,omitempty"`
@@ -564,7 +567,8 @@ dev="origin/$1"; shift
 for p in "$@"; do
   ahead=$(git -C "$p" rev-list --count "$dev..HEAD" 2>/dev/null) || ahead=-1
   dirty=$(git -C "$p" status --porcelain 2>/dev/null | head -n 1 | wc -l)
-  printf '%s\t%s\t%s\n' "$p" "$ahead" "$dirty"
+  head=$(git -C "$p" rev-parse HEAD 2>/dev/null)
+  printf '%s\t%s\t%s\t%s\n' "$p" "$ahead" "$dirty" "$head"
 done`
 	out, err := appDevBoxExec(team, append([]string{"sh", "-c", script, "sh", config.Branch}, paths...)...)
 	if err != nil {
@@ -572,8 +576,12 @@ done`
 	}
 	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
 		fields := strings.Split(line, "\t")
-		if len(fields) != 3 {
+		if len(fields) < 3 {
 			continue
+		}
+		head := ""
+		if len(fields) > 3 {
+			head = fields[3]
 		}
 		ahead, err := strconv.Atoi(fields[1])
 		if err != nil || ahead < 0 {
@@ -581,7 +589,7 @@ done`
 		}
 		for i := range spaces {
 			if spaces[i].Path == fields[0] {
-				spaces[i].Ahead, spaces[i].Dirty, spaces[i].Checked = ahead, fields[2] != "0", true
+				spaces[i].Ahead, spaces[i].Dirty, spaces[i].Checked, spaces[i].Commit = ahead, fields[2] != "0", true, head
 			}
 		}
 	}

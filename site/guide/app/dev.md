@@ -600,9 +600,11 @@ dot.
   preview. Changes not committed stay in the worktree ("Unsaved changes:
   ask the agent to commit them"). Add several pieces of work and try
   them together on the preview, then **Publish** them at once.
-  **Preview only this change** (its **⋯**) shows that one alone on the
-  preview, with a fresh copy of production's data, and adds nothing
-  (`hi dev preview`); **Show the next version** puts the rest back.
+  **Try on Stage**, beside it in Publish (or **Preview only this
+  change** in its **⋯**), shows that one alone on the preview, with a
+  fresh copy of production's data, and adds nothing (`hi dev preview`);
+  **Try on Stage again** once it has commits since. **Show the next
+  version** puts the rest back.
 
   When a piece of work changes the same lines as a change already on the
   preview, Add to Preview opens a dialog that stays until you choose:
@@ -624,7 +626,7 @@ dot.
 
   ```
   Add to Preview             it joins the next version; the preview shows that
-  Preview only this change   the preview shows only it (nothing is added)
+  Try on Stage               the preview shows only it (nothing is added)
   Show the next version      the preview shows the next version again
   Publish v16                the next version goes to production
   ```
