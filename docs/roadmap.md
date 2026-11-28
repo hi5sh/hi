@@ -6989,6 +6989,18 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.281 — Time on the dev pages
+
+- [x] People on the admin page shows each person's time on the apps' dev
+  pages ("3 h 20 min on dev pages"), and their page has **On dev
+  pages**: the time a dev page was open, shown, and in use.
+- [x] The dev page's presence socket counts it: a person is in use while
+  one of their windows is, once however many windows they have. A
+  window is idle after 3 minutes without a key, a click, or a scroll, or
+  at once when it's hidden; the quiet minutes before are taken back.
+- [x] Each app keeps the totals in `run/face-time.json`, written each
+  minute while someone works; the People view adds them up by person.
+
 ### v2.6.280 — Workers in the chat
 
 - [x] What Claude Code runs in the background (a command, an agent, a

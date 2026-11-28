@@ -228,9 +228,11 @@ then ignored; **Ignore…** asks why, and the app's people see it.
 not at the day's check.
 
 On the left, **People** has everyone with a level in any app, one row a
-person, by email, as a list or a grid with a column per app. A person
-opens in the middle: their level in each app, each change the app's own
-and said in its channel; their Slack accounts; their SSH key, for every
+person, by email, as a list or a grid with a column per app. Each row
+shows the person's time on the dev pages: the time a dev page was open,
+shown, and in use (a key, a click, or a scroll in the last 3 minutes),
+added up over the apps. A person opens in the middle: their level in
+each app, each change the app's own and said in its channel; their Slack accounts; their SSH key, for every
 dev box where they build; **Email a sign-in link**; and **Remove from
 everything…**, with their email typed. **+ Add** adds someone by email,
 with a level in each app, and the organisation's email domains are set

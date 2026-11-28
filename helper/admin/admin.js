@@ -27,6 +27,12 @@ function el(tag, attrs, ...children) {
   return node;
 }
 
+// faceTime is a person's time on the dev pages: "45 min", "3 h 20 min".
+function faceTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  if (m < 60) return m + " min";
+  return Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "");
+}
 function ago(when) {
   const t = new Date(when).getTime();
   if (!t) return "";
@@ -3446,6 +3452,7 @@ function peopleAppsBlock() {
     for (const person of people) {
       const bits = [personSummary(person)];
       if (person.admin) bits.push("admin");
+      if (person.face_time >= 60) bits.push(faceTime(person.face_time) + " on dev pages");
       list.append(el("li", { class: middle === ":person/" + person.key ? "current" : "" },
         el("button", { class: "stask-row person-row", onclick: () => openPerson(person.key), title: person.email || person.key },
           el("span", { class: "person-line" }, el("span", { class: "stask-title" }, personTitle(person)),
@@ -3536,6 +3543,7 @@ function renderPerson() {
       if (answer) personDo({ action: "key", key: person.key, ssh_key: answer.field });
     } }, person.ssh_key ? "New key" : "Set key") : null,
     person.ssh_key && person.email ? el("button", { class: "link-button", onclick: async () => { if (await ask({ title: "Remove the SSH key of " + title + "?", text: "hi removes it from the dev box of each app. They cannot SSH in after this.", ok: "Remove" })) personDo({ action: "key", key: person.key, ssh_key: "" }); } }, "Remove") : null));
+  who.append(el("dt", {}, "On dev pages"), el("dd", { title: "Time with a dev page open, shown, and in use. A window without a key, click, or scroll for 3 minutes does not count." }, person.face_time >= 60 ? faceTime(person.face_time) : el("span", { class: "muted" }, "not yet")));
   who.append(el("dt", {}, "Signed in"), el("dd", {}, person.signed_in ? "by email " + ago(person.signed_in) : "never by email", person.invited ? el("span", { class: "muted" }, " · invited " + ago(person.invited)) : null));
   parts.push(who);
   // Their level in each app.

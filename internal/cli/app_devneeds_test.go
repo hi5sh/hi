@@ -42,7 +42,7 @@ func TestAppDevNeedsYouDM(t *testing.T) {
 		t.Fatal("someone's here:", dms())
 	}
 	// Their window idle: nobody's really here. Nobody known started it: the owners.
-	board.setIdle(id, true)
+	board.setIdle(id, true, 0)
 	defer board.leave(id)
 	if err := b.checkNeedsYou(start.Add(11 * time.Minute)); err != nil {
 		t.Fatal(err)

@@ -20,15 +20,17 @@ import (
 // adminPersonRow is one person on the page. Key is their email, or, for
 // someone the machine knows only by a Slack member ID, that.
 type adminPersonRow struct {
-	Key      string            `json:"key"`
-	Email    string            `json:"email,omitempty"`
-	Name     string            `json:"name,omitempty"`
-	Slack    []string          `json:"slack"`
-	SSHKey   string            `json:"ssh_key,omitempty"` // its label, never the key
-	Outside  bool              `json:"outside,omitempty"`
-	SignedIn time.Time         `json:"signed_in,omitzero"`
-	Invited  time.Time         `json:"invited,omitzero"`
-	Admin    bool              `json:"admin,omitempty"`
+	Key      string    `json:"key"`
+	Email    string    `json:"email,omitempty"`
+	Name     string    `json:"name,omitempty"`
+	Slack    []string  `json:"slack"`
+	SSHKey   string    `json:"ssh_key,omitempty"` // its label, never the key
+	Outside  bool      `json:"outside,omitempty"`
+	SignedIn time.Time `json:"signed_in,omitzero"`
+	Invited  time.Time `json:"invited,omitzero"`
+	Admin    bool      `json:"admin,omitempty"`
+	// FaceTime is the seconds they spent on the apps' dev pages, in use.
+	FaceTime float64           `json:"face_time,omitempty"`
 	Levels   map[string]string `json:"levels"` // app → owner, pro, vibe, contributor
 	// IDs is the entry for them in each app's lists.
 	IDs map[string]string `json:"ids"`
@@ -135,6 +137,18 @@ func (s *adminServer) peopleView() adminPeopleView {
 				if label := appDevKeyLabel(config.Name, id); !strings.HasPrefix(label, "no SSH key") {
 					row.SSHKey = label
 				}
+			}
+		}
+	}
+	// Their time on the dev pages, by the ID each page knew them by.
+	for _, config := range configs {
+		for who, spent := range loadAppFaceTime(config.Name) {
+			key := who
+			if person, ok := directory.person(who); ok {
+				key = person.Email
+			}
+			if row := rows[key]; row != nil {
+				row.FaceTime += spent.Seconds
 			}
 		}
 	}

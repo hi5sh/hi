@@ -43,8 +43,10 @@
     el.hidden = !people.length;
   }
 
+  // An idle window says how long it was without input, so its time in
+  // use (hi's face time, presence.go) leaves that out.
   function send() {
-    if (socket && socket.readyState === 1) socket.send(JSON.stringify({ idle: idle }));
+    if (socket && socket.readyState === 1) socket.send(JSON.stringify(idle ? { idle: true, quiet: document.hidden ? 0 : Date.now() - lastInput } : { idle: false }));
   }
 
   function connect() {
@@ -52,7 +54,7 @@
     if (socket && socket.readyState <= 1) return;
     var url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + location.pathname.replace(/[^/]*$/, "") + "api/presence";
     var opened = socket = new WebSocket(url);
-    opened.onopen = function () { wait = 1000; send(); };
+    opened.onopen = function () { wait = 1000; if (document.hidden) idle = true; send(); };
     opened.onmessage = function (event) {
       try { render(JSON.parse(event.data).people || []); } catch (e) { /* not ours */ }
     };
@@ -65,11 +67,15 @@
   }
 
   // Input marks the window active at once; a check every 15 s marks it
-  // idle after IDLE_AFTER without any.
+  // idle after IDLE_AFTER without any. A hidden window is idle at once.
   function input() {
     lastInput = Date.now();
     if (idle) { idle = false; send(); }
   }
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { if (!idle) { idle = true; send(); } }
+    else input();
+  });
   ["pointerdown", "keydown", "wheel", "touchstart", "focus"].forEach(function (kind) {
     window.addEventListener(kind, input, { passive: true, capture: true });
   });
@@ -78,7 +84,7 @@
     if (Date.now() - moved > 5000) { moved = Date.now(); input(); }
   }, { passive: true });
   setInterval(function () {
-    var now = Date.now() - lastInput > IDLE_AFTER;
+    var now = document.hidden || Date.now() - lastInput > IDLE_AFTER;
     if (now !== idle) { idle = now; send(); }
   }, 15000);
   // A window that's closed says so at once; the server would also notice

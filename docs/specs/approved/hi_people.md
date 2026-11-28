@@ -75,7 +75,8 @@ So:
 
 **People, on the left**, is a list: each person's name, email (or "no
 email yet"), their levels in short ("Owner in 3", "payments: Pro Dev"),
-admin, and when they last signed in by email. A search, a filter by app,
+admin, their time on the dev pages ("3 h 20 min on dev pages"), and
+when they last signed in by email. A search, a filter by app,
 and a **Grid** that shows every level at once, each a badge that opens
 the person. **+ Add** opens Add someone. Notes say when the machine
 sends no email, and which apps' Slack apps lack `users:read.email`. At
@@ -86,6 +87,12 @@ the bottom, the organisation's domains, with Change.
 - Their email (Rename, or Give an email to someone known only in Slack),
   their Slack accounts (Link one), their SSH key (Set key, New key,
   Remove), and when they signed in by email and were invited.
+- **On dev pages**: their face time, added up over the apps: the time a
+  dev page of theirs was open, shown, and in use. A window without a
+  key, a click, or a scroll for 3 minutes, or hidden, does not count,
+  and the quiet minutes before it went idle are taken back. Each app
+  keeps its totals in `run/face-time.json`, by who the page knew them
+  as; the presence socket (`presence.go`) counts them.
 - **Apps**: a level for each app, each change the app's own, asked first
   and said in its channel, with the entry the app lists them as.
 - **Email a sign-in link**: one email, with a link for each app they have

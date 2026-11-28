@@ -216,6 +216,9 @@ func TestPeopleJoinedByEmail(t *testing.T) {
 		return "", ""
 	}
 	appSlackUserByEmail = func(token, email string) (string, string) { return "", "" }
+	// Their time on each app's dev page adds up, by the ID each knew.
+	appFaceTimeAdd("payments", "U07ANNA", 30*time.Minute)
+	appFaceTimeAdd("ledger", "W09ANNA", 90*time.Minute)
 	s := &adminServer{}
 	view := s.peopleView()
 	var anna []adminPersonRow
@@ -227,7 +230,7 @@ func TestPeopleJoinedByEmail(t *testing.T) {
 			t.Fatalf("a row of their own for %s", row.Key)
 		}
 	}
-	if len(anna) != 1 || anna[0].Levels["payments"] != "pro" || anna[0].Levels["ledger"] != "owner" || anna[0].Name != "Anna Berg" || len(anna[0].Slack) != 2 {
+	if len(anna) != 1 || anna[0].Levels["payments"] != "pro" || anna[0].Levels["ledger"] != "owner" || anna[0].Name != "Anna Berg" || len(anna[0].Slack) != 2 || anna[0].FaceTime != 7200 {
 		t.Fatalf("%+v", anna)
 	}
 	// Signing in by email in either app finds their Slack account there.
