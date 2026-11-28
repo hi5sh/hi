@@ -7,6 +7,7 @@ package cli
 // admin_reach.go how people reach it, admin_jobs.go the long actions.
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -1037,7 +1038,7 @@ func adminAddressCommand(args []string, stdout io.Writer) error {
 		config.Host, config.HTTPS, config.DomainName = "", false, ""
 	case hasDomain && strings.HasSuffix(host, "."+domain.Domain):
 		// A name under the machine's domain: hi keeps its record and
-		// certificate, as for admin.<domain>.
+		// certificate, as for the peer's name.
 		label := strings.TrimSuffix(host, "."+domain.Domain)
 		if err := adminCheckDomainLabel(label); err != nil {
 			return err
@@ -1046,14 +1047,18 @@ func adminAddressCommand(args []string, stdout io.Writer) error {
 			return errors.New("--https is for a name your IT team keeps; hi has a certificate for " + host)
 		}
 		config.Host, config.HTTPS, config.DomainName = "", false, label
-		if label == "admin" {
-			config.DomainName = ""
-		}
 	default:
 		if err := appCheckHost(host); err != nil {
 			return err
 		}
 		config.Host, config.HTTPS = host, https
+	}
+	// Another machine on the domain, or the IT team, may have the name:
+	// refused now, not found later in the page's log.
+	if config.Host == "" && hasDomain {
+		if err := adminCheckNameFree(config, domain); err != nil {
+			return err
+		}
 	}
 	unlock := adminLock()
 	err := saveAdminConfig(config)
@@ -1061,12 +1066,46 @@ func adminAddressCommand(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	// A name refused before is looked at again now.
+	os.Remove(adminHTTPSTakenFile())
 	adminRecord(adminActor(), "", "moved the admin page to "+adminURL(config))
 	fmt.Fprintf(stdout, "The admin page is at %s\n", adminURL(config))
 	if config.Host != "" {
 		fmt.Fprintf(stdout, "Ask your IT team for %s: an A record to %s, or their proxy to it on port 80. The admin page answers there in a minute.\n", config.Host, adminPolicyTarget(config))
 	} else if hasDomain && adminHasDomain(config) {
 		fmt.Fprintf(stdout, "hi puts %s.%s in the zone, at %s, with the certificate for *.%s, in a minute. NetBird's policy to it needs TCP 443.\n", adminDomainLabel(config), domain.Domain, adminPolicyTarget(config), domain.Domain)
+	}
+	return nil
+}
+
+// adminCheckNameFree refuses the page's name under the domain when the
+// zone shows another machine's, or a record hi didn't make, has it. A zone
+// hi can't read now doesn't stop the move: the page tries again.
+func adminCheckNameFree(config adminConfig, domain hiDomain) error {
+	if !adminHasDomain(config) {
+		return nil
+	}
+	dns, err := domain.provider()
+	if err != nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	zone, err := hiDomainZoneNames(ctx, dns, domain)
+	if err != nil {
+		return nil
+	}
+	ip, _ := adminDomainTarget(config)
+	var record appHTTPSRecord
+	if data, err := os.ReadFile(adminHTTPSRecordFile()); err == nil {
+		json.Unmarshal(data, &record)
+	}
+	var mine []string
+	if !record.Marked {
+		mine = record.Names
+	}
+	if err := hiDomainCheck(zone, domain, []string{adminDomainLabel(config) + "." + domain.Domain}, ip, mine); err != nil {
+		return fmt.Errorf("%w; pick another name", err)
 	}
 	return nil
 }

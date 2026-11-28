@@ -49,7 +49,7 @@ machine's NetBird address.
 | **7374** | the server's data proxy for cloud jobs | its peer, or the machine's NetBird address, published with `netbird expose` while a run needs it | rented machines in `hi compute run --data` and `up --data` | a run token, for that run's data |
 | **1984** | admin page, `hi-admin.service` | its own peer `ws1-admin` when it has one; else the server's peer `ws1-server`, beside the server, or the machine's NetBird address; always `127.0.0.1` too | the server's owner and admins | a link, then a browser cookie |
 | **80** | admin page | the same peer as 1984, for a name your IT team points at it (`hi server address`) | admins | as on 1984 |
-| **443** | admin page over https | its own peer, or the server's peer when that carries the page, as `admin.<domain>` (or the name `hi server address` gives), with [`hi net domain`](/guide/workstation/netbird/) | admins | as on 1984 |
+| **443** | admin page over https | its own peer, or the server's peer when that carries the page, as `<peer>.<domain>`, the peer's name (or the name `hi server address` gives), with [`hi net domain`](/guide/workstation/netbird/) | admins | as on 1984 |
 
 `hi net expose` refuses 1984: the admin page can do anything the account
 that runs hi can do.

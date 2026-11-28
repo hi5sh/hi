@@ -668,7 +668,8 @@ func TestAdminAddressAndReach(t *testing.T) {
 	}
 	os.WriteFile(adminHTTPSDomainFile(), []byte("corp.example\n"), 0o600)
 	saveHiDomain(hiDomain{Domain: "corp.example", Zone: "corp.example", Provider: "test", Set: time.Now()})
-	if adminURL(config) != "https://admin.corp.example/" {
+	// No name set: the peer's, so machines on one domain don't share one.
+	if adminURL(config) != "https://ws1-admin.corp.example/" {
 		t.Fatal(adminURL(config))
 	}
 	saveAdminConfig(config)
@@ -688,7 +689,13 @@ func TestAdminAddressAndReach(t *testing.T) {
 	if err := adminAddressCommand([]string{"admin.corp.example"}, io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	if config, _ = loadAdminConfig(); config.DomainName != "" || adminURL(config) != "https://admin.corp.example/" {
+	if config, _ = loadAdminConfig(); config.DomainName != "admin" || adminURL(config) != "https://admin.corp.example/" {
+		t.Fatalf("%+v", config)
+	}
+	if err := adminAddressCommand([]string{"default"}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if config, _ = loadAdminConfig(); config.DomainName != "" || adminURL(config) != "https://ws1-admin.corp.example/" {
 		t.Fatalf("%+v", config)
 	}
 	if err := adminAddressCommand([]string{"admin.it.example", "--https"}, &out); err != nil {

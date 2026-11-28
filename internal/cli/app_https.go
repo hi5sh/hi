@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/caddyserver/certmagic"
-	"github.com/libdns/libdns"
 	"go.uber.org/zap"
 )
 
@@ -82,11 +81,20 @@ var appHTTPSAddresses = []string{appSlotProduction, appSlotPreview, appAddressDe
 type appHTTPSRecord struct {
 	Names []string `json:"names"`
 	IP    string   `json:"ip"`
-	Set   time.Time
+	// Marked says the names have this machine's mark beside them
+	// (net_domain_owner.go); records from before marks get one once.
+	Marked bool `json:"marked,omitempty"`
+	Set    time.Time
 }
 
 func appHTTPSRecordFile(team string) string {
 	return filepath.Join(appDevDir(team), "https-record.json")
+}
+
+// appHTTPSTakenFile is why the app's names aren't in the zone: another
+// machine, or the IT team, has one.
+func appHTTPSTakenFile(team string) string {
+	return filepath.Join(appDevDir(team), "https-taken")
 }
 
 // appPeerIP is the team's peer's NetBird address; tests replace it.
@@ -211,22 +219,30 @@ func (b *appBroker) applyHTTPS() error {
 	}
 	// The addresses' names, at the peer's address.
 	var names []string
-	var records []libdns.Record
 	for _, address := range appHTTPSAddresses {
-		for _, name := range domain.addressNames(b.team, address) {
-			names = append(names, name)
-			records = append(records, libdns.Address{Name: domain.recordName(name), TTL: appHTTPSTTL, IP: ip})
-		}
+		names = append(names, domain.addressNames(b.team, address)...)
 	}
 	var record appHTTPSRecord
 	if data, err := os.ReadFile(appHTTPSRecordFile(b.team)); err == nil {
 		json.Unmarshal(data, &record)
 	}
-	if strings.Join(record.Names, " ") != strings.Join(names, " ") || record.IP != ip.String() {
-		if _, err := dns.SetRecords(ctx, domain.Zone+".", records); err != nil {
-			return fmt.Errorf("setting %s in %s at %s: %w", strings.Join(names, ", "), domain.Zone, domain.Provider, err)
+	if strings.Join(record.Names, " ") != strings.Join(names, " ") || record.IP != ip.String() || !record.Marked {
+		// Another machine on the domain, or the IT team, may have a name
+		// already (net_domain_owner.go).
+		takenFile := appHTTPSTakenFile(b.team)
+		if why := hiDomainTakenNow(takenFile); why != "" {
+			return errors.New(why)
 		}
-		record = appHTTPSRecord{Names: names, IP: ip.String(), Set: time.Now().UTC()}
+		var mine []string
+		if !record.Marked {
+			mine = record.Names
+		}
+		err := hiDomainKeep(ctx, dns, domain, names, ip, mine, appHTTPSTTL)
+		hiDomainNoteTaken(takenFile, err)
+		if err != nil {
+			return err
+		}
+		record = appHTTPSRecord{Names: names, IP: ip.String(), Marked: true, Set: time.Now().UTC()}
 		data, _ := json.MarshalIndent(record, "", "  ")
 		if err := writeFileAtomic(appHTTPSRecordFile(b.team), append(data, '\n'), 0o600); err != nil {
 			return err

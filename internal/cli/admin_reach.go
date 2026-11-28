@@ -4,7 +4,7 @@ package cli
 // it): on a NetBird peer of its own where podman runs, the small rootless
 // container apps' addresses use, named <machine>-admin; or on the
 // machine's own NetBird address, as the org server listens. On the peer,
-// port 80 is for a name the IT team keeps, and 443 is admin.<domain> when
+// port 80 is for a name the IT team keeps, and 443 is <peer>.<domain> when
 // the machine has a domain. It is never public.
 
 import (
@@ -21,8 +21,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/libdns/libdns"
 )
 
 const (
@@ -34,6 +32,8 @@ func adminPeerDir() string         { return filepath.Join(adminDir(), "netbird")
 func adminSetupKeyPath() string    { return filepath.Join(adminDir(), adminSetupKeyFile) }
 func adminHTTPSSocket() string     { return filepath.Join(adminSocketDir(), "https.sock") }
 func adminHTTPSDomainFile() string { return filepath.Join(adminDir(), "https-domain") }
+func adminHTTPSRecordFile() string { return filepath.Join(adminDir(), "https-record.json") }
+func adminHTTPSTakenFile() string  { return filepath.Join(adminDir(), "https-taken") }
 
 // adminPeerJoined says the admin page's peer is on the network.
 func adminPeerJoined() bool { return fileExists(filepath.Join(adminPeerDir(), "default.json")) }
@@ -146,10 +146,59 @@ func adminHTTPSDomain() string {
 	return strings.TrimSpace(string(data))
 }
 
-// adminDomainLabel is the page's name under the machine's domain: admin,
-// unless hi server address gave it another.
+// adminDomainLabel is the page's name under the machine's domain: the one
+// hi server address gave it, else the name of the peer that carries it.
 func adminDomainLabel(config adminConfig) string {
-	return firstNonEmpty(config.DomainName, "admin")
+	return firstNonEmpty(config.DomainName, adminDefaultDomainLabel(config))
+}
+
+// adminDefaultDomainLabel is the page's name under the machine's domain
+// when none is set: its NetBird peer's, so the page has one name on the
+// network and in DNS (aiw11-server.corp.example, as the peer is
+// aiw11-server.netbird.cloud), and machines that share the domain don't
+// want the same name.
+func adminDefaultDomainLabel(config adminConfig) string {
+	var name string
+	if config.Reach == adminReachPeer && adminPeerJoined() {
+		name = adminPeerName()
+	} else if peer := adminServerPeer(config); peer != "" {
+		name = peer
+		if _, err := netip.ParseAddr(peer); err == nil {
+			// NetBird gave only an address: the name it joined with.
+			name = ""
+			if server, err := loadServerConfig(adminOrgDir()); err == nil && server.Peer != nil {
+				name = server.Peer.Name
+			}
+		}
+	}
+	label, _, _ := strings.Cut(strings.ToLower(name), ".")
+	if !adminDomainLabelPattern.MatchString(label) {
+		return adminPeerHostname()
+	}
+	return label
+}
+
+// adminKeepOldName keeps the page at admin.<domain> on a machine where hi
+// put it there before the peer's name was the default (v2.6.282), so its
+// address doesn't move.
+func adminKeepOldName() {
+	unlock := adminLock()
+	defer unlock()
+	config, ok := loadAdminConfig()
+	if !ok || config.DomainName != "" {
+		return
+	}
+	var record appHTTPSRecord
+	if data, err := os.ReadFile(adminHTTPSRecordFile()); err != nil || json.Unmarshal(data, &record) != nil {
+		return
+	}
+	for _, name := range record.Names {
+		if strings.HasPrefix(name, "admin.") {
+			config.DomainName = "admin"
+			saveAdminConfig(config)
+			return
+		}
+	}
 }
 
 // adminHasDomain says the page is, or will be, at <name>.<domain>: the
@@ -380,10 +429,10 @@ var adminStopPeer = func() {
 }
 
 // ---------------------------------------------------------------------------
-// admin.<domain>
+// <name>.<domain>
 
-// adminApplyHTTPS has the page at <name>.<domain> (admin, unless hi
-// server address named it) while the machine has a domain and a peer
+// adminApplyHTTPS has the page at <name>.<domain> (its peer's name,
+// unless hi server address named it) while the machine has a domain and a peer
 // carries the page, its own or the server's: the name's record at the
 // peer's address, the domain's wildcard certificate (the one apps'
 // addresses use), and the peer passing 443 on. A name the page had before
@@ -409,27 +458,36 @@ func (s *adminServer) applyHTTPS(config adminConfig) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	name := adminDomainLabel(config) + "." + domain.Domain
-	recordPath := filepath.Join(adminDir(), "https-record.json")
+	recordPath := adminHTTPSRecordFile()
 	var record appHTTPSRecord
 	if data, err := os.ReadFile(recordPath); err == nil {
 		json.Unmarshal(data, &record)
 	}
-	if strings.Join(record.Names, " ") != name || record.IP != ip.String() {
-		records := []libdns.Record{libdns.Address{Name: domain.recordName(name), TTL: appHTTPSTTL, IP: ip}}
-		if _, err := dns.SetRecords(ctx, domain.Zone+".", records); err != nil {
-			return false, fmt.Errorf("setting %s in %s at %s: %w", name, domain.Zone, domain.Provider, err)
+	if strings.Join(record.Names, " ") != name || record.IP != ip.String() || !record.Marked {
+		takenFile := adminHTTPSTakenFile()
+		if why := hiDomainTakenNow(takenFile); why != "" {
+			return false, errors.New(why)
+		}
+		// Only names hi kept before marks are this machine's without one.
+		var mine []string
+		if !record.Marked {
+			mine = record.Names
+		}
+		err := hiDomainKeep(ctx, dns, domain, []string{name}, ip, mine, appHTTPSTTL)
+		hiDomainNoteTaken(takenFile, err)
+		if err != nil {
+			return false, err
 		}
 		// The name it had before, when it was renamed: out of the zone.
-		if old, err := netip.ParseAddr(record.IP); err == nil {
-			for _, was := range record.Names {
-				if was != name && strings.HasSuffix(was, "."+domain.Domain) {
-					if _, err := dns.DeleteRecords(ctx, domain.Zone+".", []libdns.Record{libdns.Address{Name: domain.recordName(was), TTL: appHTTPSTTL, IP: old}}); err != nil {
-						s.logf("removing %s from %s: %v", was, domain.Zone, err)
-					}
+		old, _ := netip.ParseAddr(record.IP)
+		for _, was := range record.Names {
+			if was != name && strings.HasSuffix(was, "."+domain.Domain) {
+				if err := hiDomainDrop(ctx, dns, domain, []string{was}, old, appHTTPSTTL); err != nil {
+					s.logf("removing %s from %s: %v", was, domain.Zone, err)
 				}
 			}
 		}
-		record = appHTTPSRecord{Names: []string{name}, IP: ip.String(), Set: time.Now().UTC()}
+		record = appHTTPSRecord{Names: []string{name}, IP: ip.String(), Marked: true, Set: time.Now().UTC()}
 		data, _ := json.MarshalIndent(record, "", "  ")
 		writeFileAtomic(recordPath, append(data, '\n'), 0o600)
 	}
@@ -531,6 +589,27 @@ func adminCheckDomainLabel(label string) error {
 			for _, name := range domain.addressNames(app, address) {
 				if label+".x" == name {
 					return fmt.Errorf("%s is the app %s's name", label, app)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// appCheckNotPageName refuses an app's name when one of its names under
+// the domain is the admin page's: admin, which older machines keep, or
+// the page's name on this machine.
+func appCheckNotPageName(app string) error {
+	labels := []string{"admin"}
+	if config, ok := loadAdminConfig(); ok {
+		labels = append(labels, adminDomainLabel(config))
+	}
+	domain := hiDomain{Domain: "x"}
+	for _, address := range appHTTPSAddresses {
+		for _, name := range domain.addressNames(app, address) {
+			for _, label := range labels {
+				if name == label+".x" {
+					return fmt.Errorf("%s is the admin page's name (%s.<domain>); pick another for the app", label, label)
 				}
 			}
 		}

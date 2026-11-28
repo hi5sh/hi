@@ -109,13 +109,27 @@ empty). hi keeps the new name's record and removes the old one. It also
 works when the server's peer carries the page: the record points at the
 server's peer, and that peer passes 443 to the page's https socket.
 
+Changed after release 2 (v2.6.282): with no name set, the page has its
+peer's name, `<machine>-server` or `<machine>-admin`, not `admin`. Two
+machines on one domain both wanted `admin.<domain>`. A page that was at
+`admin.<domain>` keeps that name (`adminKeepOldName`).
+
 ## Several machines on one domain
 
 Each machine with the same domain writes only its own apps' names, and
 gets its own copy of the wildcard certificate. Two apps with the same
-name on two machines would want the same names. `hi net domain` already
-refuses a name that a record not made by this machine has. Check this
-before building, and say which machine has the name.
+name on two machines would want the same names.
+
+Built in v2.6.282 (the check that this section asked for was missing:
+`SetRecords` replaced whatever record was there). Beside each A record,
+hi appends a TXT record, `hi machine=<machine> id=<hash of
+/etc/machine-id>`. Before it writes, hi reads the zone and refuses a name
+that has another machine's mark, or an A, AAAA, or CNAME record without
+a mark that points elsewhere. Names in the machine's own `https-record.json`
+from before marks count as its own, and get a mark once. A refused name
+is kept in `https-taken` and shown on the Network view (the app's, or the
+page's address). hi looks at the zone again after 10 minutes, or at once
+after `hi server address`.
 
 ## Who can reach it
 

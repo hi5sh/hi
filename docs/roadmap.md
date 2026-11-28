@@ -6989,6 +6989,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.282 — Machines that share a domain
+
+- [x] With no name set, the admin page's name under the machine's domain
+  is its NetBird peer's, `<machine>-server` or `<machine>-admin`, not
+  `admin`, so machines that share the domain don't want the same name. A
+  page that was at `admin.<domain>` keeps it. **Use admin** leaves the
+  Network view; an empty name is the peer's.
+- [x] Beside each name it keeps, hi puts a TXT record that names the
+  machine. It refuses a name that another machine's mark has, or that a
+  record hi didn't make points elsewhere, and says which on the Network
+  view; `hi server address` refuses it up front. No app can have the
+  page's name.
+
 ### v2.6.281 — Time on the dev pages
 
 - [x] People on the admin page shows each person's time on the apps' dev

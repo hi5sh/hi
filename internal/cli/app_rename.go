@@ -62,8 +62,8 @@ func appRename(args []string, stdin io.Reader, stdout io.Writer) error {
 	if !appNamePattern.MatchString(name) {
 		return fmt.Errorf("an app's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", name)
 	}
-	if name == "admin" {
-		return errors.New("admin is the admin page's name (admin.<domain>); pick another for the app")
+	if err := appCheckNotPageName(name); err != nil {
+		return err
 	}
 	config, err := loadTeam(old)
 	if err != nil {

@@ -100,6 +100,7 @@ func adminServe(stderr io.Writer) error {
 	for _, line := range adminMergeLists() {
 		fmt.Fprintln(stderr, "hi: one list of admins: "+line)
 	}
+	adminKeepOldName()
 	adminUpgradeUnit(stderr)
 	executable, err := adminExecutable()
 	if err != nil {

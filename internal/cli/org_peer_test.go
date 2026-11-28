@@ -804,6 +804,10 @@ func TestServerPeerCarriesTheAdminPage(t *testing.T) {
 	if got := adminURL(config); got != "http://ws1-server.example.net:1984/" {
 		t.Fatalf("the page's links: %s", got)
 	}
+	// Under the machine's domain, the page has the peer's name.
+	if label := adminDomainLabel(config); label != "ws1-server" {
+		t.Fatalf("the page's name under the domain: %s", label)
+	}
 	if !strings.Contains(adminPolicyTarget(config), "the server's peer ws1-server.example.net") || !strings.Contains(adminReachLine(config), "the server's NetBird peer") {
 		t.Fatalf("policy %q, line %q", adminPolicyTarget(config), adminReachLine(config))
 	}

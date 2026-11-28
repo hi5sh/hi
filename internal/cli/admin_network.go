@@ -51,16 +51,19 @@ var adminSnapshotRef = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$`)
 
 // adminAppNetwork is an app's Network section.
 type adminAppNetwork struct {
-	Name      string         `json:"name"`
-	Peer      string         `json:"peer"`
-	Joined    bool           `json:"joined"`
-	Dev       string         `json:"dev"`       // hi app dev <name>: the dev box and its NetBird name
-	Addresses string         `json:"addresses"` // how they're named, in words
-	Mode      string         `json:"mode"`      // domain, netbird, host, or names
-	Host      string         `json:"host,omitempty"`
-	Names     *appNames      `json:"names,omitempty"`
-	Domain    string         `json:"domain,omitempty"` // the machine's apps' domain, when it has one
-	DomainOn  bool           `json:"domain_on"`
+	Name      string    `json:"name"`
+	Peer      string    `json:"peer"`
+	Joined    bool      `json:"joined"`
+	Dev       string    `json:"dev"`       // hi app dev <name>: the dev box and its NetBird name
+	Addresses string    `json:"addresses"` // how they're named, in words
+	Mode      string    `json:"mode"`      // domain, netbird, host, or names
+	Host      string    `json:"host,omitempty"`
+	Names     *appNames `json:"names,omitempty"`
+	Domain    string    `json:"domain,omitempty"` // the machine's apps' domain, when it has one
+	DomainOn  bool      `json:"domain_on"`
+	// Taken says another machine on the domain, or the IT team, has one of
+	// its names there.
+	Taken     string         `json:"taken,omitempty"`
 	AllowIPs  []string       `json:"allow_ips"`
 	SSO       string         `json:"sso"` // hi app sso <name>, in its words
 	Providers []string       `json:"providers"`
@@ -88,7 +91,7 @@ func (s *adminServer) appNetwork(name string, admin adminPerson) (adminAppNetwor
 		return adminAppNetwork{}, fmt.Errorf("no app %q on this machine", name)
 	}
 	view := adminAppNetwork{Name: name, Peer: appPeerKnownName(name), Joined: appPeerJoined(name), Addresses: appAddressesWords(config),
-		DomainOn: config.Domain, AllowIPs: config.AllowIPs, Providers: []string{}, URLs: adminAppOf(name).Addresses,
+		DomainOn: config.Domain, Taken: hiDomainTakenSaid(appHTTPSTakenFile(name)), AllowIPs: config.AllowIPs, Providers: []string{}, URLs: adminAppOf(name).Addresses,
 		SitesCheck: appDevSitesCheckMode(config), SitesPaused: loadTeamDevAccess(name).CheckPaused}
 	if view.AllowIPs == nil {
 		view.AllowIPs = []string{}
@@ -196,16 +199,20 @@ type adminMachineNetwork struct {
 	NetDomain string `json:"net_domain,omitempty"`
 	// The admin page's address: where it is, the machine's domain it may
 	// have a name under, that name, and a name the IT team keeps.
-	PageURL    string            `json:"page_url,omitempty"`
-	PageDomain string            `json:"page_domain,omitempty"`
-	PageName   string            `json:"page_name,omitempty"`
-	PageHost   string            `json:"page_host,omitempty"`
-	HasToken   bool              `json:"has_token"`
-	SSO        string            `json:"sso"` // hi app sso, in its words
-	Providers  []string          `json:"providers"`
-	Apps       []adminAppNetwork `json:"apps"`
-	Expose     string            `json:"expose,omitempty"` // the org server's public URL for cloud runs
-	Ask        string            `json:"ask"`              // all of what to ask the IT team, to send
+	PageURL    string `json:"page_url,omitempty"`
+	PageDomain string `json:"page_domain,omitempty"`
+	PageName   string `json:"page_name,omitempty"`
+	PageHost   string `json:"page_host,omitempty"`
+	// PageDefault is its name when none is set: its peer's. PageTaken
+	// says another machine, or the IT team, has the name.
+	PageDefault string            `json:"page_default,omitempty"`
+	PageTaken   string            `json:"page_taken,omitempty"`
+	HasToken    bool              `json:"has_token"`
+	SSO         string            `json:"sso"` // hi app sso, in its words
+	Providers   []string          `json:"providers"`
+	Apps        []adminAppNetwork `json:"apps"`
+	Expose      string            `json:"expose,omitempty"` // the org server's public URL for cloud runs
+	Ask         string            `json:"ask"`              // all of what to ask the IT team, to send
 	// Sites are what every app's dev box reaches (hi server sites).
 	Sites appDevSitesView `json:"sites"`
 }
@@ -223,6 +230,7 @@ func (s *adminServer) machineNetwork(admin adminPerson) adminMachineNetwork {
 	var ask strings.Builder
 	config, _ := loadAdminConfig()
 	view.PageURL, view.PageName, view.PageHost = adminURL(config), adminDomainLabel(config), config.Host
+	view.PageDefault, view.PageTaken = adminDefaultDomainLabel(config), hiDomainTakenSaid(adminHTTPSTakenFile())
 	if domain, ok := loadHiDomain(); ok && config.Reach != adminReachLocal {
 		view.PageDomain = domain.Domain
 	}
@@ -239,7 +247,7 @@ func (s *adminServer) machineNetwork(admin adminPerson) adminMachineNetwork {
 			continue
 		}
 		view.Apps = append(view.Apps, adminAppNetwork{Name: name, Peer: appPeerKnownName(name), Joined: appPeerJoined(name),
-			Addresses: appAddressesWords(app), DomainOn: app.Domain, AllowIPs: app.AllowIPs})
+			Addresses: appAddressesWords(app), DomainOn: app.Domain, Taken: hiDomainTakenSaid(appHTTPSTakenFile(name)), AllowIPs: app.AllowIPs})
 		if ask.Len() > 0 {
 			ask.WriteString("\n")
 		}

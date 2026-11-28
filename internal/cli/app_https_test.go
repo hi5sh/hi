@@ -68,7 +68,33 @@ func (d *appTestDNS) AppendRecords(ctx context.Context, zone string, recs []libd
 }
 
 func (d *appTestDNS) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	return recs, nil
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	var deleted []libdns.Record
+	for _, rec := range recs {
+		kept := d.records[:0]
+		for _, old := range d.records {
+			if old.RR().Name == rec.RR().Name && old.RR().Type == rec.RR().Type && old.RR().Data == rec.RR().Data {
+				deleted = append(deleted, old)
+				continue
+			}
+			kept = append(kept, old)
+		}
+		d.records = kept
+	}
+	return deleted, nil
+}
+
+// appTestDNSOf is the zone's records of one type.
+func appTestDNSOf(d *appTestDNS, kind string) []libdns.RR {
+	records, _ := d.GetRecords(context.Background(), "")
+	var of []libdns.RR
+	for _, record := range records {
+		if record.RR().Type == kind {
+			of = append(of, record.RR())
+		}
+	}
+	return of
 }
 
 // appTestCert is a certificate of its own for names, as Let's Encrypt's
@@ -182,16 +208,19 @@ func TestTeamHTTPS(t *testing.T) {
 	if err := b.applyHTTPS(); err != nil {
 		t.Fatal(err)
 	}
-	records, _ := dns.GetRecords(context.Background(), "example.com.")
 	var names []string
-	for _, record := range records {
-		if record.RR().Type != "A" || record.RR().Data != ip.String() {
-			t.Fatalf("%+v", record)
+	for _, rr := range appTestDNSOf(dns, "A") {
+		if rr.Data != ip.String() {
+			t.Fatalf("%+v", rr)
 		}
-		names = append(names, record.RR().Name)
+		names = append(names, rr.Name)
 	}
 	if strings.Join(names, " ") != "payments.dev payments-stage.dev payments-preview.dev payments-dev.dev" {
 		t.Fatal(names)
+	}
+	// Each name has this machine's mark beside it.
+	if marks := appTestDNSOf(dns, "TXT"); len(marks) != 4 || marks[0].Name != "payments.dev" || marks[0].Data != hiDomainMark() {
+		t.Fatalf("%+v", marks)
 	}
 	if appInternalURL("payments", appSlotProduction) != "https://payments.dev.example.com/" || appInternalURL("payments", appSlotPreview) != "https://payments-stage.dev.example.com/" ||
 		appInternalURL("payments", appAddressDev) != "https://payments-dev.dev.example.com/" || restarts != 1 || issued != 1 {
@@ -207,7 +236,7 @@ func TestTeamHTTPS(t *testing.T) {
 	// A new address for the peer: its record follows.
 	ip = netip.MustParseAddr("100.100.20.7")
 	b.applyHTTPS()
-	if records, _ := dns.GetRecords(context.Background(), "example.com."); len(records) != 4 || records[0].RR().Data != "100.100.20.7" || dns.sets != 2 || restarts != 1 {
+	if records := appTestDNSOf(dns, "A"); len(records) != 4 || records[0].Data != "100.100.20.7" || dns.sets != 2 || restarts != 1 || len(appTestDNSOf(dns, "TXT")) != 4 {
 		t.Fatalf("%+v %d", records, restarts)
 	}
 	// A failure waits before trying again, not every minute.
@@ -318,7 +347,7 @@ func TestTeamHTTPSFromDevPageOnly(t *testing.T) {
 	if state, _ := loadTeamSlot("payments", appSlotProduction); state.URL != "https://payments.dev.example.com/" || state.Container != "app-1" {
 		t.Fatalf("%+v", state)
 	}
-	if records, _ := hiTestDNS.GetRecords(context.Background(), "example.com."); len(records) != 4 {
+	if records := appTestDNSOf(hiTestDNS.(*appTestDNS), "A"); len(records) != 4 {
 		t.Fatalf("%+v", records)
 	}
 }

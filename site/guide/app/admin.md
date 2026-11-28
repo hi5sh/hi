@@ -387,12 +387,18 @@ port 1984, which needs no root:
   page is on the machine's own NetBird address.
 - **On the machine's NetBird address,** on a machine without podman,
   such as a server's VM: `ws1.corp.example:1984`.
-- **`admin.<domain>`,** on https, when the machine has a domain
+- **`<peer>.<domain>`,** on https, when the machine has a domain
   ([`hi net domain`](/guide/workstation/netbird/)) and a peer carries the
-  page: its own, or the server's. No app can be called `admin`. Another
-  name under the domain: `hi server address console.<domain>`, or
-  **Admin page address** in the page's Network view. hi keeps the name's
-  record and certificate, and takes the old name out of the zone.
+  page: its own (`ws1-admin.<domain>`), or the server's
+  (`ws1-server.<domain>`). The page has the same name on NetBird and in
+  DNS, and machines that share the domain don't want the same name.
+  Another name under the domain: `hi server address console.<domain>`, or
+  **Admin page address** in the page's Network view; `default` goes back
+  to the peer's name. hi keeps the name's record and certificate, and
+  takes the old name out of the zone. hi refuses a name that another
+  machine or your IT team has in the zone. No app can have the page's
+  name, or `admin`. A page that was at `admin.<domain>` before v2.6.282
+  stays there.
 - **A name your IT team picks:** `hi server address admin.corp.example`,
   for an A record to the peer, or their proxy to its port 80;
   `--https` when their proxy ends TLS.

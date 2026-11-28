@@ -4496,6 +4496,8 @@ function sectionNetwork(s) {
   if (s.domain) options.push(["domain", "The domain of this machine, on https"]);
   options.push(["names", "A name for each address, kept by your IT team"], ["host", "One name kept by your IT team, with ports"], ["netbird", s.peer ? "The NetBird name, " + s.peer + ", on plain http" : "The NetBird name of the dev box, on plain http"]);
   parts.push(el("h2", {}, "Addresses"), el("p", { class: "small" }, "Now: " + s.addresses + "."),
+    s.taken ? el("ul", { class: "bullets small error" }, el("li", {}, s.taken + "."), el("li", {}, "hi keeps the app on its NetBird name until the name is free."),
+      el("li", {}, "Rename the app on one of the machines (hi app rename), or ask who has the name.")) : null,
     el("ul", { class: "list" }, ...s.urls.map((u) => el("li", {}, el("span", { class: "what" }, el("strong", {}, u.what), " ", el("span", { class: "muted small" }, u.waits ? "after the dev box joins NetBird" : shown(u.url)))))),
     radios("n-addr", options, mode, (v) => { mode = v; draw(); }), extra,
     el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
@@ -4645,7 +4647,8 @@ function renderMachineNetwork() {
   const apps = el("ul", { class: "list" });
   for (const a of n.apps) {
     apps.append(el("li", {}, el("span", { class: "what" }, el("button", { class: "link-button", onclick: async () => { await openView(a.name); showSection("network"); } }, a.name),
-      el("span", { class: "muted small block" }, (a.joined ? "" : "not on NetBird · ") + (a.peer ? a.peer + " · " : "") + a.addresses + (a.allow_ips && a.allow_ips.length ? " · only " + a.allow_ips.join(", ") : "")))));
+      el("span", { class: "muted small block" }, (a.joined ? "" : "not on NetBird · ") + (a.peer ? a.peer + " · " : "") + a.addresses + (a.allow_ips && a.allow_ips.length ? " · only " + a.allow_ips.join(", ") : "")),
+      a.taken ? el("span", { class: "error small block" }, a.taken) : null)));
   }
   const pName = el("input", { placeholder: "Name, for example google", "aria-label": "Provider name" });
   const pIssuer = el("input", { placeholder: "Issuer, https://…", "aria-label": "Issuer" });
@@ -4681,18 +4684,20 @@ function adminPageAddress(n) {
       el("li", {}, "A name your IT team keeps: hi server address <host>.")));
     return parts;
   }
-  const name = el("input", { value: n.page_name || "admin", placeholder: "admin", "aria-label": "Name of the admin page", pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?", maxlength: "63" });
+  const name = el("input", { value: n.page_name || "", placeholder: n.page_default || "", "aria-label": "Name of the admin page", pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?", maxlength: "63" });
   const save = async () => {
-    const v = name.value.trim().toLowerCase();
-    if (!v || v === (n.page_name || "admin")) return;
+    const v = name.value.trim().toLowerCase() || n.page_default;
+    if (!v || v === n.page_name) return;
     if (!(await ask({ title: "Move the admin page to " + v + "." + n.page_domain + "?", text: "hi puts the new name in the zone and removes the old name. The old address stops working. Open the page at the new address after about a minute.", ok: "Move" }))) return;
-    await netChange("page-address", { name: v });
+    await netChange("page-address", { name: v === n.page_default ? "default" : v });
   };
   name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } });
-  parts.push(el("div", { class: "data-actions page-name" }, name, el("span", { class: "muted" }, "." + n.page_domain), el("button", { class: "small", onclick: save }, "Save"),
-    n.page_name && n.page_name !== "admin" ? el("button", { class: "small", onclick: () => { name.value = "admin"; save(); } }, "Use admin") : null),
+  parts.push(el("div", { class: "data-actions page-name" }, name, el("span", { class: "muted" }, "." + n.page_domain), el("button", { class: "small", onclick: save }, "Save")),
+    n.page_taken ? el("ul", { class: "bullets small error" }, el("li", {}, n.page_taken + "."), el("li", {}, "Pick another name.")) : null,
     el("ul", { class: "bullets small muted" },
+      el("li", {}, "Empty name: hi uses " + n.page_default + ", the name of the page's NetBird peer."),
       el("li", {}, "hi keeps the name in the zone, with the certificate for *." + n.page_domain + "."),
+      el("li", {}, "hi refuses a name that another machine or your IT team has in the zone."),
       el("li", {}, "The NetBird policy to the page needs TCP 443."),
       el("li", {}, "A name your IT team keeps instead: hi server address <host>.")));
   return parts;

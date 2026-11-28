@@ -80,6 +80,13 @@ domain's registered part. hi checks that the token can read the zone
 before it keeps it, in `~/.local/share/hi/domain.json`, which only you
 can read.
 
+Several machines can share one domain. Beside each name, hi puts a TXT
+record that names the machine (`hi machine=ws1 id=…`). hi refuses a name
+that another machine's mark has, or that a record hi didn't make points
+somewhere else. Each app's Network view says which machine has the name.
+That app stays on its NetBird name until the name is free: rename the
+app on one of the machines.
+
 In NetBird's Access Control, let people reach the apps' peers on TCP 443
 as well. See [The addresses on https](/guide/app/dev/#the-addresses-on-https).
 
