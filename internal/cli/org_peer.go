@@ -205,7 +205,7 @@ func updateServerConfig(dir string, change func(*serverConfig) error) (serverCon
 // and 7374 to the server's sockets and a socket to NetBird's SOCKS5 proxy,
 // and NetBird's userspace stack, which hands what reaches the peer to the
 // container's loopback. Its output stays in the container.
-func serverPeerScript(peer serverPeerConfig, joined, page bool) string {
+func serverPeerScript(peer serverPeerConfig, joined, page, pageHTTPS bool) string {
 	up := "netbird up --hostname " + peer.Name + " --disable-dns"
 	if peer.ManagementURL != "" {
 		up += " --management-url " + peer.ManagementURL
@@ -219,6 +219,10 @@ func serverPeerScript(peer serverPeerConfig, joined, page bool) string {
 	if page {
 		// The admin page, at the server's name: one peer for both.
 		forwards += fmt.Sprintf("hi box __forward 127.0.0.1:%d unix:/hi-admin/http.sock & hi box __forward 127.0.0.1:80 unix:/hi-admin/http.sock & ", adminPort)
+		if pageHTTPS {
+			// The page at its name under the machine's domain.
+			forwards += "hi box __forward 127.0.0.1:443 unix:/hi-admin/https.sock & "
+		}
 	}
 	return "exec >>/tmp/peer.log 2>&1; " + forwards + "netbird service run --log-file /tmp/netbird.log & nb=$!; sleep 3; " + up + "; wait $nb"
 }
@@ -264,7 +268,7 @@ func serverKeepPeer(dir string, peer serverPeerConfig, progress io.Writer) error
 	}
 	name := serverPeerContainer(peer.ID)
 	page := serverPeerCarriesPage(dir)
-	script := serverPeerScript(peer, joined, page)
+	script := serverPeerScript(peer, joined, page, page && adminHTTPSDomain() != "")
 	if engine.state(name) == "running" && appContainerLabel(engine, name, "hi.peer") == appPeerStamp(script) {
 		return nil
 	}

@@ -111,8 +111,9 @@ On the server box:
   hi server admins [add <Slack ID> --name <user> [--email E] | remove <user>]
                                        The server's admins: they approve, and run the machine's apps on the admin page
   hi server link [<admin>]             A new sign-in link to the admin page, for 14 days; the old one ends
-  hi server address [<host> [--https] | default]
-                                       The name the IT team keeps for the admin page; admin.<domain> by default
+  hi server address [<host> [--https] | <name>.<domain> | default]
+                                       The admin page's name: one under this machine's domain, which hi keeps
+                                       (admin.<domain> by default), or one the IT team keeps
   hi server mail [set ... | test <address> | off]
                                        How the machine sends email: sign-in links and invitations
   hi server vault [init|unlock|lock|recovery|ls|history|rollback|forget|shared|connect|move]

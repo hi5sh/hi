@@ -102,6 +102,13 @@ address is not set by hand (`adminHasDomain`). A page whose address was
 set by hand (`hi server address <name> --https`) keeps that address until
 it is unset.
 
+Added after release 2 (v2.6.279): the page's name under the domain is a
+setting, `hi server address <name>.<domain>` or **Admin page address**
+in the page's Network view (`domain_name` in `admin.json`; `admin` when
+empty). hi keeps the new name's record and removes the old one. It also
+works when the server's peer carries the page: the record points at the
+server's peer, and that peer passes 443 to the page's https socket.
+
 ## Several machines on one domain
 
 Each machine with the same domain writes only its own apps' names, and

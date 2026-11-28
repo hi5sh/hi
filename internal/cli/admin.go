@@ -71,9 +71,13 @@ type adminConfig struct {
 	Reach string `json:"reach"`
 	// Host is a name the IT team keeps for the page (hi server address),
 	// and HTTPS says their proxy ends TLS for it.
-	Host   string        `json:"host,omitempty"`
-	HTTPS  bool          `json:"https,omitempty"`
-	Admins []adminPerson `json:"admins"`
+	Host  string `json:"host,omitempty"`
+	HTTPS bool   `json:"https,omitempty"`
+	// DomainName is the page's name under the machine's domain (hi net
+	// domain), which hi keeps: console for console.example.com. Empty is
+	// admin.
+	DomainName string        `json:"domain_name,omitempty"`
+	Admins     []adminPerson `json:"admins"`
 	// OrgApart kept the machine's admins apart from the server's, until
 	// hi_server_apps.md release 3 made them one list: loadAdminConfig reads
 	// it as false, and adminMergeLists moves the machine's admins into the
@@ -999,10 +1003,14 @@ func adminAddressCommand(args []string, stdout io.Writer) error {
 	if !ok {
 		return errors.New("the admin page isn't set up on this machine; hi server init sets it up")
 	}
-	usage := usageError{"usage: hi server address [<host> [--https] | default]"}
+	usage := usageError{"usage: hi server address [<host> [--https] | <name>.<this machine's domain> | default]"}
+	domain, hasDomain := loadHiDomain()
 	if len(args) == 0 {
 		fmt.Fprintf(stdout, "The admin page is at %s\n", adminURL(config))
 		if config.Host == "" {
+			if hasDomain {
+				fmt.Fprintf(stdout, "hi server address <name>.%s has it at another name under this machine's domain, which hi keeps.\n", domain.Domain)
+			}
 			fmt.Fprintln(stdout, "hi server address <host> has it at a name your IT team keeps, an A record to its peer or their proxy.")
 		}
 		return nil
@@ -1023,10 +1031,25 @@ func adminAddressCommand(args []string, stdout io.Writer) error {
 	if len(words) != 1 {
 		return usage
 	}
-	if words[0] == "default" {
-		config.Host, config.HTTPS = "", false
-	} else {
-		host := strings.ToLower(strings.TrimSuffix(words[0], "."))
+	host := strings.ToLower(strings.TrimSuffix(words[0], "."))
+	switch {
+	case host == "default":
+		config.Host, config.HTTPS, config.DomainName = "", false, ""
+	case hasDomain && strings.HasSuffix(host, "."+domain.Domain):
+		// A name under the machine's domain: hi keeps its record and
+		// certificate, as for admin.<domain>.
+		label := strings.TrimSuffix(host, "."+domain.Domain)
+		if err := adminCheckDomainLabel(label); err != nil {
+			return err
+		}
+		if https {
+			return errors.New("--https is for a name your IT team keeps; hi has a certificate for " + host)
+		}
+		config.Host, config.HTTPS, config.DomainName = "", false, label
+		if label == "admin" {
+			config.DomainName = ""
+		}
+	default:
 		if err := appCheckHost(host); err != nil {
 			return err
 		}
@@ -1042,6 +1065,8 @@ func adminAddressCommand(args []string, stdout io.Writer) error {
 	fmt.Fprintf(stdout, "The admin page is at %s\n", adminURL(config))
 	if config.Host != "" {
 		fmt.Fprintf(stdout, "Ask your IT team for %s: an A record to %s, or their proxy to it on port 80. The admin page answers there in a minute.\n", config.Host, adminPolicyTarget(config))
+	} else if hasDomain && adminHasDomain(config) {
+		fmt.Fprintf(stdout, "hi puts %s.%s in the zone, at %s, with the certificate for *.%s, in a minute. NetBird's policy to it needs TCP 443.\n", adminDomainLabel(config), domain.Domain, adminPolicyTarget(config), domain.Domain)
 	}
 	return nil
 }

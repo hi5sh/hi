@@ -386,8 +386,11 @@ port 1984, which needs no root:
 - **On the machine's NetBird address,** on a machine without podman,
   such as a server's VM: `ws1.corp.example:1984`.
 - **`admin.<domain>`,** on https, when the machine has a domain
-  ([`hi net domain`](/guide/workstation/netbird/)) and the page has its
-  peer. No app can be called `admin`.
+  ([`hi net domain`](/guide/workstation/netbird/)) and a peer carries the
+  page: its own, or the server's. No app can be called `admin`. Another
+  name under the domain: `hi server address console.<domain>`, or
+  **Admin page address** in the page's Network view. hi keeps the name's
+  record and certificate, and takes the old name out of the zone.
 - **A name your IT team picks:** `hi server address admin.corp.example`,
   for an A record to the peer, or their proxy to its port 80;
   `--https` when their proxy ends TLS.
@@ -441,7 +444,7 @@ hi server link [<admin>]         a new sign-in link, for 14 days; the old one en
 hi server admins [add <Slack ID> --name <user> | remove <user>]
 hi server owner [<Slack ID> --email <address>]
                                  the owner of the server and the machine, who opens terminals; or hand it on
-hi server address [<host> [--https] | default]
+hi server address [<host> [--https] | <name>.<domain> | default]
 hi server mail …, hi server sites …
 ```
 

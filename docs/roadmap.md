@@ -6989,6 +6989,15 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.279 — The admin page's name under the machine's domain
+
+- [x] `hi server address <name>.<domain>` (or **Admin page address** in
+  the Network view) puts the admin page at that name under the machine's
+  domain, in place of `admin.<domain>`: hi keeps the record and the
+  certificate, and removes the old name.
+- [x] It works when the server's peer carries the page: the record points
+  at the server's peer, which passes 443 to the page.
+
 ### v2.6.278 — A restore asks for its keys before it starts
 
 - [x] `hi server restore` refuses empty bucket keys or recovery words

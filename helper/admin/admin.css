@@ -405,3 +405,6 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .bullets li { margin: 2px 0; }
 .table-scroll { max-width: 100%; overflow-x: auto; }
 .row-buttons { display: flex; gap: 4px; }
+/* The admin page's name under the machine's domain: the name, then the domain beside it. */
+.page-name { align-items: center; flex-wrap: wrap; }
+.page-name input { flex: 0 1 16ch; width: 16ch; min-width: 8ch; }

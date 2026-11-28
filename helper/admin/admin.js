@@ -4643,7 +4643,7 @@ function renderMachineNetwork() {
   const pIssuer = el("input", { placeholder: "Issuer, https://…", "aria-label": "Issuer" });
   const pClient = el("input", { placeholder: "Client ID", "aria-label": "Client ID" });
   const pSecret = el("input", { type: "password", placeholder: "Client secret (hi never shows it)", "aria-label": "Client secret" });
-  const parts = [
+  const parts = [...adminPageAddress(n),
     el("h2", {}, "App domain"), el("p", { class: "muted small" }, n.domain ? "Apps can have fixed names under " + n.domain + "." : "NetBird makes up the addresses of the apps. With a domain verified in NetBird, apps get fixed names."),
     el("div", { class: "stack" }, domain, token, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => { await netChange("domain", { name: domain.value.trim(), key: token.value.trim() }); } }, "Save"), n.domain ? el("button", { class: "small", onclick: () => netChange("domain", { name: "off" }) }, "Off") : "")),
     el("h2", {}, "App peers"), apps,
@@ -4657,6 +4657,39 @@ function renderMachineNetwork() {
     el("pre", { class: "job-output copyable" }, n.ask || "Nothing."), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => copyText(n.ask) }, "Copy")));
   box.replaceChildren(...parts);
 }
+// The admin page's own address: where it is, and its name under the
+// machine's domain (hi server address), which hi keeps.
+function adminPageAddress(n) {
+  const parts = [el("h2", {}, "Admin page address"), el("p", { class: "small" }, "Now: ", el("a", { href: n.page_url }, n.page_url))];
+  if (n.page_host) {
+    parts.push(el("ul", { class: "bullets small muted" },
+      el("li", {}, "Your IT team keeps this name."),
+      el("li", {}, "To have hi keep a name under this machine's domain instead: hi server address default, then set the name here.")));
+    return parts;
+  }
+  if (!n.page_domain) {
+    parts.push(el("ul", { class: "bullets small muted" },
+      el("li", {}, "This machine has no domain. With one (hi net domain), the page gets a name under it, on https."),
+      el("li", {}, "A name your IT team keeps: hi server address <host>.")));
+    return parts;
+  }
+  const name = el("input", { value: n.page_name || "admin", placeholder: "admin", "aria-label": "Name of the admin page", pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?", maxlength: "63" });
+  const save = async () => {
+    const v = name.value.trim().toLowerCase();
+    if (!v || v === (n.page_name || "admin")) return;
+    if (!(await ask({ title: "Move the admin page to " + v + "." + n.page_domain + "?", text: "hi puts the new name in the zone and removes the old name. The old address stops working. Open the page at the new address after about a minute.", ok: "Move" }))) return;
+    await netChange("page-address", { name: v });
+  };
+  name.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } });
+  parts.push(el("div", { class: "data-actions page-name" }, name, el("span", { class: "muted" }, "." + n.page_domain), el("button", { class: "small", onclick: save }, "Save"),
+    n.page_name && n.page_name !== "admin" ? el("button", { class: "small", onclick: () => { name.value = "admin"; save(); } }, "Use admin") : null),
+    el("ul", { class: "bullets small muted" },
+      el("li", {}, "hi keeps the name in the zone, with the certificate for *." + n.page_domain + "."),
+      el("li", {}, "The NetBird policy to the page needs TCP 443."),
+      el("li", {}, "A name your IT team keeps instead: hi server address <host>.")));
+  return parts;
+}
+
 // What every app's dev box reaches beyond its own list: the sites an
 // admin allowed, the organisation's domains, and sites several apps'
 // owners allowed, to allow for all.

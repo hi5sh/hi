@@ -667,11 +667,30 @@ func TestAdminAddressAndReach(t *testing.T) {
 		t.Fatal(adminURL(config))
 	}
 	os.WriteFile(adminHTTPSDomainFile(), []byte("corp.example\n"), 0o600)
+	saveHiDomain(hiDomain{Domain: "corp.example", Zone: "corp.example", Provider: "test", Set: time.Now()})
 	if adminURL(config) != "https://admin.corp.example/" {
 		t.Fatal(adminURL(config))
 	}
 	saveAdminConfig(config)
 	var out bytes.Buffer
+	// Another name under the machine's domain: hi keeps it.
+	if err := adminAddressCommand([]string{"console.corp.example"}, &out); err != nil || !strings.Contains(out.String(), "hi puts console.corp.example in the zone") {
+		t.Fatal(err, out.String())
+	}
+	if config, _ = loadAdminConfig(); config.DomainName != "console" || config.Host != "" || adminURL(config) != "https://console.corp.example/" {
+		t.Fatalf("%+v %s", config, adminURL(config))
+	}
+	for _, bad := range [][]string{{"a.b.corp.example"}, {"payments-dev.corp.example"}, {"console.corp.example", "--https"}} {
+		if err := adminAddressCommand(bad, io.Discard); err == nil {
+			t.Errorf("took %q", bad)
+		}
+	}
+	if err := adminAddressCommand([]string{"admin.corp.example"}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if config, _ = loadAdminConfig(); config.DomainName != "" || adminURL(config) != "https://admin.corp.example/" {
+		t.Fatalf("%+v", config)
+	}
 	if err := adminAddressCommand([]string{"admin.it.example", "--https"}, &out); err != nil {
 		t.Fatal(err)
 	}

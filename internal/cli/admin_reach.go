@@ -146,10 +146,47 @@ func adminHTTPSDomain() string {
 	return strings.TrimSpace(string(data))
 }
 
-// adminHasDomain says the page is, or will be, at admin.<domain>.
+// adminDomainLabel is the page's name under the machine's domain: admin,
+// unless hi server address gave it another.
+func adminDomainLabel(config adminConfig) string {
+	return firstNonEmpty(config.DomainName, "admin")
+}
+
+// adminHasDomain says the page is, or will be, at <name>.<domain>: the
+// machine has a domain, no name the IT team keeps is set, and a peer
+// carries the page, its own or the server's.
 func adminHasDomain(config adminConfig) bool {
 	_, ok := loadHiDomain()
-	return ok && config.Reach == adminReachPeer && config.Host == ""
+	return ok && config.Host == "" && (config.Reach == adminReachPeer && adminPeerJoined() || adminServerPeer(config) != "")
+}
+
+// adminDomainTarget is the NetBird address the page's name points at: its
+// own peer's, or the server's peer's when that carries the page.
+func adminDomainTarget(config adminConfig) (netip.Addr, error) {
+	if config.Reach == adminReachPeer && adminPeerJoined() {
+		engine, _, err := detectBoxEngine()
+		if err != nil {
+			return netip.Addr{}, err
+		}
+		_, ip, err := adminPeerStatus(engine)
+		if err != nil || !ip.IsValid() {
+			return netip.Addr{}, errors.New("the peer's NetBird address isn't there yet")
+		}
+		return ip, nil
+	}
+	if dir := adminOrgDir(); dir != "" && adminServerPeer(config) != "" {
+		var name serverPeerName
+		if data, err := os.ReadFile(serverPeerNamePath(dir)); err == nil && json.Unmarshal(data, &name) == nil {
+			if ip, err := netip.ParseAddr(name.Address); err == nil {
+				return ip, nil
+			}
+			if prefix, err := netip.ParsePrefix(name.Address); err == nil {
+				return prefix.Addr(), nil
+			}
+		}
+		return netip.Addr{}, errors.New("the server's peer's NetBird address isn't there yet")
+	}
+	return netip.Addr{}, errors.New("no peer carries the page")
 }
 
 // adminURL is where the admin page is, as its links say.
@@ -159,8 +196,8 @@ func adminURL(config adminConfig) string {
 		return "https://" + config.Host + "/"
 	case config.Host != "":
 		return "http://" + config.Host + "/"
-	case config.Reach == adminReachPeer && adminPeerJoined() && adminHTTPSDomain() != "":
-		return "https://admin." + adminHTTPSDomain() + "/"
+	case adminHasDomain(config) && adminHTTPSDomain() != "":
+		return "https://" + adminDomainLabel(config) + "." + adminHTTPSDomain() + "/"
 	case config.Reach == adminReachPeer && adminPeerJoined():
 		return fmt.Sprintf("http://%s:%d/", adminPeerName(), adminPort)
 	case adminServerPeer(config) != "":
@@ -345,27 +382,25 @@ var adminStopPeer = func() {
 // ---------------------------------------------------------------------------
 // admin.<domain>
 
-// adminApplyHTTPS has the page at admin.<domain> while the machine has a
-// domain and the page has a peer: the name's record at the peer's address,
-// the domain's wildcard certificate (the one apps' addresses use), and the
-// peer passing 443 on. It says whether the peer must run differently.
+// adminApplyHTTPS has the page at <name>.<domain> (admin, unless hi
+// server address named it) while the machine has a domain and a peer
+// carries the page, its own or the server's: the name's record at the
+// peer's address, the domain's wildcard certificate (the one apps'
+// addresses use), and the peer passing 443 on. A name the page had before
+// leaves the zone. It says whether the peer must run differently.
 func (s *adminServer) applyHTTPS(config adminConfig) (bool, error) {
 	domain, ok := loadHiDomain()
 	current := adminHTTPSDomain()
-	if !ok || config.Reach != adminReachPeer || config.Host != "" || !adminPeerJoined() {
+	if !ok || !adminHasDomain(config) {
 		if current != "" {
 			os.Remove(adminHTTPSDomainFile())
 			return true, nil
 		}
 		return false, nil
 	}
-	engine, _, err := detectBoxEngine()
+	ip, err := adminDomainTarget(config)
 	if err != nil {
 		return false, err
-	}
-	_, ip, err := adminPeerStatus(engine)
-	if err != nil || !ip.IsValid() {
-		return false, fmt.Errorf("the peer's NetBird address isn't there yet")
 	}
 	dns, err := domain.provider()
 	if err != nil {
@@ -373,7 +408,7 @@ func (s *adminServer) applyHTTPS(config adminConfig) (bool, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
-	name := "admin." + domain.Domain
+	name := adminDomainLabel(config) + "." + domain.Domain
 	recordPath := filepath.Join(adminDir(), "https-record.json")
 	var record appHTTPSRecord
 	if data, err := os.ReadFile(recordPath); err == nil {
@@ -383,6 +418,16 @@ func (s *adminServer) applyHTTPS(config adminConfig) (bool, error) {
 		records := []libdns.Record{libdns.Address{Name: domain.recordName(name), TTL: appHTTPSTTL, IP: ip}}
 		if _, err := dns.SetRecords(ctx, domain.Zone+".", records); err != nil {
 			return false, fmt.Errorf("setting %s in %s at %s: %w", name, domain.Zone, domain.Provider, err)
+		}
+		// The name it had before, when it was renamed: out of the zone.
+		if old, err := netip.ParseAddr(record.IP); err == nil {
+			for _, was := range record.Names {
+				if was != name && strings.HasSuffix(was, "."+domain.Domain) {
+					if _, err := dns.DeleteRecords(ctx, domain.Zone+".", []libdns.Record{libdns.Address{Name: domain.recordName(was), TTL: appHTTPSTTL, IP: old}}); err != nil {
+						s.logf("removing %s from %s: %v", was, domain.Zone, err)
+					}
+				}
+			}
 		}
 		record = appHTTPSRecord{Names: []string{name}, IP: ip.String(), Set: time.Now().UTC()}
 		data, _ := json.MarshalIndent(record, "", "  ")
@@ -427,12 +472,16 @@ func (s *adminServer) keepReach(ctx context.Context) {
 	var machineAddress string
 	for {
 		config, _ := loadAdminConfig()
-		if config.Reach == adminReachPeer {
+		if config.Reach != adminReachLocal {
 			if changed, err := s.applyHTTPS(config); err != nil {
-				s.logf("the admin page at admin.<domain>: %v", err)
-			} else if changed {
+				s.logf("the admin page at %s.<domain>: %v", adminDomainLabel(config), err)
+			} else if changed && adminPeerJoined() {
 				adminStopPeer() // made again with 443, or without
 			}
+			// The server's peer, when it carries the page, follows by
+			// itself: its script has 443 while the page has a domain.
+		}
+		if config.Reach == adminReachPeer {
 			if err := adminKeepPeer(s.hi); err != nil {
 				s.logf("%v", err)
 			}
@@ -469,3 +518,24 @@ func (s *adminServer) keepReach(ctx context.Context) {
 		}
 	}
 }
+
+// adminCheckDomainLabel checks a name for the page under the machine's
+// domain: one label, and not one of an app's names there.
+func adminCheckDomainLabel(label string) error {
+	if !adminDomainLabelPattern.MatchString(label) {
+		return fmt.Errorf("%q isn't one name under the domain, such as admin or console: small letters, digits and -, no dots", label)
+	}
+	domain := hiDomain{Domain: "x"}
+	for _, app := range adminAppNames() {
+		for _, address := range appHTTPSAddresses {
+			for _, name := range domain.addressNames(app, address) {
+				if label+".x" == name {
+					return fmt.Errorf("%s is the app %s's name", label, app)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+var adminDomainLabelPattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)

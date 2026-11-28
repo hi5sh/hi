@@ -129,7 +129,7 @@ func useFakePeerStatus(t *testing.T, dir string, status func(id string) (string,
 
 func TestServerPeerScript(t *testing.T) {
 	peer := serverPeerConfig{ID: "ab12cd", Name: "ws1-server"}
-	first := serverPeerScript(peer, false, false)
+	first := serverPeerScript(peer, false, false, false)
 	for _, want := range []string{
 		"hi box __forward 127.0.0.1:7373 unix:/hi-server/client-ab12cd.sock",
 		"hi box __forward 127.0.0.1:7374 unix:/hi-server/instance.sock",
@@ -143,19 +143,22 @@ func TestServerPeerScript(t *testing.T) {
 	if strings.Contains(first, "--management-url") {
 		t.Fatal("a management URL nobody gave")
 	}
-	joined := serverPeerScript(peer, true, false)
+	joined := serverPeerScript(peer, true, false, false)
 	if strings.Contains(joined, "--setup-key-file") || appPeerStamp(joined) == appPeerStamp(first) {
 		t.Fatalf("after joining, the key stays:\n%s", joined)
 	}
 	if strings.Contains(first, "/hi-admin/") {
 		t.Fatal("the page's ports on a peer that doesn't carry it")
 	}
-	page := serverPeerScript(peer, true, true)
+	page := serverPeerScript(peer, true, true, false)
 	if !strings.Contains(page, "hi box __forward 127.0.0.1:1984 unix:/hi-admin/http.sock") || !strings.Contains(page, "hi box __forward 127.0.0.1:80 unix:/hi-admin/http.sock") {
 		t.Fatalf("the page isn't on the server's peer:\n%s", page)
 	}
+	if strings.Contains(page, "443") || !strings.Contains(serverPeerScript(peer, true, true, true), "hi box __forward 127.0.0.1:443 unix:/hi-admin/https.sock") {
+		t.Fatalf("443 for the page's name under the domain:\n%s", serverPeerScript(peer, true, true, true))
+	}
 	peer.ManagementURL = "https://netbird.example.net"
-	if !strings.Contains(serverPeerScript(peer, true, false), "--management-url https://netbird.example.net") {
+	if !strings.Contains(serverPeerScript(peer, true, false, false), "--management-url https://netbird.example.net") {
 		t.Fatal("no management URL")
 	}
 	for _, bad := range []string{"https://x.example.net; rm -rf /", "ftp://x", "https://x.example.net/$(id)", "netbird.example.net"} {

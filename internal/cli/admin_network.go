@@ -192,14 +192,20 @@ func (s *adminServer) appData(name string, admin adminPerson) (adminAppData, err
 
 // adminMachineNetwork is the machine's Network view.
 type adminMachineNetwork struct {
-	Domain    string            `json:"domain,omitempty"` // the apps' domain (hi app domain)
-	NetDomain string            `json:"net_domain,omitempty"`
-	HasToken  bool              `json:"has_token"`
-	SSO       string            `json:"sso"` // hi app sso, in its words
-	Providers []string          `json:"providers"`
-	Apps      []adminAppNetwork `json:"apps"`
-	Expose    string            `json:"expose,omitempty"` // the org server's public URL for cloud runs
-	Ask       string            `json:"ask"`              // all of what to ask the IT team, to send
+	Domain    string `json:"domain,omitempty"` // the apps' domain (hi app domain)
+	NetDomain string `json:"net_domain,omitempty"`
+	// The admin page's address: where it is, the machine's domain it may
+	// have a name under, that name, and a name the IT team keeps.
+	PageURL    string            `json:"page_url,omitempty"`
+	PageDomain string            `json:"page_domain,omitempty"`
+	PageName   string            `json:"page_name,omitempty"`
+	PageHost   string            `json:"page_host,omitempty"`
+	HasToken   bool              `json:"has_token"`
+	SSO        string            `json:"sso"` // hi app sso, in its words
+	Providers  []string          `json:"providers"`
+	Apps       []adminAppNetwork `json:"apps"`
+	Expose     string            `json:"expose,omitempty"` // the org server's public URL for cloud runs
+	Ask        string            `json:"ask"`              // all of what to ask the IT team, to send
 	// Sites are what every app's dev box reaches (hi server sites).
 	Sites appDevSitesView `json:"sites"`
 }
@@ -216,6 +222,10 @@ func (s *adminServer) machineNetwork(admin adminPerson) adminMachineNetwork {
 	view.SSO = s.adminHiText(admin.Name, "app", "sso")
 	var ask strings.Builder
 	config, _ := loadAdminConfig()
+	view.PageURL, view.PageName, view.PageHost = adminURL(config), adminDomainLabel(config), config.Host
+	if domain, ok := loadHiDomain(); ok && config.Reach != adminReachLocal {
+		view.PageDomain = domain.Domain
+	}
 	if config.Reach != adminReachLocal {
 		fmt.Fprintf(&ask, "The admin page (%s):\n  - A NetBird policy from the admins' group to %s, TCP %d", adminURL(config), adminPolicyTarget(config), adminPort)
 		if adminHasDomain(config) {
@@ -544,6 +554,25 @@ func (s *adminServer) adminMachineChange(admin adminPerson, change adminSettingC
 		args, said = []string{"server", "sites", "allow", host}, "allowed "+host+" for every app's dev box"
 		if why := strings.TrimSpace(change.Key); why != "" {
 			args = append(args, "--why", why)
+		}
+	case "page-address":
+		// The admin page's name: under the machine's domain, or default.
+		name := strings.ToLower(strings.TrimSpace(change.Name))
+		switch {
+		case name == "" || name == "default":
+			args, said = []string{"server", "address", "default"}, "put the admin page back at its default address"
+		default:
+			domain, ok := loadHiDomain()
+			if !ok {
+				return nil, errors.New("this machine has no domain: hi net domain")
+			}
+			if strings.Contains(name, ".") {
+				return nil, errors.New("one name, such as console: the page is then at console." + domain.Domain)
+			}
+			if err := adminCheckDomainLabel(name); err != nil {
+				return nil, err
+			}
+			args, said = []string{"server", "address", name + "." + domain.Domain}, "moved the admin page to "+name+"."+domain.Domain
 		}
 	case "sites-org":
 		on := "on"

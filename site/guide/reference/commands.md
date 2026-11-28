@@ -136,7 +136,7 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi server admins [add <Slack ID> --name <user> [--email <addr>] \| remove <user>]` | The server's admins: they approve, and run the machine's apps on the admin page |
 | `hi server status`                                                   | The server this device uses, its user, group, and managed providers; on the server's machine, also the admin page's address, whether it answers, and its admins |
 | `hi server link [<admin>]`                                           | A new sign-in link to the admin page, for 14 days; the old one ends |
-| `hi server address [<host> [--https] \| default]`                    | The name the IT team keeps for the admin page; `admin.<domain>` by default |
+| `hi server address [<host> [--https] \| <name>.<domain> \| default]` | The admin page's name: one under the machine's domain, which hi keeps (`admin.<domain>` by default), or one the IT team keeps |
 | `hi server mail …`                                                   | How the machine sends email: sign-in links and invitations; see below |
 | `hi server sites …`                                                  | What every app's dev box reaches beyond its own list; see below |
 | `hi server policy show|edit|example|check`                           | Group limits, auto-approve, and budgets                                                |
