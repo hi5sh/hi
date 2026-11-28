@@ -496,6 +496,10 @@ dot.
   above the chat's box. hi sends the next one when the agent's turn
   ends, also with the page closed. **Steer** sends one now: the agent
   reads it when its current step ends. ✕ takes one out.
+  **Workers**: work Claude Code runs in the background (a command, an
+  agent, a monitor) shows as a pill above the chat's box: **2 workers**.
+  A click shows each one: what it runs and when it started. A worker
+  goes away when Claude Code says it ended.
   **Rewind** is on each of your messages in Chat: under the message,
   with **Copy** and the time it was sent, when the pointer is on it. It
   goes back to before that message, as Claude Code's `/rewind` does: a

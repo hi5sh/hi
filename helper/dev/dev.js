@@ -2102,7 +2102,7 @@
   // read from its transcript; what you write goes to the agent, so the chat
   // and the terminal are one session
   var narrow = window.matchMedia && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
-  var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], resp: null, queue: [], queueOpen: true, turn: 0, spin: 0, composing: false, askSig: "" };
+  var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, workers: [], group: null, busy: false, timer: 0, agent: null, id: "", pending: [], resp: null, queue: [], queueOpen: true, turn: 0, spin: 0, composing: false, askSig: "" };
   // Rewind's points (Claude Code's checkpoints, one for each message you
   // sent), what the page last saw, and the point the dialog is open on.
   var rewind = { points: [], seen: "", open: null };
@@ -2674,6 +2674,7 @@
     $("chat-entries").textContent = "";
     if (state) { chat.sitesSig = null; chatSites(); }
     chat.tools = {};
+    chat.workers = [];
     chat.group = null;
     chat.lastAt = 0;
     chat.pending = [];
@@ -2740,12 +2741,18 @@
   }
   function chatEntry(entry) {
     var box = $("chat-entries");
+    (entry.ended || []).forEach(function (task) { chat.workers = chat.workers.filter(function (w) { return w.task !== task; }); });
+    if (entry.t === "ended") return; // only the workers it ends
     if (entry.t === "title") { $("chat-title").textContent = entry.text; return; }
     var at = entry.at ? Date.parse(entry.at) : 0;
     if (entry.t === "result") {
       var tool = chat.tools[entry.id];
       if (at && chat.group && tool && chat.group.body.contains(tool.box)) { chat.group.end = Math.max(chat.group.end, at); groupLine(chat.group); }
       if (at) chat.lastAt = at;
+      if (entry.task && tool && !chat.workers.some(function (w) { return w.task === entry.task; })) {
+        var call = tool.entry;
+        chat.workers.push({ task: entry.task, name: call.name, summary: call.summary, detail: call.name === "Bash" ? call.detail : "", at: call.at });
+      }
       if (!tool) return;
       tool.result.textContent = entry.text || "(nothing)";
       if (tool.edit && /created/i.test(entry.text || "") && !entry.error) { tool.edit.created = true; renderChanges(chat.resp); }
@@ -2771,7 +2778,7 @@
         entry.detail ? el("pre", { text: entry.detail }) : null,
         result,
       ]);
-      chat.tools[entry.id] = { box: item, result: result, edit: noteEdit(entry) };
+      chat.tools[entry.id] = { box: item, result: result, edit: noteEdit(entry), entry: entry };
       chat.group.body.appendChild(item);
       if ((entry.images || []).length) {
         if (!chat.group.images) { chat.group.images = imageStrip([]); box.appendChild(chat.group.images); }
@@ -3273,6 +3280,7 @@
         atBottom = true;
         if (view.hidden) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.hidden + " earlier steps do not show here. The terminal has the full session." }));
       }
+      if (view.reset) chat.workers = (view.workers || []).slice(); // the ones started before the steps shown
       chat.session = view.session || "";
       chat.sessionAgent = view.session_agent || "claude";
       chat.offset = view.offset || 0;
@@ -3281,6 +3289,7 @@
       if ((view.entries || []).length) { markResponses(); placeChanges(); }
       if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No session in this workspace yet. Start one from a task or in the terminal." }));
       chatState(view);
+      renderWorkers();
       renderQueue(view.queue || []);
       // The timeline again when its messages, or what Claude is doing, change.
       var agent = view.agent || {};
@@ -3681,6 +3690,52 @@
   $("chat-queue-head").addEventListener("click", function () {
     chat.queueOpen = !chat.queueOpen;
     renderQueue(chat.queue);
+  });
+  // ---- Workers: what the agent runs in the background (a command, an
+  // agent, a monitor), from when its tool's result says it started to
+  // Claude Code's word that it ended (app_devchat.go). A pill above the
+  // message box counts them; a click shows each, as in Orca.
+  var WORKER_KINDS = { Bash: "Command", Agent: "Agent", Task: "Agent", Monitor: "Monitor" };
+  function workerWhen(at) {
+    var s = at ? Math.round((Date.now() - Date.parse(at)) / 1000) : 0;
+    if (s < 60) return "now";
+    if (s < 3600) return Math.floor(s / 60) + "m";
+    return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
+  }
+  function renderWorkers() {
+    var agent = chat.agent || {};
+    // The workers end with the agent: none while it is not running.
+    var workers = agent.running ? (chat.workers || []) : [];
+    var box = $("chat-workers");
+    box.hidden = !workers.length;
+    if (!workers.length) { showWorkers(false); return; }
+    $("chat-workers-label").textContent = workers.length + (workers.length === 1 ? " worker" : " workers");
+    $("chat-workers-count").textContent = String(workers.length);
+    var list = $("chat-workers-list");
+    list.textContent = "";
+    workers.forEach(function (w) {
+      var text = w.detail || w.summary || w.task;
+      list.appendChild(el("li", {}, [
+        el("span", { class: "spin", "aria-hidden": "true" }),
+        el("div", { class: "w-body" }, [
+          el("div", { class: "w-kind", text: (WORKER_KINDS[w.name] || w.name || "Task") + (w.detail && w.summary && w.summary !== w.detail ? " · " + w.summary : "") }),
+          el("div", { class: "w-text", title: text, text: text }),
+          el("div", { class: "w-when", text: workerWhen(w.at) }),
+        ]),
+      ]));
+    });
+  }
+  function showWorkers(open) {
+    $("chat-workers-pop").hidden = !open;
+    $("chat-workers-pill").setAttribute("aria-expanded", String(open));
+  }
+  $("chat-workers-pill").addEventListener("click", function () { showWorkers($("chat-workers-pop").hidden); });
+  $("chat-workers-head").addEventListener("click", function () { showWorkers(false); $("chat-workers-pill").focus(); });
+  document.addEventListener("click", function (event) {
+    if (!$("chat-workers-pop").hidden && !$("chat-workers").contains(event.target)) showWorkers(false);
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !$("chat-workers-pop").hidden) { showWorkers(false); $("chat-workers-pill").focus(); }
   });
   // chatQueues says a message goes in the queue: the agent works, or
   // others wait already.

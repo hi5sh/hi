@@ -667,6 +667,24 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .chip.open { flex-wrap: wrap; flex-basis: 100%; }
 .chip pre { flex-basis: 100%; margin: 4px 0 0; padding: 6px 8px; max-height: 220px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm); font: 12px/1.4 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 /* Queued messages (dev.js, renderQueue), above the chat's box, as in Orca. */
+/* Workers: what the agent runs in the background, as a pill above the
+   message box; a click shows them, as in Orca. */
+.chat-workers { position: relative; margin-bottom: 10px; }
+.chat-workers[hidden], .chat-workers-pop[hidden] { display: none; }
+.chat-workers-pill { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 14px 0 12px; border: 1px solid var(--input-line); border-radius: 999px; background: var(--raised); color: var(--bright); font-size: 13.5px; cursor: pointer; }
+.chat-workers-pill:hover, .chat-workers-pill[aria-expanded="true"] { background: var(--hover); }
+.chat-workers-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot-run); }
+.chat-workers-pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 20; max-height: min(50vh, 420px); overflow-y: auto; padding: 8px 10px 6px 14px; background: var(--widget); border: 1px solid var(--input-line); border-radius: var(--r-xl); box-shadow: 0 12px 24px var(--shadow); }
+.chat-workers-head { display: inline-flex; align-items: center; gap: 6px; height: auto; padding: 2px 0; border: 0; background: none; color: var(--bright); font-weight: 500; cursor: pointer; }
+.chat-workers-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.chat-workers-list li { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; }
+.chat-workers-list li + li { border-top: 1px solid var(--line); }
+.chat-workers-list .spin { flex: none; box-sizing: border-box; width: 12px; height: 12px; margin-top: 4px; border-radius: 50%; border: 2px solid var(--dot-run); border-top-color: transparent; animation: spin .9s linear infinite; }
+.chat-workers-list .w-body { flex: 1; min-width: 0; }
+.chat-workers-list .w-kind { color: var(--muted); font-size: 12px; }
+.chat-workers-list .w-text { color: var(--text); overflow-wrap: anywhere; white-space: pre-wrap; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.chat-workers-list .w-when { color: var(--muted); font-size: 12px; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .chat-workers-list .spin { animation: none; border-top-color: var(--dot-run); } }
 .chat-queue { margin-bottom: 10px; padding: 8px 10px 6px 14px; border: 1px solid var(--input-line); border-radius: var(--r-xl); background: var(--raised); }
 .chat-queue-head { display: inline-flex; align-items: center; gap: 6px; height: auto; padding: 2px 0; border: 0; background: none; color: var(--bright); font-weight: 500; cursor: pointer; }
 .chat-queue-head[aria-expanded="false"] svg { transform: rotate(180deg); }

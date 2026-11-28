@@ -6989,6 +6989,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.280 — Workers in the chat
+
+- [x] What Claude Code runs in the background (a command, an agent, a
+  monitor) shows as a pill above the chat's box, **N workers**, as in
+  Orca. A click opens a list of them: what each runs and when it
+  started. Esc or a click outside closes it.
+- [x] A worker starts with its tool's result (`backgroundTaskId`,
+  `taskId`, or an async agent's id) and ends with Claude Code's task
+  notification that has a status, or a monitor that expired. A
+  notification read in the middle of a turn ends it without a note.
+- [x] A long session's workers from before the steps shown come with the
+  first read; none show while the agent is not running.
+
 ### v2.6.279 — The admin page's name under the machine's domain
 
 - [x] `hi server address <name>.<domain>` (or **Admin page address** in

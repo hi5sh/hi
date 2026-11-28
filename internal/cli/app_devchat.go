@@ -45,6 +45,90 @@ type appDevChatEntry struct {
 	// file a tool read or wrote, or one a message names. The page shows
 	// them, as in Orca (api/chat/image).
 	Images []string `json:"images,omitempty"`
+	// Task is the background task a tool's result started (a command,
+	// an agent, a monitor); Ended are those Claude Code says ended.
+	Task  string   `json:"task,omitempty"`
+	Ended []string `json:"ended,omitempty"`
+}
+
+// appDevWorker is a background task of the session that still runs: the
+// chat's workers pill shows them.
+type appDevWorker struct {
+	Task    string    `json:"task"`
+	Name    string    `json:"name"`              // the tool that started it
+	Summary string    `json:"summary,omitempty"` // the tool call in a line
+	Detail  string    `json:"detail,omitempty"`  // the command, for Bash
+	At      time.Time `json:"at,omitzero"`
+}
+
+// appDevWorkers are the workers still running at the end of entries.
+func appDevWorkers(entries []appDevChatEntry) []appDevWorker {
+	tools := map[string]appDevChatEntry{}
+	var workers []appDevWorker
+	for _, entry := range entries {
+		switch {
+		case entry.T == "tool":
+			tools[entry.ID] = entry
+		case entry.T == "result" && entry.Task != "":
+			tool := tools[entry.ID]
+			worker := appDevWorker{Task: entry.Task, Name: tool.Name, Summary: tool.Summary, At: tool.At}
+			if tool.Name == "Bash" {
+				worker.Detail = tool.Detail
+			}
+			workers = append(workers, worker)
+		}
+		for _, task := range entry.Ended {
+			workers = slices.DeleteFunc(workers, func(w appDevWorker) bool { return w.Task == task })
+		}
+	}
+	return workers
+}
+
+var (
+	appDevTaskIDs    = regexp.MustCompile(`<task-id>([^<]+)</task-id>`)
+	appDevTaskStatus = regexp.MustCompile(`<status>([^<]+)</status>`)
+)
+
+// appDevTaskEnded are the tasks a task notification says ended: one with
+// a status (completed, failed, killed, stopped), or a monitor that
+// expired. A monitor's other events, or an agent resumed, have none.
+func appDevTaskEnded(text string) []string {
+	text = strings.TrimSpace(text)
+	if !strings.HasPrefix(text, "<task-notification>") {
+		return nil
+	}
+	m := appDevTaskStatus.FindStringSubmatch(text)
+	expired := strings.Contains(text, "<event>[Monitor expired")
+	if !expired && (m == nil || m[1] == "running") {
+		return nil
+	}
+	var ended []string
+	for _, m := range appDevTaskIDs.FindAllStringSubmatch(text, -1) {
+		ended = append(ended, strings.TrimSpace(m[1]))
+	}
+	return ended
+}
+
+// appDevBackgroundTask is the task a tool's result says it started.
+func appDevBackgroundTask(raw json.RawMessage) string {
+	var result struct {
+		Background string `json:"backgroundTaskId"` // Bash
+		Task       string `json:"taskId"`           // Monitor
+		Async      bool   `json:"isAsync"`          // Agent
+		Agent      string `json:"agentId"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &result) != nil {
+		return ""
+	}
+	switch {
+	case result.Background != "":
+		return result.Background
+	case result.Task != "":
+		return result.Task
+	case result.Async:
+		return result.Agent
+	}
+	return ""
 }
 
 // appDevChatAgent is the agent in a workspace, as herdr sees it.
@@ -90,6 +174,9 @@ type appDevChatView struct {
 	// Queue is the messages that wait for the agent's turn to end
 	// (app_devqueue.go).
 	Queue []appDevQueued `json:"queue,omitempty"`
+	// Workers are the session's background tasks still running, when the
+	// page reads it from the start (Claude Code's only).
+	Workers []appDevWorker `json:"workers,omitempty"`
 }
 
 const (
@@ -420,6 +507,7 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 		Title     string          `json:"aiTitle"`
 		Message   json.RawMessage `json:"message"`
 		UUID      string          `json:"uuid"`
+		Result    json.RawMessage `json:"toolUseResult"`
 		// A message sent while Claude works is an attachment: a queued
 		// command, which Claude reads with its next tool's result.
 		Attachment struct {
@@ -441,8 +529,11 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 	case "attachment":
 		if a := record.Attachment; a.Type == "queued_command" && (a.Mode == "" || a.Mode == "prompt") {
 			if kind, said := appDevChatText(a.Prompt); kind != "" && said != "" {
-				return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID, Images: appDevImages(said, record.CWD)}}
+				return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID, Images: appDevImages(said, record.CWD), Ended: appDevTaskEnded(a.Prompt)}}
 			}
+		} else if ended := appDevTaskEnded(a.Prompt); a.Type == "queued_command" && len(ended) > 0 {
+			// Read in the middle of a turn: no note, only the workers it ends.
+			return []appDevChatEntry{{T: "ended", Ended: ended, At: at}}
 		}
 		return nil
 	case "user", "assistant":
@@ -468,7 +559,7 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 			if kind == "" || said == "" {
 				return nil
 			}
-			return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID, Images: appDevImages(said, record.CWD)}}
+			return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID, Images: appDevImages(said, record.CWD), Ended: appDevTaskEnded(text)}}
 		}
 		return []appDevChatEntry{{T: "text", Text: text, At: at, UUID: record.UUID, Images: appDevImages(text, record.CWD)}}
 	}
@@ -512,12 +603,14 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 		case kind == "tool_result":
 			id, _ := block["tool_use_id"].(string)
 			failed, _ := block["is_error"].(bool)
-			entries = append(entries, appDevChatEntry{T: "result", ID: id, Text: appDevClip(appDevResultText(block["content"]), appDevChatResultMax), Error: failed, At: at})
+			entries = append(entries, appDevChatEntry{T: "result", ID: id, Text: appDevClip(appDevResultText(block["content"]), appDevChatResultMax), Error: failed, At: at,
+				Task: appDevBackgroundTask(record.Result)})
 		}
 	}
 	if len(said) > 0 {
 		if kind, text := appDevChatText(strings.Join(said, "\n")); kind != "" && text != "" {
-			entries = append([]appDevChatEntry{{T: kind, Text: text, At: at, UUID: record.UUID, Images: appDevImages(text, record.CWD)}}, entries...)
+			entries = append([]appDevChatEntry{{T: kind, Text: text, At: at, UUID: record.UUID, Images: appDevImages(text, record.CWD),
+				Ended: appDevTaskEnded(strings.Join(said, "\n"))}}, entries...)
 		}
 	}
 	return entries
@@ -715,6 +808,10 @@ func (b *appBroker) devChatLog(workspace, known, turns string, offset int64) (ap
 		return view, err
 	}
 	view.Offset, view.Reset = next, view.Reset || shrank
+	if offset == 0 && !codex {
+		// The page follows them from here on, by the entries it gets.
+		view.Workers = appDevWorkers(entries)
+	}
 	if offset == 0 && len(entries) > appDevChatFirst {
 		// A long session: the last of it, from a turn's start.
 		cut := len(entries) - appDevChatFirst
